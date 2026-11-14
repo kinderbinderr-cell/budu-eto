@@ -104,6 +104,8 @@ function selectionHint(counts) {
   if (counts.b < 2 && counts.m < 2) return "Для чередования отметьте минимум два завтрака и два основных блюда.";
   if (counts.b < 2) return "Для чередования нужно отметить два разных завтрака.";
   if (counts.m < 2) return "Для чередования нужно отметить два разных основных блюда.";
+  if (!counts.chosen.some(r=>r.slot==="m" && fitsMainSlot(r,2)))
+    return "Пока выбраны только обеденные блюда. Отметьте блюдо с подписью «На ужин» или «Обед или ужин».";
   return "";
 }
 function deckLink(text, action, extra = "") {

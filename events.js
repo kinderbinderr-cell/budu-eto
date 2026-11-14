@@ -64,9 +64,12 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
   const recipe = byId(id);
   if (!manualCandidate(settings(), recipe, slot)) return;
   if (oneDayAnalog ? !dishSimilarity(plan().days[d].meals[slot].r, recipe) : !eligible(settings(), recipe)) return;
-  weekData().replacements[
-    "day:" + d + "-" + slot
-  ] = id;
+  const key="day:"+d+"-"+slot;
+  if (!plan({[key]:id})) {
+    notify("Эта замена не оставляет блюда для чередования. Выберите другое блюдо или добавьте ещё одно в «Что хочется съесть?».");
+    return;
+  }
+  weekData().replacements[key]=id;
   day = d;
   persist();
   const move = route !== "week";
@@ -128,9 +131,9 @@ function makeChoice(el) {
 function finishSetup() {
   draft.strictTaste = true;
   draft.tasteAnchor ??= weekSeed(0);
-  if ([0, 1].some(slot => candidates(draft, slot).length < 2)) {
-    document.getElementById("setup-error").textContent =
-      "Чтобы чередовать блюда, нужны два подходящих завтрака и два основных блюда.";
+  const hint=selectionHint(selectedCounts(tastePool(draft),draft.votes));
+  if (hint) {
+    document.getElementById("setup-error").textContent = hint;
     return;
   }
   if (draft.mode === "personal")

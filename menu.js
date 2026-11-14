@@ -693,30 +693,43 @@ function candidates(s, slot) {
     (r) => r.slot === (slot === 0 ? "b" : "m") && eligible(s, r),
   );
 }
+const familyCache = new WeakMap();
+function mainFamily(r) {
+  if (familyCache.has(r)) return familyCache.get(r);
+  const grams = [...r.items].sort((a,b)=>b[1]-a[1]);
+  const protein = key => {
+    if (key.startsWith("chicken") || key==="turkey") return "птица";
+    if (FOOD[key].slice(5).includes("fish")) return "рыба";
+    if (key==="squid") return "морепродукты";
+    if (/^(beef|cannedBeef|pelmeni)/.test(key)) return "говядина";
+    if (/^(pork|mincedPork|bacon|ham$|smokedPork|smokedSausage|frankfurters)/.test(key)) return "свинина";
+    if (key==="lamb") return "баранина";
+    return null;
+  };
+  const mainProtein = grams.find(([k])=>protein(k));
+  const title = r.title.toLowerCase();
+  const family = mainProtein ? protein(mainProtein[0])
+    : /омлет|фриттата|скр[эе]мбл|шакшук|яичниц/.test(title) ? "яйца"
+    : /творож|сырник|из творога/.test(title) && grams.slice(0,2).some(([k])=>k==="curd") ? "творог"
+    : (grams.find(([k])=>!["milk","kefir","ryazhenka","cream","sourCream","yogurt"].includes(k)) || grams[0])[0];
+  const grouped = FOOD[family]?.slice(5).includes("legumes") ? "бобовые"
+    : ["mushroom","chanterelle","oysterMushroom","driedPorcini"].includes(family) ? "грибы"
+    : family==="egg" ? "яйца" : family==="curd" ? "творог" : family;
+  familyCache.set(r,grouped);
+  return grouped;
+}
 function tasteAffinity(r, likes = []) {
+  if (!likes.length) return 0;
   const ingredients = r.items.map(([k]) => k);
   const matches = {
-    chicken: ingredients.includes("chicken"),
-    fish: r.diet === "pesc",
-    greens: r.diet === "vegan" && r.slot === "m",
-    pasta: ingredients.some((k) =>
-      ["pasta", "orzo", "buck", "rice"].includes(k),
-    ),
-    soups: ["lentils", "pumpkinSoup"].includes(r.id),
+    chicken: ingredients.some(k=>k.startsWith("chicken")),
+    fish: mainFamily(r)==="рыба",
+    greens: r.diet==="vegan" && r.slot==="m",
+    pasta: ingredients.some(k=>["pasta","orzo","buck","rice","vermicelli","pastaShells","pastaNests","buckwheatNoodles"].includes(k)),
+    soups: /суп|^борщ|^щи |^уха |^окрошка|^солянка|^рассольник|^свекольник|похл[её]бка|юшка|^капустняк|^кулеш/.test(r.title.toLowerCase()),
     curd: ingredients.includes("curd"),
   };
-  return likes.reduce((score, k) => score + (matches[k] ? 1 : 0), 0);
-}
-function mainFamily(r) {
-  const keys = r.items.map(([key]) => key);
-  if (keys.includes("chicken")) return "птица";
-  if (keys.includes("fish") || keys.includes("salmon")) return "рыба";
-  if (keys.some((k) => ["bean", "chick", "lentil"].includes(k)))
-    return "бобовые";
-  if (keys.includes("egg") && !keys.includes("curd")) return "яйца";
-  if (keys.includes("mushroom")) return "грибы";
-  if (keys.includes("curd")) return "творог";
-  return keys[0];
+  return likes.reduce((score,k)=>score+Number(Boolean(matches[k])),0);
 }
 function mealRole(r) {
   if (r.mealRole) return r.mealRole;
@@ -725,11 +738,32 @@ function mealRole(r) {
   if (["tray","fish","mustardChicken","lemonPollock","herbChickenRolls","pollockCakes","pumpkinSalmon"].includes(r.id)) return "dinner";
   return "either";
 }
+function fitsMainSlot(r,slot) {
+  const role=mealRole(r);
+  return role==="either" || role===(slot===1?"lunch":"dinner");
+}
 function slotPool(pool,slot) {
-  if(slot===0) return pool;
-  const wanted=slot===1?"lunch":"dinner";
-  const compatible=pool.filter(r=>mealRole(r)===wanted || mealRole(r)==="either");
+  if (!slot) return pool;
+  const compatible=pool.filter(r=>fitsMainSlot(r,slot));
   return compatible.length ? compatible : pool;
+}
+// Choose dinner where possible while leaving a distinct, suitable lunch.
+// Apply before novelty, price or taste scores may consume the only flexible dish.
+function dinnerPool(pool) {
+  const dinners=slotPool(pool,2);
+  const lunches=pool.filter(r=>fitsMainSlot(r,1));
+  if (lunches.length!==1) return dinners;
+  const reservingLunch=dinners.filter(r=>r!==lunches[0]);
+  return reservingLunch.length ? reservingLunch : dinners;
+}
+// Record what appeared on the plate, including manual edits and non-cooking days.
+function rememberWeek(prior,p) {
+  for (const day of p.days) for (const [slot,{r}] of day.meals.entries()) {
+    const entry=prior.get(r.id) || {uses:0,dinners:0};
+    entry.uses++;
+    if (slot===2) entry.dinners++;
+    prior.set(r.id,entry);
+  }
 }
 function cookSlot(s, d, slot) {
   if (!slot || !s.rotateBatches || (d - groupStart(s, d)) % 2 === 0)
@@ -775,6 +809,48 @@ function cyclePool(pool, perWeek, phase, seed) {
   }
   return ordered.slice(0, count);
 }
+function smallMainPair(mains,absoluteDay) {
+  const phase=((absoluteDay%3)+3)%3;
+  const pattern=mains.length===2 ? [[0,0],[0,1],[1,1]] : [[0,1],[0,2],[1,2]];
+  const pair=pattern[phase].map(n=>mains[n]);
+  const score=(a,b)=>Number(fitsMainSlot(a,1))+Number(fitsMainSlot(b,2));
+  if (score(pair[1],pair[0])>score(pair[0],pair[1])) pair.reverse();
+  return pair;
+}
+function pinnedMeal(s,swaps,d,i) {
+  const key=swaps["day:"+d+"-"+i] ?? swaps[groupStart(s,d)+"-"+cookSlot(s,d,i)];
+  if (!key) return null;
+  const r=RECIPES.find(r=>r.id===key);
+  return manualCandidate(s,r,i) ? r : null;
+}
+// With just two liked mains, a manual edit can otherwise use up both on two
+// successive days. Plan these 14 slots together and minimise changes to other meals.
+function twoMainSchedule(s,mains,week,swaps,previous) {
+  const bit=r=>r===mains[0]?1:r===mains[1]?2:0;
+  const masks=previous.slice(-2).map(d=>d.meals.reduce((n,m)=>n|bit(m.r),0));
+  const pins=DAYS.map((_,d)=>[pinnedMeal(s,swaps,d,1),pinnedMeal(s,swaps,d,2)]);
+  const memo=new Map();
+  function search(d,older,last) {
+    // Leave at least one automatic main available for next Monday.
+    if(d===7) return (older&last)===3 ? null : {cost:0,days:[]};
+    const key=d*16+older*4+last;
+    if(memo.has(key)) return memo.get(key);
+    const wanted=smallMainPair(mains,week*7+d), [l,u]=pins[d];
+    let best=null;
+    for(const a of l?[l]:mains) for(const b of u?[u]:mains) {
+      const blocked=older&last;
+      if ((!l&&(bit(a)&blocked)) || (!u&&(bit(b)&blocked))) continue;
+      const next=search(d+1,last,bit(a)|bit(b));
+      if(!next)continue;
+      const cost=next.cost+10*(Number(!l&&a!==wanted[0])+Number(!u&&b!==wanted[1]))+
+        Number(!fitsMainSlot(a,1))+Number(!fitsMainSlot(b,2))+Number(a===b);
+      if(!best||cost<best.cost) best={cost,days:[[a,b],...next.days]};
+    }
+    memo.set(key,best);
+    return best;
+  }
+  return search(0,masks.at(-2)||0,masks.at(-1)||0)?.days;
+}
 function planWeek(
   s,
   weekOffset = 0,
@@ -799,6 +875,8 @@ function planWeek(
     : pools;
   // Spread each meal role across both calendar windows, even with a small list of likes.
   const orderedMains = [...pools[1]].sort((a,b)=>mealRole(a).localeCompare(mealRole(b)));
+  const twoMains = orderedMains.length===2 ? twoMainSchedule(s,orderedMains,weekOffset,replacements,precedingDays) : null;
+  if (orderedMains.length===2 && !twoMains) return null;
   const used = new Map(),
     days = [],
     counts = {},
@@ -833,7 +911,8 @@ function planWeek(
         }
         if(slot>0) {
           const windowOptions = allowedWindow.filter(r=>slot!==1 || r!==picks[2]);
-          const suitable = slotPool(windowOptions.length ? windowOptions : allowedWindow,slot);
+          const options = windowOptions.length ? windowOptions : allowedWindow;
+          const suitable = slot===2 ? dinnerPool(options) : slotPool(options,slot);
           const preferred = pool.filter(r=>suitable.includes(r));
           pool = preferred.length ? preferred : suitable;
         }
@@ -923,18 +1002,10 @@ function planWeek(
     for (let i = 0; i < picks.length; i++) {
       const sourceSlot = cookSlot(s, d, i);
       const pool = pools[i === 0 ? 0 : 1];
-      const manualId = replacements["day:" + d + "-" + i] ?? replacements[start + "-" + sourceSlot];
-      const manual = manualId && RECIPES.find(candidate => candidate.id === manualId);
-      const chosen = manualCandidate(s, manual, i) ? manual : null;
+      const chosen = pinnedMeal(s,replacements,d,i);
       let r = chosen || picks[i];
-      if (!chosen && i>0 && orderedMains.length<=3) {
-        const phase=((absoluteDay%3)+3)%3;
-        const pairs=orderedMains.length===2 ? [[0,0],[0,1],[1,1]] : [[0,1],[0,2],[1,2]];
-        const pair=pairs[phase].map(n=>orderedMains[n]);
-        const fit=(recipe,slot)=>Number(mealRole(recipe)===(slot===1?"lunch":"dinner"));
-        if(fit(pair[1],1)+fit(pair[0],2)>fit(pair[0],1)+fit(pair[1],2)) pair.reverse();
-        r=pair[i-1];
-      }
+      if (!chosen && i>0 && orderedMains.length<=3)
+        r=(twoMains ? twoMains[d] : smallMainPair(orderedMains,absoluteDay))[i-1];
       if (!chosen && repeated.has(r.id)) {
         const available = pool.filter(candidate => !repeated.has(candidate.id));
         const suitable = slotPool(available,i);

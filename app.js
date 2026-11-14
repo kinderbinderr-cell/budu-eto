@@ -180,6 +180,7 @@ function plan(preview = null) {
   let first = seed - phaseOf(seed);
   // A manual edit may affect subsequent days. Rebuild its history from the
   // beginning of the preceding cycle, with ordinary weeks still taking one to three passes.
+  if (preview && Object.keys(preview).length) first=Math.min(first,seed-1-phaseOf(seed-1));
   for (const [key, record] of Object.entries(data.weeks)) {
     if (!key.startsWith(data.mode + "/") || !Object.keys(record.replacements || {}).length) continue;
     const [y, m, d] = key.split("/")[1].split("-").map(Number);
@@ -201,15 +202,7 @@ function plan(preview = null) {
     if (n === seed) break;
     if (!value) { previous = []; continue; }
     previous = value.days.slice(-2);
-    for (const day of value.days) {
-      if (!day.pickDay) continue;
-      for (const [slot, { r }] of day.meals.entries()) {
-        const entry = prior.get(r.id) || { uses: 0, dinners: 0 };
-        entry.uses++;
-        if (slot === 2) entry.dinners++;
-        prior.set(r.id, entry);
-      }
-    }
+    rememberWeek(prior,value);
   }
   if (!preview) lastPlan = { signature, value };
   return value;
@@ -275,12 +268,9 @@ function header() {
 function weekControls() {
   return `<div class="week-control">${iconBtn("left", "Предыдущая неделя", "prev")}<span>${rangeText()}</span>${iconBtn("right", "Следующая неделя", "next")}${offset ? `<button class="link todaylink" type="button" data-action="thisweek">Текущая неделя</button>` : ""}</div>`;
 }
-function hero() {
+function hero(p) {
   const s = settings();
-  const r = byId("shakshuka");
-  const showcase = eligible(s, r)
-    ? r
-    : candidates(s, 1)[0] || candidates(s, 0)[0];
+  const showcase = p && (p.days.flatMap(d=>d.meals).find(m=>m.r.id==="shakshuka")?.r || p.days[day].meals[2].r);
   const isCover = showcase?.id === "shakshuka";
   return `<section class="cover ${isCover ? "signature" : "alternate"}">${showcase ? `<img class="cover-image" src="${isCover ? "assets/skillet-cover.webp" : photo(showcase)}" alt="" fetchpriority="high">` : ""}<div class="cover-copy"><h1>Меню <em>на неделю</em></h1><p>${s.mode === "family" ? `${icon("users", 16)} ${profileName(s)} <span>·</span> ${portions(servings(s))}` : `${icon("user", 16)} Личный рацион <span>·</span> ${activePortionTargets(s) ? "Свои диапазоны КБЖУ" : s.plainPortion ? "1 порция" : energy(s).toLocaleString("ru-RU") + " ккал в день"}`}</p>${s.maxMinutes ? `<p>Блюда до ${s.maxMinutes} минут</p>` : ""}${button("Выбрать ещё блюда", "discover", "apricot", "heart")}</div>${showcase ? `<button class="cover-credit" type="button" data-action="recipe" data-id="${showcase.id}">${showcase.title} ${icon("open", 16)}</button>` : ""}</section>`;
 }
@@ -293,9 +283,17 @@ function threeWeekTabs() {
   return `<div class="three-weeks" aria-label="Ближайшие три недели">${[0, 1, 2].map((i) => `<button type="button" data-action="jump-week" data-value="${i}" aria-pressed="${offset === i}">Неделя ${i + 1}<small>${dateText(dateAt(0, i), { day: "numeric", month: "short" })} – ${dateText(dateAt(6, i), { day: "numeric", month: "short" })}</small></button>`).join("")}</div>`;
 }
 function weekVariety(p) {
-  if (!p || !settings().strictTaste || !p.phase) return "";
-  const count = p.newCount;
-  return `<div class="week-variety"><span>${count ? "Впервые в этом трёхнедельном меню: " + count + " " + plural(count, "блюдо", "блюда", "блюд") + "." : "На этой неделе повторяются блюда из вашего выбора."}</span> <button type="button" class="link" data-action="discover">Выбрать ещё</button></div>`;
+  if (!p || !settings().strictTaste) return "";
+  const notes=[];
+  if (p.days.some(d=>!d.meals[2].manual && !fitsMainSlot(d.meals[2].r,2)))
+    notes.push("Для части ужинов взяли блюда из обеденного выбора. Отметьте ещё пару блюд на ужин, чтобы чередовать их.");
+  else if (p.days.some(d=>!d.meals[1].manual && !fitsMainSlot(d.meals[1].r,1)))
+    notes.push("На некоторые обеды поставили блюда из выбора на ужин. Для большего разнообразия отметьте ещё пару блюд на обед.");
+  if (p.days.some(d=>d.meals[1].r===d.meals[2].r && !d.meals[1].manual && !d.meals[2].manual))
+    notes.push("Иногда обед и ужин совпадают. Для разных блюд в один день выберите хотя бы три основных.");
+  const count=p.newCount;
+  if (p.phase) notes.push(count ? "Впервые в этом трёхнедельном меню: "+count+" "+plural(count,"блюдо","блюда","блюд")+"." : "На этой неделе повторяются блюда из вашего выбора.");
+  return notes.length ? `<div class="week-variety"><span>${notes.join(" ")}</span> <button type="button" class="link" data-action="discover">Выбрать ещё</button></div>` : "";
 }
 function calendar(p) {
   return `<section class="calendar" aria-label="Выбор дня недели"><div class="week-line"><div class="week-link-group"><h2>План на неделю</h2><button type="button" class="link" data-action="all-week">Все 7 дней ${icon("right", 14)}</button></div>${weekControls()}</div>${threeWeekTabs()}${weekVariety(p)}<div class="dates">${DAYS.map(
@@ -349,7 +347,7 @@ function weekSummary(p) {
 }
 function weekPage() {
   const p = plan();
-  return `<div class="wrap page">${hero()}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p)}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2><p class="quiet">${prepNote(p)}</p></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} КБЖУ дня</button>` : ""}</div><div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div></section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
+  return `<div class="wrap page">${hero(p)}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p)}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2><p class="quiet">${prepNote(p)}</p></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} КБЖУ дня</button>` : ""}</div><div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div></section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
 }
 function emptyPlan() {
   return `<div class="empty"><h2>Добавьте блюда для чередования</h2><p>Для недельного меню нужны минимум два подходящих завтрака и два основных блюда.</p>${button("Выбрать блюда", "discover", "primary", "heart")}</div>`;

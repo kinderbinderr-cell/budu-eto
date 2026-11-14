@@ -335,9 +335,9 @@ function submitFlow() {
       return;
     }
     const trial = flowProfile(f);
-    if ([0, 1].some(slot => candidates(trial, slot).length < 2)) {
-      error.textContent =
-        "Для чередования нужны два завтрака и два основных блюда, которые укладываются в выбранное время. Добавьте блюда или выберите больше времени.";
+    const hint = selectionHint(selectedCounts(tastePool(trial),trial.votes));
+    if (hint) {
+      error.textContent = hint+" С выбранным лимитом времени можно вернуться к блюдам или увеличить лимит.";
       return;
     }
   }
