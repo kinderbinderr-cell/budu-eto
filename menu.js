@@ -654,6 +654,119 @@ function applyDailyTargets(s,meals) {
     meal.f=meal.personFactors.reduce((sum,f)=>sum+f,0);
   });
 }
+// Lower bounds for the relative miss: even independently scaled portions must
+// lie within these nutrient and nutrient-ratio intervals. Zero means "worth solving".
+function pairPortionSearch(targets) {
+  const cache = new Map();
+  const features = new Map();
+  const dimensions = [];
+  for (const target of targets) {
+    for (const [i, range] of target.entries()) {
+      if (!range) continue;
+      dimensions.push({i, j:null, range});
+      for (let j=0; j<i; j++) {
+        if (target[j]) dimensions.push({i,j,range:[range[0]/target[j][1],range[1]/target[j][0]]});
+      }
+    }
+  }
+  function values(r) {
+    if (!features.has(r)) {
+      const v=[r.kcal,...r.macros];
+      features.set(r,dimensions.map(({i,j})=>j===null?v[i]:v[i]/v[j]));
+    }
+    return features.get(r);
+  }
+  function lowerBound(a,b,c,cutoff) {
+    let worst=0;
+    for (let k=0; k<dimensions.length; k++) {
+      const {j,range:[lo,hi]}=dimensions[k];
+      const min = j===null ? 0.4*(a[k]+b[k]+c[k]) : Math.min(a[k],b[k],c[k]);
+      const max=j===null?2.5*(a[k]+b[k]+c[k]):Math.max(a[k],b[k],c[k]);
+      const gap=j===null ? Math.max((lo-max)/lo,(min-hi)/hi,0)
+        : Math.max((lo-max)/(lo+max),(min-hi)/(min+hi),0);
+      worst=Math.max(worst,gap);
+      if(worst>cutoff) break;
+    }
+    return worst;
+  }
+  function assess(recipes) {
+    const key=recipes.map(r=>r.id).join("/");
+    if (cache.has(key)) return cache.get(key);
+    const meals=recipes.map(r=>({r}));
+    const portions=targets.map(row=>fitDailyPortions(meals,row));
+    let worst=0,sum=0;
+    for(const [i,row] of targets.entries()) {
+      const actual=mealNutrients(meals,portions[i]);
+      for(const [j,range] of row.entries()) {
+        if(!range) continue;
+        const gap=nutrientGap(actual[j],range);
+        worst=Math.max(worst,gap);
+        sum+=gap;
+      }
+    }
+    const result={portions,worst,sum};
+    // Full catalogue profiles can test different triples on each week.
+    if(cache.size>=12000) cache.clear();
+    cache.set(key,result);
+    return result;
+  }
+  return {values,lowerBound,assess};
+}
+function mealNutrients(meals,portions) {
+  const totals=[0,0,0,0];
+  meals.forEach(({r},i)=>{
+    totals[0]+=r.kcal*portions[i];
+    r.macros.forEach((x,j)=>{totals[j+1]+=x*portions[i];});
+  });
+  return totals;
+}
+function nutrientGap(value,[lo,hi]) {
+  if(value<lo-1e-7) return (lo-value)/lo;
+  if(value>hi+1e-7) return (value-hi)/hi;
+  return 0;
+}
+function pairDayMeals(search,meals,options,priority) {
+  const base=meals.map(m=>m.r);
+  const ranked=options.map((pool,slot)=>pool.map(r=>({
+    r, priority:priority(r,slot), vector:search.values(r)
+  })).sort((a,b)=>a.priority-b.priority));
+  const combinations=ranked.reduce((n,pool)=>n*pool.length,1);
+  // Exhaust typical decks. Bound the work for large catalogues on mobile clients.
+  const choices=ranked.map(pool=>combinations<=18000?pool:pool.slice(0,22));
+  const distinct=choices[1].some(lunch=>choices[2].some(dinner=>lunch.r!==dinner.r));
+  const permitted=(lunch,dinner)=>!distinct || lunch!==dinner;
+  const baselineAllowed=base.every((r,i)=>options[i].includes(r)) && permitted(base[1],base[2]);
+  let best=baselineAllowed ? search.assess(base) : {worst:Infinity,sum:Infinity};
+  let selected=base;
+  let bestPriority=baselineAllowed ? base.reduce((sum,r,i)=>sum+priority(r,i),0) : Infinity;
+  const queue=[];
+  for(const breakfast of choices[0]) for(const lunch of choices[1]) for(const dinner of choices[2]) {
+    if(!permitted(lunch.r,dinner.r)) continue;
+    const bound=search.lowerBound(breakfast.vector,lunch.vector,dinner.vector,best.worst);
+    if(bound>best.worst+1e-10) continue;
+    const order=breakfast.priority+lunch.priority+dinner.priority;
+    queue.push({recipes:[breakfast.r,lunch.r,dinner.r],bound,order});
+  }
+  queue.sort((a,b)=>a.bound-b.bound || a.order-b.order);
+  let attempts=0;
+  for (const {recipes,bound,order} of queue) {
+    if(bound>best.worst+1e-10) break;
+    if(best.worst===0 && order>=bestPriority) break;
+    if(combinations>18000 && ++attempts>160) break;
+    const fit=search.assess(recipes);
+    if(fit.worst<best.worst || (fit.worst===best.worst &&
+       (fit.sum<best.sum || (fit.sum===best.sum && order<bestPriority)))) {
+      best=fit; selected=recipes; bestPriority=order;
+    }
+  }
+  meals.forEach((m,i)=>{
+    m.r=selected[i];
+    m.personFactors=best.portions.map(row=>row[i]);
+    m.f=m.personFactors[0]+m.personFactors[1];
+  });
+  return best.worst;
+}
+
 function factor(s, r, slot) {
   return s.mode === "personal" && !s.plainPortion
     ? (energy(s) * [0.27, 0.36, 0.37][slot]) / r.kcal
@@ -875,6 +988,26 @@ function planWeek(
     : pools;
   // Spread each meal role across both calendar windows, even with a small list of likes.
   const orderedMains = [...pools[1]].sort((a,b)=>mealRole(a).localeCompare(mealRole(b)));
+  const goals=activePortionTargets(s);
+  const pairSearch=goals?.length===2 ? pairPortionSearch(goals) : null;
+  const timesServed=new Map();
+  const pairMisses=[];
+  const cycle=((weekOffset-(s.tasteAnchor||0))%3+3)%3;
+  const pairCycleStart=!s.strictTaste || cycle===0;
+  const pairCycleEnd=!s.strictTaste || cycle===2;
+  // Split each culinary role across the absolute two-day calendar windows.
+  // Both sides contain a mix of protein densities. The same split on Saturday,
+  // Sunday and Monday protects a three-day streak across independently opened cycles.
+  const boundarySide=new Map();
+  if(pairSearch) {
+    [...pools[0]].sort((a,b)=>b.macros[0]/b.kcal-a.macros[0]/a.kcal)
+      .forEach((r,index)=>boundarySide.set(r,index%2));
+    let index=0;
+    for(const role of ["lunch","dinner","either"]) {
+      orderedMains.filter(r=>mealRole(r)===role).sort((a,b)=>b.macros[0]/b.kcal-a.macros[0]/a.kcal)
+        .forEach(r=>boundarySide.set(r,index++%2));
+    }
+  }
   const twoMains = orderedMains.length===2 ? twoMainSchedule(s,orderedMains,weekOffset,replacements,precedingDays) : null;
   if (orderedMains.length===2 && !twoMains) return null;
   const used = new Map(),
@@ -1014,7 +1147,29 @@ function planWeek(
       }
       meals.push({ r, f: factor(s,r,i), sourceSlot: chosen ? sourceSlot : i, manual: Boolean(chosen) });
     }
-    applyDailyTargets(s,meals);
+    if (pairSearch) {
+      const groups=[pools[0],orderedMains,orderedMains];
+      const guardedBoundary=(pairCycleStart && d<2) || (pairCycleEnd && d>=5);
+      const boundaryParity=groupParity;
+      const options=meals.map((m,i)=>{
+        if (m.manual || (i>0 && orderedMains.length<=3)) return [m.r];
+        const group=groups[i];
+        // The calendar parity at week boundaries also protects weeks opened directly.
+        const available=group.filter(r=>!repeated.has(r.id));
+        const restricted=guardedBoundary ? available.filter(r=>boundarySide.get(r)===boundaryParity) : available;
+        const pool=restricted.length?restricted:available;
+        return i===0 ? pool : slotPool(pool,i);
+      });
+      const leftovers=!pickDay && days.at(-1)?.meals;
+      const priority=(r,slot)=>{
+        const use=(timesServed.get(r)||0)+(prior?.get(r.id)?.uses||0)*.7;
+        const match=leftovers && r===leftovers[slot].r ? -100 : (r===meals[slot].r ? -4 : 0);
+        return use*6 + match + (economize ? Math.min(12,economize)*r.cost/30 : 0)
+          + ((RECIPES.indexOf(r)*17+(absoluteDay+300)*31+slot*7)%43)/43;
+      };
+      pairMisses.push(pairDayMeals(pairSearch,meals,options,priority));
+      for(const {r} of meals) timesServed.set(r,(timesServed.get(r)||0)+1);
+    } else applyDailyTargets(s,meals);
     for (const {r,f} of meals) {
       for (const [key, g] of r.items) counts[key] = (counts[key] || 0) + g * f;
       daily.forEach((_, j) => (daily[j] += r.macros[j] * f));
@@ -1035,5 +1190,5 @@ function planWeek(
   const newCount = [
     ...new Set(days.flatMap((d) => d.meals.map((m) => m.r.id))),
   ].filter((id) => !prior?.has(id)).length;
-  return { days, counts, macros, cost: Math.round(cost), newCount, phase };
+  return { days, counts, macros, cost: Math.round(cost), newCount, phase, pairMisses };
 }

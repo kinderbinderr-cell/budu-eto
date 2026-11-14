@@ -112,7 +112,7 @@ function flowGoalPanel(f) {
   return `<details class="flow-details flow-goals"${draft.open ? " open" : ""}>
     <summary><span>Указать КБЖУ на день<small>По желанию${count === 2 ? " · отдельно для каждого" : ""}</small></span>${icon("right",17)}</summary>
     <div class="flow-goals-body">
-      <p>Порции завтрака, обеда и ужина рассчитаем по вашим целям. Оставьте поля пустыми для обычных порций.</p>
+      <p>${count===2 ? "Из понравившихся блюд подберём общий завтрак, обед и ужин. Размер порции рассчитаем для каждого по его целям." : "Порции завтрака, обеда и ужина рассчитаем по вашим целям."} Оставьте поля пустыми для обычного меню.</p>
       <label class="goal-ranges"><input type="checkbox" data-goal-ranges ${draft.ranges ? "checked" : ""}>Указать диапазоны от и до</label>
       ${portionFields(count,draft.rows,draft.ranges,"goal")}
       <button class="link" type="button" data-action="flow-goals-skip">Продолжить без КБЖУ</button>

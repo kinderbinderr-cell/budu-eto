@@ -59,12 +59,19 @@ function budgetPlan(s,n,replacements,prior,phase,previous) {
   let chosen=make({}), tier=0;
   if (!chosen) return null;
   let amount=score(chosen.counts,pantry).cents;
+  const misses=plan=>plan.pairMisses.filter(gap=>gap>0);
   for(const level of [1,4,12]){
     if(amount<=s.budget*100) break;
     const next=make({},level);
     if(!next) continue;
     const value=score(next.counts,pantry).cents;
-    if(value<amount){chosen=next;tier=level;amount=value;}
+    // Compare the actual package bill among plans that do at least as well on the two daily goals.
+    const oldMisses=misses(chosen), newMisses=misses(next);
+    const betterFit=newMisses.length<oldMisses.length;
+    const equalDays=newMisses.length===oldMisses.length;
+    if(betterFit || (equalDays && Math.max(0,...newMisses)<=Math.max(0,...oldMisses) && value<amount)) {
+      chosen=next; tier=level; amount=value;
+    }
   }
   return Object.keys(replacements).length ? make(replacements,tier) : chosen;
 }

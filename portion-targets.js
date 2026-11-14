@@ -27,9 +27,9 @@ function portionFields(count, values, ranges, prefix) {
 }
 function portionEditor() {
   const s=settings(), n=portionCount(s), goals=activePortionTargets(s);
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Свои диапазоны КБЖУ</h2><p>Укажите цели на день${n===2?" для каждого человека":""}. Для одного значения достаточно поля «От». Пустой показатель можно пропустить.</p><form id="portion-form">
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Свои диапазоны КБЖУ</h2><p>Укажите цели на день${n===2?" для каждого человека":""}. Для одного значения достаточно поля «От». Пустой показатель можно пропустить.${n===2 ? " Подберём общие блюда с отдельной порцией для каждого." : ""}</p><form id="portion-form">
   ${portionFields(n,goals,true,"r")}
-  <p class="form-error" role="alert"></p><button class="btn primary" type="submit">Рассчитать порции</button>
+  <p class="form-error" role="alert"></p><button class="btn primary" type="submit">${n===2 ? "Подобрать меню и порции" : "Рассчитать порции"}</button>
   ${goals ? button("Вернуть обычные порции","portion-off","outline") : ""}</form></div>`;
 }
 function portionReport(meals) {
