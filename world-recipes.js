@@ -4104,7 +4104,7 @@ const worldRecipes = [
       "В половине масла томите лук 4 минуты, добавьте тыкву и прогрейте ещё 5 минут до полуготовности. Вмешайте мелко рубленные орехи, посолите и слегка остудите начинку.",
       "Раскатайте тесто очень тонким овалом, распределите начинку по одной половине, накройте другой и плотно защипните. Пеките на сухой сковороде на среднем огне по 3–4 минуты с каждой стороны. Сразу смажьте маслом, накройте на 2 минуты и нарежьте поперёк.",
     ],
-    photo: {"source": "https://commons.wikimedia.org/wiki/File:Dagestan_cuisine_in_Moscow_04.jpg", "author": "Stolbovsky", "license": "CC BY-SA 4.0", "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0", "illustrative": true},
+    photo: {"source": "https://commons.wikimedia.org/wiki/File:Dagestan_cuisine_in_Moscow_03.jpg", "author": "Stolbovsky", "license": "CC BY-SA 4.0", "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0", "illustrative": true},
   },
   {
     id: "reDagShah", title: "Дербентский шах-плов в хрустящем лаваше",
@@ -4160,7 +4160,7 @@ const worldRecipes = [
     equip: "oven", alsoHob: false, minutes: 65,
     ingredients: {"puffPastry": 47.0, "walnut": 17.0, "honey": 10.0, "sugar": 5.0, "butter": 4.0, "yogurt": 130.0},
     steps: [
-      "Готовьте пахлаву одним небольшим пластом хотя бы на четыре порции. Размороженное слоёное тесто разделите на 4–5 частей и раскатайте каждую так тонко, чтобы слои соответствовали размеру формы.",
+      "Готовьте пахлаву одним небольшим пластом хотя бы на четыре порции. Для быстрой домашней версии возьмите готовое слоёное тесто. Разморозьте его, разделите на 4–5 частей и раскатайте каждую так тонко, чтобы слои соответствовали размеру формы.",
       "Порубите орехи и смешайте с сахаром. Прослоите тесто тонким слоем орехов и растопленным маслом, сверху оставьте чистый лист. Надрежьте заготовку ромбами почти до дна и прижмите по кусочку ореха в центр.",
       "Выпекайте при 185 °C 28–34 минуты до золотистой поверхности. Подогрейте мёд с ложкой воды, полейте горячую пахлаву вдоль надрезов и дайте остыть. Подайте один небольшой ромбик с пиалой несладкого катыка.",
     ],
@@ -4179,7 +4179,7 @@ const worldRecipes = [
     photo: {"source": "https://commons.wikimedia.org/wiki/File:Karakol_-_234_(49355378252).jpg", "author": "Bruno Rijsman", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0", "illustrative": true},
   },
   {
-    id: "reDzInk", title: "Ирон цыхт с горячим хлебом и зеленью",
+    id: "reDzInk", title: "Тёплый хлеб с рассольным сыром по-осетински",
     cuisine: "ossetian", role: "breakfast", diet: "veget",
     equip: "hob", alsoHob: false, minutes: 12,
     ingredients: {"brynza": 45.0, "adygheCheese": 24.0, "bread": 58.0, "parsley": 5.0, "dill": 4.0, "cucumber": 75.0},
