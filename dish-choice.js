@@ -50,24 +50,7 @@ function sampleTasting(pool, limit, history = [], random = Math.random, cuisines
   return result.map(r=>r.id);
 }
 
-// Look at the kind of dish first; a potato in a soup does not make it a potato pancake.
-const dishKinds = [
-  ["суп", /^(?:борщ|щи\b|щи |суп|рассольник|солянк|окрошк|ух[аия] |свекольник|похл[её]бк|кулеш)|(?: суп| щи|похл[её]бк|юшка)/u],
-  ["салат", /салат|винегрет|оливье|сел[её]дка под шубой/u],
-  ["котлеты", /котлет|биточк|тефтел|фрикадел|зраз[ыа]|шницел/u],
-  ["вареники и пельмени", /пельмен|вареник|манты|хинкал/u],
-  ["каша", /каш[аиу]|овсянк|крупеник|овсяные хлопья/u],
-  ["блины и оладьи", /блин|олад|драник|панкейк|леп[её]шк/u],
-  ["сырники", /сырник|творожник/u], ["яичное блюдо", /омлет|яичниц|скр[эе]мбл|яйца |яйцо |шакшук|драч[её]н/u],
-  ["бутерброд", /бутерброд|тост|гренк|брускетт|сэндвич/u],
-  ["выпечка", /пирог|пирож|расстега|манник|слойк|ватрушк|шаньг|шарлотк|калитк|кекс/u],
-  ["запеканка", /запеканк|пудинг|лапшевник|бабка/u],
-  ["фаршированное блюдо", /голубц|фарширован|с начинкой|с мясной начинкой/u],
-  ["паста", /макарон|паста |паст[ау] |лапша|вермишел|спагетти|орзо/u],
-  ["плов", /плов|пилав/u], ["рагу и жаркое", /рагу|жаркое|гуляш|бигос|бефстроганов/u],
-];
 const choiceFeatures = new WeakMap();
-function dishKind(r) { return r.kind || dishKinds.find(([,re])=>re.test(r.title.toLowerCase()))?.[0] || ""; }
 const seasonings = new Set("salt oil garlic dill parsley paprika cumin sugar pepper cinnamon butter paste basil mustard lemon bakingPowder yeast".split(" "));
 const families = Object.fromEntries(Object.entries({
   птица:"chicken chickenThigh chickenLegMeat turkey chickenWingMeat",

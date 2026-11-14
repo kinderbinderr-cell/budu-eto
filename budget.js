@@ -20,6 +20,21 @@ function estimatedRow({key,g,status,expired}) {
   const note=status==="unavailable" ? " · нет в наличии" : expired ? " · прежняя цена устарела" : "";
   return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · примерная цена${note}</small></div><strong>≈ ${money(row.cents/100)}</strong></li>`;
 }
+// Compare the additional checkout cost of a recipe, including the unused part of each pack.
+function marginalCheckout(store,pantry) {
+  const lines=new Map();
+  function line(key,grams) {
+    const need=Math.max(0,neededGrams(grams)-(pantry[key]||0));
+    if(!need) return 0;
+    const cacheKey=key+"/"+need;
+    if(!lines.has(cacheKey)) lines.set(cacheKey,cataloguePurchase(key,need,store)?.cents ?? estimatedPurchase(key,need).cents);
+    return lines.get(cacheKey);
+  }
+  return (recipe,portions,counts)=>recipe.items.reduce((cost,[key,g])=>{
+    const before=counts[key]||0;
+    return cost+(line(key,before+g*portions)-line(key,before))/100;
+  },0);
+}
 function budgetScorer(s, {planning = false} = {}) {
   // Live prices arrive after the menu appears. They update checkout without silently replacing meals.
   const stores = (s.stores || []).filter(store => supportedShop(store) && (!planning || storeShelf(store)));
@@ -51,29 +66,37 @@ function budgetScorer(s, {planning = false} = {}) {
 function weeklyQuote(p) {
   return budgetScorer(settings())(p.counts,weekData().pantry);
 }
+function keepsDayTargets(goals,before,after) {
+  if(!goals) return true;
+  const gaps=meals=>goals.map((target,i)=>{
+    const totals=mealNutrients(meals,meals.map(m=>m.personFactors[i]));
+    return target.map((range,k)=>range ? nutrientGap(totals[k],range) : 0);
+  });
+  const oldGaps=gaps(before);
+  return gaps(after).every((row,i)=>row.every((gap,k)=>gap<=oldGaps[i][k]+1e-8));
+}
 function budgetPlan(s,n,replacements,prior,phase,previous) {
-  const make=(swaps,strength=0)=>planWeek(s,n,swaps,prior,phase,previous,strength);
+  const make=(swaps,strength=0,checkout=null)=>planWeek(s,n,swaps,prior,phase,previous,strength,checkout);
   if (!hasBudget(s)) return make(replacements);
   const score=budgetScorer(s,{planning:true}), pantry=s.planningPantry?.[n] || {};
   // Choose the underlying week independently of one-day edits. A manual swap never triggers a new cost tier.
-  let chosen=make({}), tier=0;
+  let chosen=make({}), tier=0, chosenCheckout=null;
   if (!chosen) return null;
-  let amount=score(chosen.counts,pantry).cents;
-  const misses=plan=>plan.pairMisses.filter(gap=>gap>0);
-  for(const level of [1,4,12]){
+  const goals=activePortionTargets(s);
+  const initialQuote=score(chosen.counts,pantry);
+  let amount=initialQuote.cents;
+  for(const level of [1,4,12,16]){
     if(amount<=s.budget*100) break;
-    const next=make({},level);
+    const checkout=level===16 ? marginalCheckout(initialQuote.store,pantry) : null;
+    const next=make({},level,checkout);
     if(!next) continue;
     const value=score(next.counts,pantry).cents;
     // Compare the actual package bill among plans that do at least as well on the two daily goals.
-    const oldMisses=misses(chosen), newMisses=misses(next);
-    const betterFit=newMisses.length<oldMisses.length;
-    const equalDays=newMisses.length===oldMisses.length;
-    if(betterFit || (equalDays && Math.max(0,...newMisses)<=Math.max(0,...oldMisses) && value<amount)) {
-      chosen=next; tier=level; amount=value;
+    if(value<amount && next.days.every((day,d)=>keepsDayTargets(goals,chosen.days[d].meals,day.meals))) {
+      chosen=next; tier=level; chosenCheckout=checkout; amount=value;
     }
   }
-  return Object.keys(replacements).length ? make(replacements,tier) : chosen;
+  return Object.keys(replacements).length ? make(replacements,tier,chosenCheckout) : chosen;
 }
 // Capture stock only when the user explicitly requests a new budget/menu. Checking a shopping row keeps the chosen meals.
 function useStockForPlanning(s,n,pantry) {
@@ -120,12 +143,13 @@ function refreshShoppingEstimate() {
 
 function budgetAlternatives() {
   const s=settings(),p=plan(),pantry=weekData().pantry,score=budgetScorer(s),base=score(p.counts,pantry).cents,options=[];
-  const pool=RECIPES.filter(r=>allowed(s,r) && s.votes[r.id]!==-1);
+  const pool=RECIPES.filter(r=>eligible(s,r));
   for(const [d,dayPlan] of p.days.entries()) for(const [slot,meal] of dayPlan.meals.entries()){
     if(meal.manual) continue;
-    const analogues=similarOptions(meal.r,pool,s.votes).slice(0,10);
+    const suitable=pool.filter(r=>!slot || fitsMainSlot(r,slot));
+    const analogues=similarOptions(meal.r,suitable,s.votes).slice(0,24);
     for(const {r} of analogues){
-      if(dayPlan.meals.some(x=>x.r.id===r.id))continue;
+      if(!fitsNutritionSwap(s,p,d,slot,r,lastPlan?.previous||[]))continue;
       const counts={...p.counts};
       const nextMeals=dayPlan.meals.map((m,i)=>i===slot ? {...m,r,f:factor(s,r,slot)} : {...m});
       applyDailyTargets(s,nextMeals);
@@ -142,14 +166,17 @@ function budgetAlternatives() {
     if(!projected || projected.days[v.day].meals[v.slot].r.id!==v.r.id)continue;
     // Only advertise one-day swaps that actually leave all other meals alone.
     if(!projected.days.every((x,d)=>x.meals.every((m,i)=>d===v.day&&i===v.slot||m.r.id===p.days[d].meals[i].r.id))) continue;
-    const saving=base-score(projected.counts,pantry).cents;
+    const goals=activePortionTargets(s);
+    if(!projected.days.every((day,d)=>keepsDayTargets(goals,p.days[d].meals,day.meals))) continue;
+    const total=score(projected.counts,pantry).cents;
+    const saving=base-total;
     if(saving<100) continue;
-    verified.push({...v,saving});ids.add(v.r.id);if(verified.length>=3)break;
+    verified.push({...v,saving,total});ids.add(v.r.id);if(verified.length>=3)break;
   }
   return verified;
 }
 function budgetDialog(info) {
   if(info.kind==="budget-edit")return `<div class="sheet-body simple"><h2 id="sheet-title">Сколько потратим за неделю?</h2><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Применить бюджет</button></form></div>`;
   const choices=info.choices;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Замены дешевле</h2><p class="quiet">Сравнили всю недельную закупку с учётом запасов. Меню изменится, только если выберете замену.</p><div class="options-list">${choices.map(v=>`<button type="button" data-action="budget-swap" data-id="${v.r.id}" data-day="${v.day}" data-slot="${v.slot}"><img src="${photo(v.r)}" alt=""><span><small>${DAYS[v.day]} · ${slotNames[v.slot]} · вместо «${$(v.old.title)}»</small><b>${$(v.r.title)}</b><small>Экономия около ${money(v.saving/100)} за неделю</small></span></button>`).join("")||"<p>Среди близких аналогов не нашлось замены, которая уменьшит закупку. Можно отметить больше блюд или изменить лимит.</p>"}</div></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Замены дешевле</h2><p class="quiet">Сравнили всю недельную закупку с учётом запасов. Меню изменится, только если выберете замену.</p><div class="options-list">${choices.map(v=>`<button type="button" data-action="budget-swap" data-id="${v.r.id}" data-day="${v.day}" data-slot="${v.slot}"><img src="${photo(v.r)}" alt=""><span><small>${DAYS[v.day]} · ${slotNames[v.slot]} · вместо «${$(v.old.title)}»</small><b>${$(v.r.title)}</b><small>Корзина ≈ ${money(v.total/100)} · экономия ≈ ${money(v.saving/100)}</small></span></button>`).join("")||"<p>Среди близких аналогов не нашлось замены, которая уменьшит закупку. Можно отметить больше блюд или изменить лимит.</p>"}</div></div>`;
 }

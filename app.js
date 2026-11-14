@@ -300,8 +300,11 @@ function weekVariety(p) {
     notes.push("Для части ужинов взяли блюда из обеденного выбора. Отметьте ещё пару блюд на ужин, чтобы чередовать их.");
   else if (p.days.some(d=>!d.meals[1].manual && !fitsMainSlot(d.meals[1].r,1)))
     notes.push("На некоторые обеды поставили блюда из выбора на ужин. Для большего разнообразия отметьте ещё пару блюд на обед.");
-  if (p.days.some(d=>d.meals[1].r===d.meals[2].r && !d.meals[1].manual && !d.meals[2].manual))
-    notes.push("Иногда обед и ужин совпадают. Для разных блюд в один день выберите хотя бы три основных.");
+  const doubleDays=p.days.filter(d=>d.meals[1].r===d.meals[2].r && !(d.meals[1].manual && d.meals[2].manual)).length;
+  if (doubleDays) {
+    const mains=candidates(settings(),1).length;
+    notes.push(mains===2 ? "Выбраны два основных блюда. Чтобы ни одно не повторялось три дня подряд, обед и ужин иногда совпадают. Выберите третье основное блюдо для чередования." : "В этой неделе есть совпадение обеда и ужина с учётом ваших замен. Можно выбрать ещё одно основное блюдо.");
+  }
   const count=p.newCount;
   if (p.phase) notes.push(count ? "Впервые в этом трёхнедельном меню: "+count+" "+plural(count,"блюдо","блюда","блюд")+"." : "На этой неделе повторяются блюда из вашего выбора.");
   return notes.length ? `<div class="week-variety"><span>${notes.join(" ")}</span> <button type="button" class="link" data-action="discover">Выбрать ещё</button></div>` : "";

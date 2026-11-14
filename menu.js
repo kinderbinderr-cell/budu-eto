@@ -736,16 +736,17 @@ function pairDayMeals(search,meals,options,priority) {
   const choices=ranked.map(pool=>combinations<=18000?pool:pool.slice(0,22));
   const distinct=choices[1].some(lunch=>choices[2].some(dinner=>lunch.r!==dinner.r));
   const permitted=(lunch,dinner)=>!distinct || lunch!==dinner;
+  const pairVariety=(l,u)=>Number(sameDishStyle(l,u))*5+Number(mainFamily(l)===mainFamily(u))*3;
   const baselineAllowed=base.every((r,i)=>options[i].includes(r)) && permitted(base[1],base[2]);
   let best=baselineAllowed ? search.assess(base) : {worst:Infinity,sum:Infinity};
   let selected=base;
-  let bestPriority=baselineAllowed ? base.reduce((sum,r,i)=>sum+priority(r,i),0) : Infinity;
+  let bestPriority=baselineAllowed ? base.reduce((sum,r,i)=>sum+priority(r,i),0)+pairVariety(base[1],base[2]) : Infinity;
   const queue=[];
   for(const breakfast of choices[0]) for(const lunch of choices[1]) for(const dinner of choices[2]) {
     if(!permitted(lunch.r,dinner.r)) continue;
     const bound=search.lowerBound(breakfast.vector,lunch.vector,dinner.vector,best.worst);
     if(bound>best.worst+1e-10) continue;
-    const order=breakfast.priority+lunch.priority+dinner.priority;
+    const order=breakfast.priority+lunch.priority+dinner.priority+pairVariety(lunch.r,dinner.r);
     queue.push({recipes:[breakfast.r,lunch.r,dinner.r],bound,order});
   }
   queue.sort((a,b)=>a.bound-b.bound || a.order-b.order);
@@ -847,6 +848,35 @@ function tasteAffinity(r, likes = []) {
     curd: ingredients.includes("curd"),
   };
   return likes.reduce((score,k)=>score+Number(Boolean(matches[k])),0);
+}
+// Look at the kind of dish first; a potato in a soup does not make it a potato pancake.
+const dishKinds = [
+  ["суп", /^(?:борщ|щи\b|щи |суп|рассольник|солянк|окрошк|ух[аия] |свекольник|похл[её]бк|кулеш)|(?: суп| щи|похл[её]бк|юшка)/u],
+  ["салат", /салат|винегрет|оливье|сел[её]дка под шубой/u],
+  ["котлеты", /котлет|биточк|тефтел|фрикадел|зраз[ыа]|шницел/u],
+  ["вареники и пельмени", /пельмен|вареник|манты|хинкал/u],
+  ["каша", /каш[аиу]|овсянк|крупеник|овсяные хлопья/u],
+  ["блины и оладьи", /блин|олад|драник|панкейк|леп[её]шк/u],
+  ["сырники", /сырник|творожник/u], ["яичное блюдо", /омлет|яичниц|скр[эе]мбл|яйца |яйцо |шакшук|драч[её]н/u],
+  ["бутерброд", /бутерброд|тост|гренк|брускетт|сэндвич/u],
+  ["выпечка", /пирог|пирож|расстега|манник|слойк|ватрушк|шаньг|шарлотк|калитк|кекс/u],
+  ["запеканка", /запеканк|пудинг|лапшевник|бабка/u],
+  ["фаршированное блюдо", /голубц|фарширован|с начинкой|с мясной начинкой/u],
+  ["паста", /макарон|паста |паст[ау] |лапша|вермишел|спагетти|орзо/u],
+  ["плов", /плов|пилав/u], ["рагу и жаркое", /рагу|жаркое|гуляш|бигос|бефстроганов/u],
+];
+const dishKindCache=new WeakMap();
+function dishKind(r) {
+  if (r.kind) return r.kind;
+  if (!dishKindCache.has(r)) {
+    const title=r.title.toLowerCase();
+    dishKindCache.set(r,dishKinds.find(([,re])=>re.test(title))?.[0] || "");
+  }
+  return dishKindCache.get(r);
+}
+function sameDishStyle(a,b) {
+  const kind=dishKind(a);
+  return Boolean(kind && kind===dishKind(b));
 }
 function mealRole(r) {
   if (r.mealRole) return r.mealRole;
@@ -976,6 +1006,7 @@ function planWeek(
   phase = 0,
   precedingDays = [],
   economize = 0,
+  checkoutCost = null,
 ) {
   const pools = [candidates(s, 0), candidates(s, 1)];
   if (pools.some(pool => pool.length < 2)) return null;
@@ -1112,6 +1143,8 @@ function planWeek(
             (previousFamily ? 17 : 0) +
             (sameDay ? 7 : 0) -
             Math.min(2, sharedGreens) +
+            (paired && sameDishStyle(paired,r) ? 16 : 0) +
+            (checkoutCost ? checkoutCost(r,portion,counts) / Math.max(1,targetBudget) * 90 : 0) +
             (picks.some((a) => a.id === r.id) ? 70 : 0) +
             excess * 55 + economize * (amount / Math.max(1, targetBudget) * 15 + r.items.filter(([k]) => !seenIngredients.has(k)).length * 1.5) -
             Math.min(2, tasteAffinity(r, s.likes)) * 12 +
@@ -1151,6 +1184,22 @@ function planWeek(
       }
       meals.push({ r, f: factor(s,r,i), sourceSlot: chosen ? sourceSlot : i, manual: Boolean(chosen) });
     }
+    // A pinned lunch or dinner can collide with the other automatically chosen dish.
+    // Keep the explicit choice, then resolve the other slot against the actual calendar.
+    if (meals[1].r===meals[2].r && orderedMains.length>2 && !(meals[1].manual && meals[2].manual)) {
+      const slot=meals[2].manual ? 1 : 2, other=meals[3-slot].r;
+      const candidates=orderedMains.filter(r=>r!==other && !repeated.has(r.id));
+      // Preserve the calendar split used by weeks that may be opened independently.
+      const sameWindow=candidates.filter(r=>orderedMains.indexOf(r)%2===groupParity);
+      const compatible=sameWindow.filter(r=>fitsMainSlot(r,slot));
+      const pool=compatible.length ? compatible : slotPool(candidates,slot);
+      if(pool.length) {
+        const useScore=r=>(timesServed.get(r)||0)*5+(prior?.get(r.id)?.uses||0)*2+
+          Number(sameDishStyle(r,other))*3+Number(mainFamily(r)===mainFamily(other))*2;
+        const r=pool.reduce((best,r)=>useScore(r)<useScore(best)?r:best);
+        meals[slot]={...meals[slot],r,f:factor(s,r,slot)};
+      }
+    }
     if (pairSearch) {
       const groups=[pools[0],orderedMains,orderedMains];
       const guardedBoundary=(pairCycleStart && d<2) || (pairCycleEnd && d>=5);
@@ -1172,9 +1221,9 @@ function planWeek(
           + ((RECIPES.indexOf(r)*17+(absoluteDay+300)*31+slot*7)%43)/43;
       };
       pairMisses.push(pairDayMeals(pairSearch,meals,options,priority));
-      for(const {r} of meals) timesServed.set(r,(timesServed.get(r)||0)+1);
     } else applyDailyTargets(s,meals);
     for (const {r,f} of meals) {
+      timesServed.set(r,(timesServed.get(r)||0)+1);
       for (const [key, g] of r.items) counts[key] = (counts[key] || 0) + g * f;
       daily.forEach((_, j) => (daily[j] += r.macros[j] * f));
       cost += r.cost * f;
