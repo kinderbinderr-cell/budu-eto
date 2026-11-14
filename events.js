@@ -340,8 +340,7 @@ document.addEventListener("click", (e) => {
       const group=btn.dataset.key;
       openInfo.selection[group]=value;
       for(const el of btn.parentElement.querySelectorAll("button")) el.setAttribute("aria-pressed",String(el===btn));
-      const n=libraryItems(openInfo.selection).length;
-      sheet.querySelector('[data-action="book-apply"]').textContent=n?"Показать "+bookCount(n):"Показать результаты (0)";
+      refreshBookDraft(openInfo.selection);
       break;
     }
     case "book-reset-draft":
@@ -412,6 +411,13 @@ main.addEventListener("submit", (e) => {
     step++;
     render({ top: true });
   }
+});
+sheet.addEventListener("input",e=>{
+  const {nutrient,bound}=e.target.dataset;
+  if(!nutrient || openInfo?.kind!=="book-filters") return;
+  const selection=openInfo.selection;
+  selection[nutrient]={...selection[nutrient],[bound]:e.target.value.trim()};
+  refreshBookDraft(selection);
 });
 sheet.addEventListener("submit",e=>{
   if(e.target.id!=="budget-form")return;

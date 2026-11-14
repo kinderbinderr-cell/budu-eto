@@ -358,7 +358,9 @@ function emptyPlan() {
   return `<div class="empty"><h2>Добавьте блюда для чередования</h2><p>Для недельного меню нужны минимум два подходящих завтрака и два основных блюда.</p>${button("Выбрать блюда", "discover", "primary", "heart")}</div>`;
 }
 function catCard(r) {
-  return `<article class="library-card"><div class="card-image"><button class="photolink" type="button" data-action="recipe" data-id="${r.id}" aria-label="Рецепт: ${$(r.title)}"><img loading="lazy" src="${photo(r)}" alt=""></button>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span><i></i><span>${Math.round(r.kcal)} ккал / порция</span></div></article>`;
+  const facts=bookRanges(bookFilters).filter(([key])=>key!=="kcal")
+    .map(([,metric])=>`<span>${metric.label} ${bookNumber.format(metric.value(r))} г</span>`).join("");
+  return `<article class="library-card"><div class="card-image"><button class="photolink" type="button" data-action="recipe" data-id="${r.id}" aria-label="Рецепт: ${$(r.title)}"><img loading="lazy" src="${photo(r)}" alt=""></button>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span><i></i><span>${hasBookRange(bookFilters.kcal)?bookNumber.format(r.kcal):Math.round(r.kcal)} ккал / порция</span></div>${facts?`<div class="book-card-nutrients">${facts}</div>`:""}</article>`;
 }
 const libraryPicks = ["rl001","rd022","rb020","rd023","rl041","rb021","rd024","rl021","rb001","rd001","rl004","rb076","rd021","rl049","rb059","rl006","rb030","rd041"];
 const bookMeals = {all:"Все", breakfast:"Завтрак", lunch:"Обед", dinner:"Ужин"};
@@ -368,6 +370,23 @@ const bookGroups = {
   collection: {all:"Все рецепты", favorite:"Избранное", liked:"Хочу в меню"}
 };
 const bookDefaults={meal:"all",minutes:"0",kind:"all",collection:"all"};
+const bookNutrients={
+  kcal:{label:"Калории",unit:"ккал",value:r=>r.kcal},
+  protein:{label:"Белки",unit:"г",value:r=>r.macros[0]},
+  fat:{label:"Жиры",unit:"г",value:r=>r.macros[1]},
+  carbs:{label:"Углеводы",unit:"г",value:r=>r.macros[2]}
+};
+const bookNumber=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:1});
+function hasBookRange(range) { return !!(range?.min || range?.max); }
+function bookBound(text) { return Number(text.replace(",", ".")); }
+function bookRangeError(range={}) {
+  const {min,max}=range;
+  if([min,max].some(s=>s && !/^\d+(?:[.,]\d+)?$/.test(s))) return "Введите число от нуля, например 30 или 12,5.";
+  return min && max && bookBound(min)>bookBound(max) ? "Значение «до» должно быть не меньше «от»." : "";
+}
+function bookRanges(selection) {
+  return Object.entries(bookNutrients).filter(([key])=>hasBookRange(selection[key]));
+}
 let bookFilters={...bookDefaults};
 const recipeWords=new WeakMap();
 const chickenKeys=new Set(["chicken","chickenThigh","chickenLegMeat","chickenWingMeat","chickenLiver","chickenGizzards","chickenHearts"]);
@@ -396,6 +415,10 @@ function recipeSearchWords(r) {
 }
 function libraryItems(selection=bookFilters, query=search) {
   const terms=searchWords(query).filter(word=>!stopwords.has(word)).map(wordStem);
+  const bounds=bookRanges(selection).map(([key,metric])=>{
+    const {min,max}=selection[key];
+    return {metric,low:min?bookBound(min):0,high:max?bookBound(max):Infinity};
+  });
   const s=settings();
   const matches=r=>{
     if(!allowed(s,r)) return false;
@@ -406,6 +429,12 @@ function libraryItems(selection=bookFilters, query=search) {
     if(selection.kind!=="all" && dishKind(r)!==selection.kind) return false;
     if(selection.collection==="favorite" && !fav(r)) return false;
     if(selection.collection==="liked" && s.votes[r.id]!==1) return false;
+    if(!bounds.every(({metric,low,high})=>{
+      // Products are summed in floating point. Keep exact inclusive endpoints
+      // without admitting a dish just because its displayed total rounded down.
+      const value=metric.value(r);
+      return value>=low-1e-9 && value<=high+1e-9;
+    })) return false;
     if(!terms.length) return true;
     const words=recipeSearchWords(r);
     return terms.every(term=>words.has(term) || (term.length>=3 && [...words].some(word=>word.startsWith(term))));
@@ -415,13 +444,20 @@ function libraryItems(selection=bookFilters, query=search) {
 }
 function bookCount(n) { return n+" "+plural(n,"рецепт","рецепта","рецептов"); }
 function appliedBookGroups(selection=bookFilters) {
-  return Object.keys(bookGroups).filter(k=>selection[k]!==bookDefaults[k]);
+  return Object.keys(bookGroups).filter(k=>selection[k]!==bookDefaults[k]).concat(bookRanges(selection).map(([key])=>key));
+}
+function bookTag(key) {
+  if(bookGroups[key]) return bookGroups[key][bookFilters[key]];
+  const {min,max}=bookFilters[key], {label,unit}=bookNutrients[key];
+  const format=s=>String(bookBound(s)).replace(".",",");
+  const range=min && max ? `${format(min)}–${format(max)}` : min ? "от "+format(min) : "до "+format(max);
+  return `${label} ${range} ${unit}`;
 }
 function libraryControls() {
   const active=appliedBookGroups(),hasAny=search.trim() || bookFilters.meal!=="all" || active.length;
   return `<div class="book-meals" role="group" aria-label="Приём пищи">${Object.entries(bookMeals).map(([value,label])=>
     `<button type="button" data-action="book-meal" data-value="${value}" aria-pressed="${bookFilters.meal===value}">${label}</button>`).join("")}</div>
-    <div class="book-applied">${active.map(k=>`<button class="book-tag" type="button" data-action="book-remove" data-value="${k}" aria-label="Убрать фильтр: ${bookGroups[k][bookFilters[k]]}">${bookGroups[k][bookFilters[k]]} ${icon("close",13)}</button>`).join("")}
+    <div class="book-applied">${active.map(k=>`<button class="book-tag" type="button" data-action="book-remove" data-value="${k}" aria-label="Убрать фильтр: ${bookTag(k)}">${bookTag(k)} ${icon("close",13)}</button>`).join("")}
       <button type="button" class="link book-reset" data-action="clear-search" ${hasAny?"":"hidden"}>Сбросить всё</button></div>`;
 }
 function libraryResults(available=libraryItems()) {
@@ -440,13 +476,35 @@ function updateBookResults() {
   document.getElementById("library-results").innerHTML=libraryResults(results);
   document.querySelector(".book-reset").hidden=!(search.trim() || bookFilters.meal!=="all" || appliedBookGroups().length);
 }
+function bookNutritionFields(selection) {
+  return `<details class="book-nutrition" ${bookRanges(selection).length?"open":""}><summary>КБЖУ на порцию ${icon("right",16)}</summary>
+    <div class="book-range-grid"><span></span><span aria-hidden="true">От</span><span aria-hidden="true">До</span>
+    ${Object.entries(bookNutrients).map(([key,{label,unit}])=>`<span class="book-range-name">${label}<small>${unit}</small></span>
+      ${["min","max"].map((bound,i)=>`<input type="text" inputmode="decimal" maxlength="12" autocomplete="off" data-nutrient="${key}" data-bound="${bound}" value="${$(selection[key]?.[bound]||"")}" aria-label="${label}, ${i?"до":"от"}, ${unit}" aria-describedby="book-error-${key}">`).join("")}
+      <span class="book-range-error" id="book-error-${key}" role="status"></span>`).join("")}</div></details>`;
+}
+function bookApplyLabel(n) { return n?"Показать "+bookCount(n):"Показать результаты (0)"; }
+function refreshBookDraft(selection) {
+  let invalid=false;
+  for(const key of Object.keys(bookNutrients)) {
+    const message=bookRangeError(selection[key]);
+    const hint=sheet.querySelector("#book-error-"+key);
+    if(hint.textContent!==message) hint.textContent=message;
+    for(const field of sheet.querySelectorAll(`[data-nutrient="${key}"]`))
+      field.setAttribute("aria-invalid",String(!!message && !!field.value));
+    if(message) invalid=true;
+  }
+  const apply=sheet.querySelector('[data-action="book-apply"]');
+  apply.disabled=invalid;
+  apply.textContent=invalid?"Проверьте диапазон":bookApplyLabel(libraryItems(selection).length);
+}
 function bookFilterSheet(selection) {
   const labels={minutes:"Время на блюдо",kind:"Вид блюда",collection:"Мои блюда"};
   const n=libraryItems(selection).length;
   return `<div class="sheet-body simple book-filter-sheet"><h2 id="sheet-title">Фильтры рецептов</h2>
-    ${Object.entries(bookGroups).map(([key,choices])=>`<fieldset class="book-field"><legend>${labels[key]}</legend><div>${Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("")}</div></fieldset>`).join("")}
+    ${Object.entries(bookGroups).map(([key,choices])=>`<fieldset class="book-field"><legend>${labels[key]}</legend><div>${Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("")}</div></fieldset>${key==="minutes"?bookNutritionFields(selection):""}`).join("")}
     <div class="book-filter-footer"><button class="link" type="button" data-action="book-reset-draft">Сбросить фильтры</button>
-    <button type="button" class="btn primary" data-action="book-apply" aria-live="polite">${n?"Показать "+bookCount(n):"Показать результаты (0)"}</button></div></div>`;
+    <button type="button" class="btn primary" data-action="book-apply" aria-live="polite">${bookApplyLabel(n)}</button></div></div>`;
 }
 function recipesPage() {
   const available=libraryItems(),count=appliedBookGroups().length;
