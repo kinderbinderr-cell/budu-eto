@@ -257,8 +257,7 @@ function recipeDetail(info) {
     menuAction = p ? button("Поставить в меню", "place", "primary", "plus", `data-id="${r.id}"`)
       : button("Выбрать ещё блюда", "discover", "primary", "plus");
   }
-  const cuisines=(r.cuisines || []).filter(key=>key!=="everyday").map(key=>cuisineNames[key]+" кухня");
-  const cuisineLine=cuisines.length ? `<p class="quiet">${cuisines.join(" · ")}</p>` : "";
+  const cuisineLine=`<p class="quiet">${r.cuisines.map(cuisineLabel).join(" · ")}</p>`;
   const credit=r.photoCredit;
   const photoCredit=credit ? `<p class="photo-credit">Фото · <a href="${$(credit.source)}" target="_blank" rel="noopener noreferrer">${$(credit.author)}</a> · <a href="${$(credit.licenseUrl)}" target="_blank" rel="noopener noreferrer">${$(credit.license)}</a> · уменьшено для экрана, возможно кадрирование</p>` : "";
   const perPortion = value => isPlanned ? Math.round(value * (one / servings(settings()))) : bookNumber.format(value);

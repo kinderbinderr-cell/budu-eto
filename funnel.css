@@ -1016,7 +1016,13 @@ body.in-flow:has(.welcome-step) { background: #fcfbf6; }
   background: var(--base);
   text-align: left;
 }
-.taste-cuisine-entry span { margin-left: auto; font-size: .875rem; text-align: right; }
+.taste-cuisine-values { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 2px 8px; font-size: .875rem; }
+.cuisine-name { display: inline-flex; align-items: center; gap: 6px; }
+.cuisine-flag { display: inline-block; flex: none; width: 22px; height: 15px; background: url(assets/cuisine-flags.webp) no-repeat 0 0 / auto 15px; }
+.home-flag { display: inline-flex; justify-content: center; align-items: center; color: var(--olive); background: transparent; }
+.book-cuisine-choice { display: block; position: relative; }
+.book-cuisine-choice [data-book-flag] { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; pointer-events: none; }
+.book-cuisine-choice:has(.cuisine-flag) select { padding-left: 42px; }
 .taste-cuisine-entry svg { flex: none; }
 .cuisine-sheet {
   display: flex;

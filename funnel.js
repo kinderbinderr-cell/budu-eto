@@ -17,7 +17,7 @@ function firstFlow() {
     small: 0,
     diet: "all",
     exclude: [],
-    cuisines: [],
+    cuisines: ["everyday", "russian"],
     votes: {},
     deck: null,
     minutes: null,
@@ -30,6 +30,7 @@ function firstFlow() {
 }
 function restoreFlow(saved) {
   const fresh = { ...firstFlow(), ...saved };
+  if (saved.cuisines === undefined && (saved.deck || Object.keys(saved.votes || {}).length)) fresh.cuisines = [];
   if (!saved.votes && fresh.stage > 1) fresh.stage = 1;
   return fresh;
 }

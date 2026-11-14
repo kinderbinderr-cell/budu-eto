@@ -448,6 +448,7 @@ sheet.addEventListener("change", e=>{
   }
   if(e.target.id!=="book-cuisine" || openInfo?.kind!=="book-filters") return;
   openInfo.selection.cuisine=e.target.value;
+  sheet.querySelector("[data-book-flag]").innerHTML=cuisineFlag(e.target.value);
   refreshBookDraft(openInfo.selection);
 });
 sheet.addEventListener("input",e=>{

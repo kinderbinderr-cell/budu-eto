@@ -15,6 +15,18 @@ const cuisineNames = {
   maghrebi: "Магрибская", mexican: "Мексиканская"
 };
 
+// Tile order in the bundled flag sheet. Maghreb uses three flags for the region.
+const cuisineFlagOrder = "russian georgian armenian azerbaijani turkish uzbek kazakh kyrgyz italian greek french spanish portuguese swiss ukrainian belarusian polish czech slovak austrian german swedish finnish hungarian serbian bulgarian romanian mexican karelian tatar bashkir ossetian dagestani crimeanTatar maghrebi".split(" ");
+function cuisineFlag(key) {
+  if (key === "everyday") return `<i class="cuisine-flag home-flag" aria-hidden="true">${icon("pot",18)}</i>`;
+  const index = cuisineFlagOrder.indexOf(key);
+  if (index < 0) return "";
+  return `<i class="cuisine-flag" aria-hidden="true" style="background-position-x:${-22 * index}px"></i>`;
+}
+function cuisineLabel(key) {
+  return `<span class="cuisine-name">${cuisineFlag(key)}${$(cuisineNames[key])}</span>`;
+}
+
 const existingCuisineIds = {
   russian: `buckapple syrniki mushroomBuck rb001 rb002 rb003 rb004 rb006 rb010 rb012 rb013
     rb016 rb019 rb020 rb022 rb023 rb024 rb025 rb026 rb027 rb030 rb035 rb037 rb038 rb059 rb060

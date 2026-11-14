@@ -461,7 +461,7 @@ function libraryControls() {
   const active=appliedBookGroups(),hasAny=search.trim() || bookFilters.meal!=="all" || active.length;
   return `<div class="book-meals" role="group" aria-label="Приём пищи">${Object.entries(bookMeals).map(([value,label])=>
     `<button type="button" data-action="book-meal" data-value="${value}" aria-pressed="${bookFilters.meal===value}">${label}</button>`).join("")}</div>
-    <div class="book-applied">${active.map(k=>`<button class="book-tag" type="button" data-action="book-remove" data-value="${k}" aria-label="Убрать фильтр: ${bookTag(k)}">${bookTag(k)} ${icon("close",13)}</button>`).join("")}
+    <div class="book-applied">${active.map(k=>`<button class="book-tag" type="button" data-action="book-remove" data-value="${k}" aria-label="Убрать фильтр: ${bookTag(k)}">${k==="cuisine" ? cuisineLabel(bookFilters.cuisine) : bookTag(k)} ${icon("close",13)}</button>`).join("")}
       <button type="button" class="link book-reset" data-action="clear-search" ${hasAny?"":"hidden"}>Сбросить всё</button></div>`;
 }
 function libraryResults(available=libraryItems()) {
@@ -506,7 +506,7 @@ function bookFilterSheet(selection) {
   const labels={minutes:"Время на блюдо",kind:"Вид блюда",collection:"Мои блюда"};
   const n=libraryItems(selection).length;
   const fields=Object.entries(bookGroups).map(([key,choices])=>{
-    if(key==="cuisine") return `<label class="book-cuisine">Кухня<select id="book-cuisine">${Object.entries(choices).map(([value,label])=>`<option value="${value}" ${selection.cuisine===value?"selected":""}>${label}</option>`).join("")}</select></label>`;
+    if(key==="cuisine") return `<label class="book-cuisine">Кухня<span class="book-cuisine-choice"><span data-book-flag aria-hidden="true">${cuisineFlag(selection.cuisine)}</span><select id="book-cuisine">${Object.entries(choices).map(([value,label])=>`<option value="${value}" ${selection.cuisine===value?"selected":""}>${label}</option>`).join("")}</select></span></label>`;
     const options=Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("");
     return `<fieldset class="book-field"><legend>${labels[key]}</legend><div>${options}</div></fieldset>${key==="minutes"?bookNutritionFields(selection):""}`;
   }).join("");

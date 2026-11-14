@@ -124,10 +124,9 @@ function tastingAlternative(r, pool, votes, deck) {
   return similarOptions(r,pool.filter(x=>upcoming.has(x.id) && !votes[x.id]),votes)[0]?.r;
 }
 function tasteCuisineEntry(selection) {
-  const names = selection.map(key => cuisineNames[key]);
-  const summary = names.length > 2 ? names.slice(0, 2).join(", ") + " +" + (names.length - 2) : names.join(", ");
+  const summary = selection.slice(0,2).map(cuisineLabel).join(" ");
   return `<button type="button" class="taste-cuisine-entry" data-action="taste-cuisines" aria-haspopup="dialog">
-    ${icon("sliders",18)}<strong>Кухни</strong><span>${$(summary || "Все кухни")}</span>${icon("right",16)}</button>`;
+    ${icon("sliders",18)}<strong>Кухни</strong><span class="taste-cuisine-values">${summary || "Все кухни"}${selection.length > 2 ? " +" + (selection.length - 2) : ""}</span>${icon("right",16)}</button>`;
 }
 function tasteCuisineSummary(info) {
   const pool = info.available.filter(r => fitsCuisines({cuisines: info.selection}, r));
@@ -149,12 +148,12 @@ function tasteCuisineSheet(info) {
   const items = Object.entries(bookCuisines).filter(([key]) => key !== "all")
     .sort(([a], [b]) => Number(info.selection.includes(b)) - Number(info.selection.includes(a)));
   return `<section class="sheet-body simple cuisine-sheet">
-    <h2 id="sheet-title">Какие кухни любите?</h2><p>Можно выбрать несколько. Оставьте выбор пустым, чтобы попробовать все кухни.</p>
+    <h2 id="sheet-title">Какие кухни любите?</h2><p>Можно выбрать несколько. Чтобы попробовать все кухни, нажмите «Сбросить».</p>
     <label class="cuisine-search">${icon("search",18)}<input id="taste-cuisine-search" type="search" placeholder="Найти кухню" aria-label="Найти кухню" autocomplete="off"></label>
-    <div class="cuisine-list" role="group" aria-label="Кухни">${items.map(([key,name]) => {
+    <div class="cuisine-list" role="group" aria-label="Кухни">${items.map(([key]) => {
       const count = counts.get(key) || 0;
       return `<label><input type="checkbox" value="${key}" data-taste-cuisine ${info.selection.includes(key) ? "checked" : ""}>
-        <span>${$(name)}</span><small aria-label="${bookCount(count)}">${count}</small></label>`;
+        ${cuisineLabel(key)}<small aria-label="${bookCount(count)}">${count}</small></label>`;
     }).join("")}<p hidden class="cuisine-no-match">Такой кухни не нашлось. Попробуйте другое название.</p></div>
     <div class="cuisine-footer"><div><output class="cuisine-result" aria-live="polite">${tasteCuisineSummary(info)}</output>
     <button type="button" class="link" data-action="taste-cuisines-clear" ${info.selection.length ? "" : "disabled"}>Сбросить</button></div>
@@ -194,12 +193,12 @@ function tastingCards({ pool, votes, deck, profile }) {
     <div class="taste-end-actions">${left ? button("Посмотреть ещё " + Math.min(left, tastingSize), "taste-more", "soft", "plus") : ""}${counts.chosen.length ? deckLink("Изменить понравившиеся", "taste-picked") : ""}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   const title = $(r.title),
     type = r.slot === "b" ? "Завтрак" : mealRole(r) === "lunch" ? "На обед" : mealRole(r) === "dinner" ? "На ужин" : "Обед или ужин",
-    tradition = profile.cuisines?.length ? r.cuisines.filter(key => profile.cuisines.includes(key)).map(key => cuisineNames[key]).join(" / ") : "",
+    traditions = profile.cuisines?.length ? r.cuisines.filter(key => profile.cuisines.includes(key)) : r.cuisines,
     number = deck.index + 1;
   return `<section class="reaction-card" aria-label="Выбор блюда">
     <div class="reaction-photo" data-taste-id="${r.id}"><img draggable="false" src="${photo(r)}" alt="${title}" loading="eager" fetchpriority="high"><button type="button" data-action="retry-photo" class="btn outline retry-photo" hidden>Загрузить фото ещё раз</button><span>${type}</span><b>${number} / ${deck.ids.length}</b></div>
     <div class="reaction-body"><div class="reaction-track" aria-hidden="true"><i style="width:${Math.round((100 * number) / deck.ids.length)}%"></i></div>
-    <div class="reaction-info" aria-live="polite"><h2>${title}</h2>${tradition ? `<p class="reaction-cuisine">${$(tradition)} кухня</p>` : ""}<p>${icon("clock", 16)} ${cookingTime(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
+    <div class="reaction-info" aria-live="polite"><h2>${title}</h2><p class="reaction-cuisine">${traditions.map(cuisineLabel).join(" · ")}</p><p>${icon("clock", 16)} ${cookingTime(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
     <div class="reaction-actions">${button("Не хочу", "taste-no", "outline", "close", `data-id="${r.id}"`)}${button("Хочу в меню", "taste-yes", "primary", "heart", `data-id="${r.id}"`)}</div>
     ${tastingAlternative(r,pool,votes,deck) ? deckLink("Показать похожее блюдо", "taste-similar", `data-id="${r.id}"`) : ""}
     ${summary}</div></section>`;
