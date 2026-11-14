@@ -1861,3 +1861,33 @@ button:active:not(:disabled) {
   .swap-comparison { font-size: 13px; }
   .swap-preview-actions > button { flex: 1 0 100%; }
 }
+
+.book-tools { margin: 22px 0 16px; }
+.book-search-row { display: flex; gap: 8px; align-items: stretch; }
+.book-search-row .searchbox { flex: 1; min-width: 0; }
+.book-search-row input { min-width: 0; font-size: 16px; }
+.book-search-row .searchbox:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.book-search-row input:focus { outline: none; }
+.book-filter-button,.book-tag { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--deep); }
+.book-filter-button { border: 1px solid var(--rule); background: var(--white); border-radius: 9px; min-height: 44px; padding: 0 12px; font-size: 14px; font-weight: 700; }
+.book-meals { width: fit-content; display: flex; background: var(--soft); padding: 3px; border-radius: 10px; gap: 2px; margin-top: 12px; }
+.book-meals button { flex: 1; background: transparent; color: var(--olive); min-height: 41px; padding: 5px 14px; font-size: 14px; border-radius: 8px; }
+.book-meals button[aria-pressed=true] { background: var(--deep); color: white; }
+.book-applied { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.book-applied:has(.book-tag),.book-applied:has(.book-reset:not([hidden])) { margin-top: 9px; }
+.book-tag { padding: 6px 10px; min-height: 34px; background: var(--white); border: 1px solid var(--rule); border-radius: 8px; font-size: 13px; }
+.book-reset { min-height: 36px; font-size: 13px; }
+.book-reset[hidden] { display: none; }
+.cookbook .library-count { margin: 0 0 12px; font-size: 14px; }
+.book-field { padding: 0; margin: 20px 0 0; border: 0; min-width: 0; }
+.book-field legend { font-size: 16px; font-weight: 700; padding: 0; margin-bottom: 8px; }
+.book-field > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.book-field .chip { min-height: 40px; }
+.book-filter-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 16px; margin-top: 20px; border-top: 1px solid var(--rule); }
+.book-filter-footer .btn { flex: 1; }
+@media (max-width: 640px) {
+  .book-meals { width: 100%; }
+  .book-meals button { padding-inline: 5px; }
+  .book-filter-button { padding: 0 9px; }
+  .book-field .chip { padding-inline: 10px; }
+}

@@ -474,9 +474,12 @@ for (const row of [
   add(...row);
   const recipe = RECIPES[RECIPES.length-1];
   recipe.homeCooking = true;
-  // The lunch collection starts with soups and salads; its hot mains work for either meal.
-  recipe.mealRole = recipe.id.startsWith("rl")
-    ? (Number(recipe.id.slice(2))<=60 ? "lunch" : "either")
-    : recipe.id.startsWith("rd") ? "dinner" : "breakfast";
+  // In this collection, rows 1–40 are soups and 41–60 are salads, including dishes
+  // whose names do not state their kind (Мимоза, капустняк).
+  if(recipe.id.startsWith("rl")) {
+    const number=Number(recipe.id.slice(2));
+    if(number<=60) recipe.kind=number<=40 ? "суп" : "салат";
+    recipe.mealRole=recipe.kind ? "lunch" : "either";
+  } else recipe.mealRole=recipe.id.startsWith("rd") ? "dinner" : "breakfast";
   recipe.alsoHob = homeBothAppliances.has(recipe.id);
 }

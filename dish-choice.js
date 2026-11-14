@@ -54,7 +54,7 @@ const dishKinds = [
   ["плов", /плов|пилав/u], ["рагу и жаркое", /рагу|жаркое|гуляш|бигос|бефстроганов/u],
 ];
 const choiceFeatures = new WeakMap();
-function dishKind(r) { return dishKinds.find(([,re])=>re.test(r.title.toLowerCase()))?.[0] || ""; }
+function dishKind(r) { return r.kind || dishKinds.find(([,re])=>re.test(r.title.toLowerCase()))?.[0] || ""; }
 const seasonings = new Set("salt oil garlic dill parsley paprika cumin sugar pepper cinnamon butter paste basil mustard lemon bakingPowder yeast".split(" "));
 const families = Object.fromEntries(Object.entries({
   птица:"chicken chickenThigh chickenLegMeat turkey chickenWingMeat",

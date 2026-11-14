@@ -328,16 +328,41 @@ document.addEventListener("click", (e) => {
       results.querySelectorAll(".photolink")[firstNew]?.focus({preventScroll:true});
       break;
     }
-    case "filter":
-      libraryLimit = 36;
-      filter = value;
-      render();
+    case "book-meal":
+      bookFilters={...bookFilters,meal:value}; libraryLimit=36; render();
+      main.querySelector('[data-action="book-meal"][aria-pressed="true"]').focus({preventScroll:true});
+      break;
+    case "book-filters":
+      openSheet({kind:"book-filters",selection:{...bookFilters}});
+      break;
+    case "book-option": {
+      if(openInfo?.kind!=="book-filters") break;
+      const group=btn.dataset.key;
+      openInfo.selection[group]=value;
+      for(const el of btn.parentElement.querySelectorAll("button")) el.setAttribute("aria-pressed",String(el===btn));
+      const n=libraryItems(openInfo.selection).length;
+      sheet.querySelector('[data-action="book-apply"]').textContent=n?"Показать "+bookCount(n):"Показать результаты (0)";
+      break;
+    }
+    case "book-reset-draft":
+      if(openInfo?.kind==="book-filters") {
+        openInfo.selection={...bookDefaults,meal:openInfo.selection.meal};
+        renderSheet();
+        sheet.querySelector('[data-action="book-reset-draft"]').focus({preventScroll:true});
+      }
+      break;
+    case "book-apply":
+      if(openInfo?.kind!=="book-filters") break;
+      bookFilters={...openInfo.selection}; libraryLimit=36; dismissSheet(); render();
+      main.querySelector('[data-action="book-filters"]').focus({preventScroll:true});
+      break;
+    case "book-remove":
+      bookFilters={...bookFilters,[value]:bookDefaults[value]}; libraryLimit=36; render();
+      main.querySelector('[data-action="book-filters"]').focus({preventScroll:true});
       break;
     case "clear-search":
-      libraryLimit = 36;
-      filter = "all";
-      search = "";
-      render();
+      bookFilters={...bookDefaults}; search=""; libraryLimit=36; render();
+      main.querySelector("#recipe-search").focus({preventScroll:true});
       break;
     case "chip":
       makeChoice(btn);
@@ -413,8 +438,7 @@ main.addEventListener("input", (e) => {
   }
   if (e.target.id === "recipe-search") {
     search = e.target.value;
-    libraryLimit = 36;
-    document.getElementById("library-results").innerHTML = libraryResults();
+    updateBookResults();
   } else syncDraft(e.target);
 });
 main.addEventListener("toggle", e => {

@@ -141,7 +141,6 @@ let offset = 0,
   draft = null,
   step = 1,
   libraryLimit = 36,
-  filter = "all",
   search = "",
   openInfo = null,
   toastTimer = null,
@@ -362,38 +361,99 @@ function catCard(r) {
   return `<article class="library-card"><div class="card-image"><button class="photolink" type="button" data-action="recipe" data-id="${r.id}" aria-label="Рецепт: ${$(r.title)}"><img loading="lazy" src="${photo(r)}" alt=""></button>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span><i></i><span>${Math.round(r.kcal)} ккал / порция</span></div></article>`;
 }
 const libraryPicks = ["rl001","rd022","rb020","rd023","rl041","rb021","rd024","rl021","rb001","rd001","rl004","rb076","rd021","rl049","rb059","rl006","rb030","rd041"];
-function libraryItems() {
-  const q = search.trim().toLocaleLowerCase("ru").replaceAll("ё", "е");
-  const inOrder = [...libraryPicks.map(byId).filter(Boolean), ...RECIPES.filter(r => !libraryPicks.includes(r.id))];
-  return inOrder.filter(
-    (r) =>
-      allowed(settings(), r) &&
-      (filter === "all" || (filter === "fast" && r.minutes <= 30) || (filter === "fav" && fav(r)) || filter === r.slot) &&
-      (!q ||
-        [r.title, ...r.items.map(([k]) => FOOD[k][0])]
-          .join(" ")
-          .toLocaleLowerCase("ru")
-          .replaceAll("ё", "е")
-          .includes(q)),
-  );
+const bookMeals = {all:"Все", breakfast:"Завтрак", lunch:"Обед", dinner:"Ужин"};
+const bookGroups = {
+  minutes: {"0":"Любое", "15":"До 15 мин", "30":"До 30 мин", "45":"До 45 мин"},
+  kind: {all:"Любой", "суп":"Супы", "салат":"Салаты", "каша":"Каши", "котлеты":"Котлеты", "паста":"Паста", "запеканка":"Запеканки", "блины и оладьи":"Блины и оладьи", "вареники и пельмени":"Вареники и пельмени"},
+  collection: {all:"Все рецепты", favorite:"Избранное", liked:"Хочу в меню"}
+};
+const bookDefaults={meal:"all",minutes:"0",kind:"all",collection:"all"};
+let bookFilters={...bookDefaults};
+const recipeWords=new WeakMap();
+const chickenKeys=new Set(["chicken","chickenThigh","chickenLegMeat","chickenWingMeat","chickenLiver","chickenGizzards","chickenHearts"]);
+const fishAlias={fish:"рыба",molluscs:"морепродукты"};
+const stopwords=new Set(["с","со","и","из","в","на","под","по","для"]);
+function searchWords(text) {
+  return text.toLocaleLowerCase("ru").replaceAll("ё","е").match(/[а-яa-z0-9]+/g) || [];
 }
-function libraryResults() {
-  const available = libraryItems();
-  return available.length
-    ? `<p class="quiet library-count">Подходит ${available.length} ${plural(available.length, "рецепт", "рецепта", "рецептов")}</p><div class="library">${available.slice(0, libraryLimit).map(catCard).join("")}</div>${available.length > libraryLimit ? button("Показать ещё " + Math.min(36, available.length-libraryLimit), "more-recipes", "outline", "plus") : ""}`
-    : `<div class="empty"><h2>${filter === "fav" ? "Здесь появятся любимые блюда" : "Ничего не нашлось"}</h2><p>${filter === "fav" ? "Нажмите сердечко на фотографии блюда. Избранное хранится на этом устройстве." : "Попробуйте другой продукт или измените фильтры питания."}</p>${button("Все подходящие рецепты", "clear-search", "soft")}</div>`;
+function wordStem(word) {
+  // Case and adjective endings: «гречкой» and «гречка», «куриное» and «куриный».
+  return word.length<4 ? word : word.replace(/(иями|ями|ами|ого|его|ому|ему|ыми|ими|ий|ый|ой|ей|ью|ая|яя|ое|ее|ые|ие|ую|юю|ых|их|ом|ем|ов|ев|ам|ям|ах|ях|а|я|у|ю|ы|и|е|о|ь)$/u,
+    (ending,_,offset)=>offset>=3 ? "" : ending);
+}
+function recipeSearchWords(r) {
+  if(!recipeWords.has(r)){
+    const labels=[r.title,dishKind(r)];
+    for(const [k] of r.items){
+      const item=FOOD[k];
+      labels.push(item[0]);
+      if(chickenKeys.has(k)) labels.push("курица куриный");
+      for(const tag of item.slice(5).flat()) if(fishAlias[tag]) labels.push(fishAlias[tag]);
+    }
+    recipeWords.set(r,new Set(searchWords(labels.join(" ")).map(wordStem)));
+  }
+  return recipeWords.get(r);
+}
+function libraryItems(selection=bookFilters, query=search) {
+  const terms=searchWords(query).filter(word=>!stopwords.has(word)).map(wordStem);
+  const s=settings();
+  const matches=r=>{
+    if(!allowed(s,r)) return false;
+    const role=mealRole(r);
+    if(selection.meal!=="all" && selection.meal!==role &&
+      !(role==="either" && (selection.meal==="lunch" || selection.meal==="dinner"))) return false;
+    if(selection.minutes!=="0" && r.minutes>Number(selection.minutes)) return false;
+    if(selection.kind!=="all" && dishKind(r)!==selection.kind) return false;
+    if(selection.collection==="favorite" && !fav(r)) return false;
+    if(selection.collection==="liked" && s.votes[r.id]!==1) return false;
+    if(!terms.length) return true;
+    const words=recipeSearchWords(r);
+    return terms.every(term=>words.has(term) || (term.length>=3 && [...words].some(word=>word.startsWith(term))));
+  };
+  const picks=libraryPicks.map(byId).filter(Boolean);
+  return picks.concat(RECIPES.filter(r=>!libraryPicks.includes(r.id))).filter(matches);
+}
+function bookCount(n) { return n+" "+plural(n,"рецепт","рецепта","рецептов"); }
+function appliedBookGroups(selection=bookFilters) {
+  return Object.keys(bookGroups).filter(k=>selection[k]!==bookDefaults[k]);
+}
+function libraryControls() {
+  const active=appliedBookGroups(),hasAny=search.trim() || bookFilters.meal!=="all" || active.length;
+  return `<div class="book-meals" role="group" aria-label="Приём пищи">${Object.entries(bookMeals).map(([value,label])=>
+    `<button type="button" data-action="book-meal" data-value="${value}" aria-pressed="${bookFilters.meal===value}">${label}</button>`).join("")}</div>
+    <div class="book-applied">${active.map(k=>`<button class="book-tag" type="button" data-action="book-remove" data-value="${k}" aria-label="Убрать фильтр: ${bookGroups[k][bookFilters[k]]}">${bookGroups[k][bookFilters[k]]} ${icon("close",13)}</button>`).join("")}
+      <button type="button" class="link book-reset" data-action="clear-search" ${hasAny?"":"hidden"}>Сбросить всё</button></div>`;
+}
+function libraryResults(available=libraryItems()) {
+  if(available.length) return `<div class="library">${available.slice(0,libraryLimit).map(catCard).join("")}</div>${available.length>libraryLimit ? button("Показать ещё "+Math.min(36,available.length-libraryLimit),"more-recipes","outline","plus") : ""}`;
+  const noFav=bookFilters.collection==="favorite" && !data.favorites.length;
+  const noLikes=bookFilters.collection==="liked" && !Object.values(settings().votes).includes(1);
+  const title=noFav?"В избранном пока пусто":noLikes?"Вы ещё не выбрали блюда":"Рецептов не нашлось";
+  const hint=noFav?"Сохраняйте понравившиеся рецепты сердечком на фотографии.":noLikes?"Отмечайте блюда кнопкой «Хочу в меню».":"Попробуйте другой запрос или снимите один из фильтров.";
+  const any=bookFilters.meal!=="all" || appliedBookGroups().length || search.trim();
+  return `<div class="empty"><h2>${title}</h2><p>${any?hint:"С текущими настройками меню нет подходящих рецептов."}</p>${any ? button("Все подходящие рецепты","clear-search","soft") : button("Настройки меню","settings","soft")}</div>`;
+}
+function updateBookResults() {
+  libraryLimit=36;
+  const results=libraryItems();
+  document.querySelector(".library-count").textContent=bookCount(results.length);
+  document.getElementById("library-results").innerHTML=libraryResults(results);
+  document.querySelector(".book-reset").hidden=!(search.trim() || bookFilters.meal!=="all" || appliedBookGroups().length);
+}
+function bookFilterSheet(selection) {
+  const labels={minutes:"Время на блюдо",kind:"Вид блюда",collection:"Мои блюда"};
+  const n=libraryItems(selection).length;
+  return `<div class="sheet-body simple book-filter-sheet"><h2 id="sheet-title">Фильтры рецептов</h2>
+    ${Object.entries(bookGroups).map(([key,choices])=>`<fieldset class="book-field"><legend>${labels[key]}</legend><div>${Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("")}</div></fieldset>`).join("")}
+    <div class="book-filter-footer"><button class="link" type="button" data-action="book-reset-draft">Сбросить фильтры</button>
+    <button type="button" class="btn primary" data-action="book-apply" aria-live="polite">${n?"Показать "+bookCount(n):"Показать результаты (0)"}</button></div></div>`;
 }
 function recipesPage() {
-  return `<div class="wrap inner-page"><div class="view-title"><div><h1>Книга рецептов</h1><p>Найдите блюдо и нажмите «Хочу в меню», чтобы добавить его в подбор на неделю.</p></div>${button("Выбрать блюда по фото", "discover", "soft", "heart")}</div><div class="library-tools"><div class="seg">${Object.entries(
-    { all: "Все блюда", b: "Завтраки", m: "Обеды и ужины", fast: "До 30 мин", fav: "Избранное" },
-  )
-    .map(
-      ([k, l]) =>
-        `<button type="button" data-action="filter" data-value="${k}" aria-pressed="${filter === k}">${k === "fav" ? icon("heart", 15) : ""}${l}</button>`,
-    )
-    .join(
-      "",
-    )}</div><label class="searchbox">${icon("search", 17)}<input id="recipe-search" value="${$(search)}" placeholder="Найти блюдо или продукт" aria-label="Найти блюдо или продукт" type="search"></label></div><section id="library-results" aria-live="polite">${libraryResults()}</section></div>`;
+  const available=libraryItems(),count=appliedBookGroups().length;
+  return `<div class="wrap inner-page cookbook"><div class="view-title"><div><h1>Книга рецептов</h1></div>${button("Выбрать блюда по фото","discover","soft","heart")}</div>
+    <div class="book-tools"><div class="book-search-row"><label class="searchbox">${icon("search",18)}<input id="recipe-search" value="${$(search)}" placeholder="Блюдо или продукт" aria-label="Найти блюдо или продукт" type="search"></label>
+    <button class="book-filter-button" type="button" data-action="book-filters" aria-haspopup="dialog">${icon("sliders",17)} Фильтры${count?" · "+count:""}</button></div>${libraryControls()}</div>
+    <p class="quiet library-count" role="status" aria-atomic="true">${bookCount(available.length)}</p><section id="library-results" aria-label="Найденные рецепты">${libraryResults(available)}</section></div>`;
 }
 const categories = [
   [
