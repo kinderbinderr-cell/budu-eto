@@ -205,7 +205,7 @@ function renderSheet() {
               ? swapPanel(info)
               : info.kind === "place"
                 ? placePanel(info)
-                : info.kind === "prep-day" ? prepDayPanel(prepWeek()[day]) : info.kind === "prep"
+                : info.kind === "reminders" ? remindersPanel(info) : info.kind === "prep-day" ? prepDayPanel(prepWeek()[day]) : info.kind === "prep"
                   ? prepPanel()
                   : nutritionPanel();
   sheet.innerHTML = `<div class="dialog-head">${iconBtn("close", "Закрыть окно", "close")}</div><div class="dialog-scroll">${contents}</div>`;
@@ -292,7 +292,7 @@ function prepPanel() {
   if (!p) return emptyPlan();
   const kitchen=prepWeek();
   const rows=kitchen.map((tasks,i)=>`<button type="button" class="prep-overview" data-action="prep-open-date" data-day="${i}"><span><b>${dayNames[i]}</b><small>${prepDate(i)} · ${prepCardSummary(tasks)}</small></span>${prepFlags(tasks,i)}${icon("right",16)}</button>`).join("");
-  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${rows}</div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${rows}${reminderEntry()}</div>`;
 
 }
 function nutritionPanel() {

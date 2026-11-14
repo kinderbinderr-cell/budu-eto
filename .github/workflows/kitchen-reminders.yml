@@ -1,0 +1,24 @@
+name: Kitchen reminders
+on:
+  schedule:
+    # Moscow is UTC+3. Extra ticks pick up delayed jobs within the delivery window.
+    - cron: '0,12,32,52 6,7,17,18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kitchen-reminders
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Deliver opted-in plans
+        env:
+          BUDU_BOT_TOKEN: ${{ secrets.BUDU_BOT_TOKEN }}
+          BUDU_DISPATCH_KEY: ${{ secrets.BUDU_DISPATCH_KEY }}
+        run: python3 .github/reminders/deliver.py

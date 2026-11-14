@@ -344,6 +344,18 @@ document.addEventListener("click", (e) => {
       render();
       openSheet({kind:"prep-day"});
       break;
+    case "reminders":
+      openSheet({kind:"reminders",flags:0});
+      break;
+    case "reminder-send":
+      sendReminderPlan();
+      break;
+    case "reminder-copy": {
+      const field=sheet.querySelector(".reminder-command");
+      try {navigator.clipboard.writeText(field.value).then(()=>notify("Команда скопирована"),()=>field.select());}
+      catch {field.select();}
+      break;
+    }
     case "prep-day":
       openSheet({kind:"prep-day"});
       break;
@@ -452,6 +464,14 @@ main.addEventListener("submit", (e) => {
   }
 });
 sheet.addEventListener("change", e=>{
+  if (e.target.hasAttribute("data-reminder-flag") && openInfo?.kind==="reminders") {
+    const flag=Number(e.target.dataset.reminderFlag);
+    openInfo.flags=e.target.checked?openInfo.flags|flag:openInfo.flags&~flag;
+    delete openInfo.command;
+    renderSheet();
+    sheet.querySelector('[data-reminder-flag="'+flag+'"]').focus({preventScroll:true});
+    return;
+  }
   if (e.target.hasAttribute("data-prep-done") && openInfo?.kind==="prep-day") {
     const record=weekData(), tasks=prepWeek()?.[day];
     if (!tasks) return;
@@ -647,3 +667,4 @@ if (legacy) {
 }
 render();
 bindTelegram();
+if(data.quizDone && new URLSearchParams(location.search).get("section")==="reminders" && plan()) openSheet({kind:"reminders",flags:0});

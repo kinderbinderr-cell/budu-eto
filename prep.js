@@ -128,5 +128,5 @@ function prepDayPanel(tasks) {
     (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+portions(u.people)+' · '+mealWhen(u)+prepDivision(u)+'</span><small>'+prepDate(u.serve-1)+' вечером переложить в холодильник.</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
     (tasks.thaw.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Вечером в холодильник</h3><p>Переложите из морозилки к завтрашней подаче.</p><ul>'+tasks.thaw.map(transfer).join("")+'</ul></section>':'')+
     (serveRows?'<section class="prep-serve"><h3>Из заготовок к столу</h3><ul>'+serveRows+'</ul></section>':'')+
-    '<label class="day-done"><input type="checkbox" data-prep-done '+(prepDone(tasks,day)?"checked":"")+'>Всё на сегодня сделано</label></div>';
+    '<label class="day-done"><input type="checkbox" data-prep-done '+(prepDone(tasks,day)?"checked":"")+'>Всё на сегодня сделано</label>'+reminderEntry()+'</div>';
 }
