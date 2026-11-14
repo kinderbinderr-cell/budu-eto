@@ -124,10 +124,74 @@ def weekly(today, catalog):
                 found[key]=obs(v['category'],m[2],dt.isoformat(),url)
     if len(found)<14:raise ValueError('weekly layout incomplete')
     return found
+# Week labels in EMISS are observation numbers (not ISO weeks), with no date.
+# Verify the observation date using the city government's dated Moscow basket.
+# Its rates are displayed to tenths; the prices we publish are EMISS kopecks.
+WEEK_SERIES='https://www.fedstat.ru/indicator/37426'
+CITY_CHECK='https://ac.mos.ru/special-projects/moscow-citizen-basket/'
+CHECK_ITEMS={'Молоко (1 л)':'milk','Яйца (10 шт.)':'egg','Сахар (1 кг)':'sugar',
+             'Мука пшеничная (1 кг)':'flour','Вермишель (1 кг)':'vermicelli',
+             'Картофель (1 кг)':'potato','Гречка (1 кг)':'buck','Растительное масло (1 л)':'oil'}
+def city_checkpoint(page,today):
+    h=re.search(r'<h2\b[^>]*class="basket-chart__title"[^>]*>(.*?)</h2>',page,re.S)
+    title=clean(re.sub('<[^>]*>',' ',h[1])) if h else ''
+    m=re.search(r'цены на (\d{1,2}) ([а-я]+) (20\d\d) года',title)
+    if not m or m[2] not in MONTHS:raise ValueError('missing official basket observation date')
+    dt=date(int(m[3]),MONTHS.index(m[2])+1,int(m[1]))
+    if dt>today:raise ValueError('future Moscow observation')
+    rates={}
+    for card in re.split(r'<div\s+data-product="[^"]+"\s+class="product-basket-section">',page)[1:]:
+        raw=re.search(r'class="basket-container__price">\s*([\d ,\xa0]+)\s+р\.',card)
+        name=re.search(r'class="product-basket-section__title">(.*?)</div>',card,re.S)
+        if not raw or not name:continue
+        name=' '.join(unescape(re.sub('<[^>]*>',' ',name[1])).split())
+        if name not in CHECK_ITEMS:continue
+        key=CHECK_ITEMS[name]
+        if key in rates:raise ValueError('duplicate city checkpoint')
+        rates[key]=kopecks(raw[1])
+    if len(rates)<6:raise ValueError('insufficient dated city checkpoints')
+    return dt,rates
+
+def weekly_from_grid(rows,catalog,dt,anchors):
+    labels={}
+    for k,item in catalog.items():labels.setdefault(clean(item['category']),[]).append(k)
+    periods={}
+    for row in rows:
+        if row.get('dim57831')!=MOSCOW or row.get('dim30611')!='рубль' or clean(row.get('dim0',''))!='еженедельные средние потребительские цены (тарифы) на отдельные товары и услуги':
+            raise ValueError('wrong weekly geography, currency or indicator')
+        m=re.fullmatch(r'(\d{1,2}) неделя (20\d\d)',row['dim33560'])
+        if not m or int(m[2])!=dt.year:raise ValueError('invalid observation period')
+        keys=labels.get(clean(row['dim58273']),[])
+        if not keys:continue
+        values=[str(v) for k,v in row.items() if re.fullmatch(r'dim'+str(dt.year)+r'_d\d+_i\d+',k) and v is not None and str(v).strip() not in ('','-','…','...')]
+        if not values:continue
+        if len(values)!=1:raise ValueError('ambiguous weekly rate')
+        bucket=periods.setdefault(int(m[1]),{})
+        for k in keys:
+            if k in bucket:raise ValueError('duplicate official weekly item')
+            bucket[k]=obs(catalog[k]['category'],values[0],dt.isoformat(),WEEK_SERIES)
+    # Require all checkpoints and one unambiguous match. No calendar arithmetic,
+    # no date inferred from publication/check time, no silent use of a different week.
+    matches=[(week,items) for week,items in periods.items() if len(items)>=14 and
+             all(k in items and (items[k]['kopecks']+5)//10*10==cents for k,cents in anchors.items())]
+    if len(matches)!=1:raise ValueError('unable to verify a unique Moscow observation date')
+    week,items=matches[0]
+    print('Verified EMISS observation week',week,'against',len(anchors),'dated municipal prices')
+    return items
+def weekly_emiss(today,catalog):
+    dt,anchors=city_checkpoint(request(CITY_CHECK).decode(),today)
+    # Rows carry the explicit observation label and geography. Ignore non-matching
+    # products, do not substitute similar meats, cuts or units.
+    terms={0:[37426],30611:[950351],57831:[1688506],58273:sorted(set(IDS.values())),3:[dt.year]}
+    form=[('lineObjectIds',k) for k in [0,30611,57831,58273,33560]]+[('columnObjectIds',3)]
+    form += [('selectedFilterIds',f'{k}_{v}') for k,values in terms.items() for v in values]
+    rows=json.loads(request('https://www.fedstat.ru/indicator/dataGrid.do?id=37426',urlencode(form).encode()))['results']
+    return weekly_from_grid(rows,catalog,dt,anchors)
+
 def main(path):
     prev=json.loads(path.read_text().removeprefix(PREFIX).strip().removesuffix(';')) if path.exists() else {}
     merged=dict(prev);ok=0
-    for fn in (lambda:fedstat(date.today()),lambda:weekly(date.today(),merged)):
+    for fn in (lambda:fedstat(date.today()),lambda:weekly_emiss(date.today(),merged),lambda:weekly(date.today(),merged)):
         try:
             rows=fn()
             for k,r in rows.items():

@@ -23,7 +23,7 @@ def publish(feed,path):
         if r['unit']!=lib['unit'](r['category']) or r['unit'] not in ('kg','l','10pcs'):raise ValueError('invalid unit')
         if key in prior and (r['unit']!=prior[key]['unit'] or r['category']!=prior[key]['category']):raise ValueError('changed category')
         link=urlparse(r['source'])
-        if r['source']!=lib['PAGE'] and not (link.scheme=='https' and link.netloc=='77.rosstat.gov.ru' and link.path.startswith('/storage/') and link.path.lower().endswith('.pdf')):raise ValueError('invalid public source')
+        if r['source'] not in (lib['PAGE'],lib['WEEK_SERIES']) and not (link.scheme=='https' and link.netloc=='77.rosstat.gov.ru' and link.path.startswith('/storage/') and link.path.lower().endswith('.pdf')):raise ValueError('invalid public source')
         p=r['period']
         if not re.fullmatch(r'20\d\d-\d\d(?:-\d\d)?',p) or lib['period_end'](p)>date.today():raise ValueError('invalid observation period')
         if key not in prior or lib['period_end'](p)>=lib['period_end'](prior[key]['period']):prior[key]=r
