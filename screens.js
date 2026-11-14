@@ -244,6 +244,17 @@ function recipeDetail(info) {
     isPlanned && (one > 2 || (info.batch && mult > 2)) && r.equip === "hob"
       ? "Время указано для одной-двух порций. Если всё не помещается в один слой, жарьте партиями и заложите дополнительное время."
       : "";
+  let menuAction;
+  if (isPlanned) {
+    menuAction = button("Заменить блюдо", "swap", "primary", "swap", `data-slot="${info.slot}"`);
+  } else if (settings().maxMinutes > 0 && r.minutes > settings().maxMinutes) {
+    menuAction = `<p class="quiet">В недельное меню входят блюда до ${Number(settings().maxMinutes)} мин. Этот рецепт готовится дольше.</p>`;
+  } else if (settings().votes[r.id] !== 1) {
+    menuAction = button("Хочу в меню", "like-recipe", "primary", "heart", `data-id="${r.id}"`);
+  } else {
+    menuAction = p ? button("Поставить в меню", "place", "primary", "plus", `data-id="${r.id}"`)
+      : button("Выбрать ещё блюда", "discover", "primary", "plus");
+  }
   const perPortion = value => isPlanned ? Math.round(value * (one / servings(settings()))) : bookNumber.format(value);
   const kcal = perPortion(r.kcal);
   return `<div class="detail-cover"><img src="${photo(r)}" alt="${$(r.title)}"></div><div class="sheet-body"><div class="detail-meta">${icon("clock", 16)} ${cookingTime(r)} <i></i> ${r.alsoHob ? "Плита и духовка" : r.equip === "hob" ? "На плите" : r.equip === "oven" ? "В духовке" : "Без нагрева"}</div><h2 id="sheet-title">${r.title}</h2>${isPlanned && p.days[day].meals[info.slot].personFactors ? individualFacts(p.days[day].meals[info.slot]) : `<div class="detail-facts"><span><b>${kcal}</b> ккал</span>${r.macros.map((m, i) => `<span><b>${perPortion(m)}</b> ${["Б", "Ж", "У"][i]}, г</span>`).join("")}</div><p class="fine">На ${isPlanned && data.mode === "personal" ? "вашу" : "одну полную"} порцию · ориентировочно</p>`}<div class="sheet-section"><h3>Ингредиенты</h3>${isPlanned && mealCount > 1 ? `<div class="seg small"><button type="button" data-action="batch" data-value="one" aria-pressed="${!info.batch}">На один приём</button><button type="button" data-action="batch" data-value="all" aria-pressed="${!!info.batch}">На ${mealCount} ${plural(mealCount, "приём", "приёма", "приёмов")}</button></div>` : ""}<p class="quiet">${isPlanned ? `${data.mode === "family" ? portions(servings(settings())) : "1 личная порция"}${info.batch ? " на каждый приём, продукты на весь период готовки" : " на этот приём пищи"}` : "На одну порцию"}</p>${r.items.map(([k, g]) => `<div class="ingredient"><span>${FOOD[k][0]}</span><i></i><b>${kitchenAmount(k, g * mult)}</b></div>`).join("")}</div><div class="sheet-section"><h3>Как приготовить</h3>${isPlanned && r.homeCooking && Math.abs(mult-1)>0.01 ? `<p class="fine">В шагах количество воды указано на одну порцию; для вашей готовки умножьте его на ${Number(mult.toFixed(2)).toLocaleString("ru-RU")}.</p>` : ""}<ol class="directions">${stepList.map((x) => `<li>${$(x.trim())}</li>`).join("")}</ol>${[
@@ -255,7 +266,7 @@ function recipeDetail(info) {
     .map((note) => `<p class="quiet">${note}</p>`)
     .join(
       "",
-    )}</div><div class="detail-actions">${isPlanned ? button("Заменить блюдо", "swap", "primary", "swap", `data-slot="${info.slot}"`) : settings().votes[r.id] !== 1 ? button("Хочу в меню", "like-recipe", "primary", "heart", `data-id="${r.id}"`) : (p ? button("Поставить в меню", "place", "primary", "plus", `data-id="${r.id}"`) : button("Выбрать ещё блюда", "discover", "primary", "plus"))}${button(fav(r) ? "В избранном" : "В избранное", "heart", "outline", "heart", `data-id="${r.id}" aria-pressed="${fav(r)}"`)}</div></div>`;
+    )}</div><div class="detail-actions">${menuAction}${button(fav(r) ? "В избранном" : "В избранное", "heart", "outline", "heart", `data-id="${r.id}" aria-pressed="${fav(r)}"`)}</div></div>`;
 }
 function blockText(d) {
   const b = batchDays(settings(), d);

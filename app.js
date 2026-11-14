@@ -419,13 +419,12 @@ function libraryItems(selection=bookFilters, query=search) {
     const {min,max}=selection[key];
     return {metric,low:min?bookBound(min):0,high:max?bookBound(max):Infinity};
   });
-  const s=settings();
+  const s={...settings(),maxMinutes:Number(selection.minutes)};
   const matches=r=>{
     if(!allowed(s,r)) return false;
     const role=mealRole(r);
     if(selection.meal!=="all" && selection.meal!==role &&
       !(role==="either" && (selection.meal==="lunch" || selection.meal==="dinner"))) return false;
-    if(selection.minutes!=="0" && r.minutes>Number(selection.minutes)) return false;
     if(selection.kind!=="all" && dishKind(r)!==selection.kind) return false;
     if(selection.collection==="favorite" && !fav(r)) return false;
     if(selection.collection==="liked" && s.votes[r.id]!==1) return false;
@@ -443,6 +442,9 @@ function libraryItems(selection=bookFilters, query=search) {
   return picks.concat(RECIPES.filter(r=>!libraryPicks.includes(r.id))).filter(matches);
 }
 function bookCount(n) { return n+" "+plural(n,"рецепт","рецепта","рецептов"); }
+function bookResultCount(n) {
+  return n===RECIPES.length ? bookCount(n) : n+" из "+RECIPES.length+" рецептов";
+}
 function appliedBookGroups(selection=bookFilters) {
   return Object.keys(bookGroups).filter(k=>selection[k]!==bookDefaults[k]).concat(bookRanges(selection).map(([key])=>key));
 }
@@ -472,7 +474,7 @@ function libraryResults(available=libraryItems()) {
 function updateBookResults() {
   libraryLimit=36;
   const results=libraryItems();
-  document.querySelector(".library-count").textContent=bookCount(results.length);
+  document.querySelector(".library-count").textContent=bookResultCount(results.length);
   document.getElementById("library-results").innerHTML=libraryResults(results);
   document.querySelector(".book-reset").hidden=!(search.trim() || bookFilters.meal!=="all" || appliedBookGroups().length);
 }
@@ -511,7 +513,7 @@ function recipesPage() {
   return `<div class="wrap inner-page cookbook"><div class="view-title"><div><h1>Книга рецептов</h1></div>${button("Выбрать блюда по фото","discover","soft","heart")}</div>
     <div class="book-tools"><div class="book-search-row"><label class="searchbox">${icon("search",18)}<input id="recipe-search" value="${$(search)}" placeholder="Блюдо или продукт" aria-label="Найти блюдо или продукт" type="search"></label>
     <button class="book-filter-button" type="button" data-action="book-filters" aria-haspopup="dialog">${icon("sliders",17)} Фильтры${count?" · "+count:""}</button></div>${libraryControls()}</div>
-    <p class="quiet library-count" role="status" aria-atomic="true">${bookCount(available.length)}</p><section id="library-results" aria-label="Найденные рецепты">${libraryResults(available)}</section></div>`;
+    <p class="quiet library-count" role="status" aria-atomic="true">${bookResultCount(available.length)}</p><section id="library-results" aria-label="Найденные рецепты">${libraryResults(available)}</section></div>`;
 }
 const categories = [
   [
