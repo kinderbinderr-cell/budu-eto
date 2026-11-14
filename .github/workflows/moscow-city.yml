@@ -18,8 +18,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Read official Moscow observations
         run: |
-          if ! command -v pdftotext >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y poppler-utils; fi
-          python3 .github/price-refresh/scripts/city-prices.py city-prices.js
+          base=.github/price-refresh/scripts
+          curl --fail --silent --show-error --retry 2 --max-time 35 --cacert .github/reminders/server.pem https://www.kbrcore.ru:8443/budu-eto/moscow-city-observations -o "$RUNNER_TEMP/city.json"
+          python3 "$base/regional-city-prices.py" publish "$RUNNER_TEMP/city.json" city-prices.js
       - name: Publish changed observations
         env:
           GH_TOKEN: ${{ github.token }}

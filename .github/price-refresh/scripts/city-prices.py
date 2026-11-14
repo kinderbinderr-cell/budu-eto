@@ -106,7 +106,12 @@ def weekly(today, catalog):
     dt,url=max(candidates);url=quote(unquote(url),safe=':/')
     pdf=request(url)
     if not pdf.startswith(b'%PDF'):raise ValueError('not a PDF')
-    s=subprocess.run(['pdftotext','-layout','-','-'],input=pdf,stdout=subprocess.PIPE,check=True).stdout.decode()
+    try:
+        s=subprocess.run(['pdftotext','-layout','-','-'],input=pdf,stdout=subprocess.PIPE,check=True).stdout.decode()
+    except FileNotFoundError:
+        from io import BytesIO
+        from pypdf import PdfReader
+        s='\n'.join(p.extract_text(extraction_mode='layout') for p in PdfReader(BytesIO(pdf)).pages)
     title=clean(s[:1300]); day=re.search(r'на\s+(\d{1,2})\s+([а-я]+)\s+(20\d\d)',title)
     if 'в москве' not in title or 'в московской области' in title or not day or (int(day[1]),day[2],int(day[3]))!=(dt.day,MONTHS[dt.month-1],dt.year): raise ValueError('weekly territory or observation date mismatch')
     found={}
