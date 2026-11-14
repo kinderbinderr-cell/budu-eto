@@ -28,7 +28,7 @@ const existingCuisineIds = {
     rl079 rl093 rl096 rd021 rd092 rd110 rd117`,
   belarusian: "rb028 rb037 rb095 rl063 rl064 rd033",
   tatar: "rb032 rd025 rd039 rd091 rd115",
-  bashkir: "rb032", karelian: "rb031", crimeanTatar: "rd118",
+  bashkir: "rb032", karelian: "rb031 wcKarjalanpaisti", crimeanTatar: "rd118",
   georgian: "rd003 rd015 rd049 rd114", azerbaijani: "rd116",
   uzbek: "rd096 rd098 rd113", kazakh: "rd098", kyrgyz: "rd098",
   italian: "tomatoPasta eggpot breadTomatoSoup curdGnocchi rb066 rl060",

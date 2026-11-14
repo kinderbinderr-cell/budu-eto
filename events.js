@@ -211,7 +211,7 @@ document.addEventListener("click", (e) => {
       break;
     case "like-recipe": {
       const recipe = byId(id);
-      if (!recipe || !allowed(settings(), recipe)) break;
+      if (!recipe || !allowed(settings(), recipe) || !fitsCuisines(settings(), recipe)) break;
       settings().votes[id] = 1;
       clearDiscovery(data.mode);
       persist();
@@ -299,6 +299,34 @@ document.addEventListener("click", (e) => {
     case "batch":
       openInfo.batch = value === "all";
       renderSheet();
+      break;
+    case "taste-cuisines": {
+      const {profile, votes} = tasteContext();
+      openSheet({kind: "taste-cuisines", selection: [...(profile.cuisines || [])], available: RECIPES.filter(r => allowed(profile, r)), votes});
+      break;
+    }
+    case "taste-cuisines-clear":
+      if (openInfo?.kind === "taste-cuisines") {
+        openInfo.selection = [];
+        sheet.querySelectorAll("[data-taste-cuisine]").forEach(input => { input.checked = false; });
+        updateCuisineSummary();
+      }
+      break;
+    case "taste-cuisines-apply":
+      if (openInfo?.kind === "taste-cuisines") {
+        const ctx = tasteContext();
+        const target = route === "settings" ? draft : ctx.state;
+        const selection = openInfo.selection;
+        const previous = ctx.profile.cuisines || [];
+        if (selection.length !== previous.length || selection.some(key => !previous.includes(key))) {
+          target.cuisines = [...selection];
+          ctx.state.deck = null;
+          persistTasting();
+        }
+        dismissSheet();
+        render();
+        main.querySelector('[data-action="taste-cuisines"]')?.focus({preventScroll: true});
+      }
       break;
     case "close":
       dismissSheet();
@@ -413,11 +441,26 @@ main.addEventListener("submit", (e) => {
   }
 });
 sheet.addEventListener("change", e=>{
+  if (openInfo?.kind === "taste-cuisines" && e.target.hasAttribute("data-taste-cuisine")) {
+    openInfo.selection = toggleValue(openInfo.selection, e.target.value);
+    updateCuisineSummary();
+    return;
+  }
   if(e.target.id!=="book-cuisine" || openInfo?.kind!=="book-filters") return;
   openInfo.selection.cuisine=e.target.value;
   refreshBookDraft(openInfo.selection);
 });
 sheet.addEventListener("input",e=>{
+  if (e.target.id === "taste-cuisine-search") {
+    const query = e.target.value.trim().toLocaleLowerCase("ru");
+    let visible = 0;
+    for (const row of sheet.querySelectorAll(".cuisine-list label")) {
+      row.hidden = !row.textContent.toLocaleLowerCase("ru").includes(query);
+      if (!row.hidden) visible++;
+    }
+    sheet.querySelector(".cuisine-no-match").hidden = visible > 0;
+    return;
+  }
   const {nutrient,bound}=e.target.dataset;
   if(!nutrient || openInfo?.kind!=="book-filters") return;
   const selection=openInfo.selection;
@@ -505,6 +548,11 @@ addEventListener("storage", event => {
 addEventListener("popstate", () => {
   if (sheet.open && !history.state?.mealSheet) dismissSheet(false);
   if (history.state?.foodQuiz && history.state.snapshot && history.state.snapshot.run === data.quizRun) {
+    if (route === "start" && flow?.stage === history.state.snapshot.stage) {
+      // Returning from the cuisine picker keeps the same card, keyboard focus and scroll.
+      rememberFlow();
+      return;
+    }
     flow = restoreFlow({
       ...(flow && flow.stage >= 0
         ? flow

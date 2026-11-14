@@ -191,7 +191,7 @@ function renderSheet() {
   const info = openInfo;
   if (!info) return;
   const contents =
-    info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : ["budget-edit","budget-swaps"].includes(info.kind) ? budgetDialog(info) : info.kind === "restart"
+    info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : ["budget-edit","budget-swaps"].includes(info.kind) ? budgetDialog(info) : info.kind === "restart"
       ? `<div class="sheet-body simple"><h2 id="sheet-title">Пройти анкету заново?</h2><p>Выбор блюд, магазины и настройки обоих меню сбросятся на этом устройстве. Замены и отметки «есть дома» тоже очистятся. Избранные рецепты сохранятся.</p><div class="restart-actions">${button("Отмена", "close", "outline")}${button("Начать заново", "confirm-restart", "primary")}</div></div>`
       : info.kind === "perek-address"
       ? perekAddressDialog()
@@ -247,6 +247,8 @@ function recipeDetail(info) {
   let menuAction;
   if (isPlanned) {
     menuAction = button("Заменить блюдо", "swap", "primary", "swap", `data-slot="${info.slot}"`);
+  } else if (!fitsCuisines(settings(), r)) {
+    menuAction = `<p class="quiet">Это блюдо из другой кухни. Чтобы добавить его в недельное меню, расширьте выбор кухонь.</p>${button("К выбору блюд", "discover", "soft", "sliders")}`;
   } else if (settings().maxMinutes > 0 && r.minutes > settings().maxMinutes) {
     menuAction = `<p class="quiet">В недельное меню входят блюда до ${Number(settings().maxMinutes)} мин. Этот рецепт готовится дольше.</p>`;
   } else if (settings().votes[r.id] !== 1) {

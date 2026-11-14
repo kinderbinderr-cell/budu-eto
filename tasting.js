@@ -3,9 +3,9 @@ const tastingSize = 30;
 let settingsTasting = null,
   discovery = null;
 function tastePool(profile) {
-  return RECIPES.filter(r => allowed(profile, r));
+  return RECIPES.filter(r => fitsCuisines(profile, r) && allowed(profile, r));
 }
-function newTasting(pool, votes, scope = "new") {
+function newTasting(pool, votes, scope = "new", cuisines = []) {
   const available = pool.filter((r) =>
     scope === "picked"
       ? votes[r.id] === 1
@@ -13,7 +13,7 @@ function newTasting(pool, votes, scope = "new") {
         ? votes[r.id] === -1
         : votes[r.id] !== 1 && votes[r.id] !== -1,
   );
-  const ids = scope === "new" ? sampleTasting(available, tastingSize, recentDishes()) :
+  const ids = scope === "new" ? sampleTasting(available, tastingSize, recentDishes(), Math.random, cuisines) :
     available.slice(0, scope === "picked" ? available.length : tastingSize).map(r => r.id);
   if (scope === "new") recordDishes(ids);
   return {
@@ -36,7 +36,7 @@ function startingDiscovery() {
     );
     if (saved?.votes && saved?.deck) return saved;
   } catch {}
-  return { votes: { ...settings().votes }, deck: null };
+  return { votes: { ...settings().votes }, cuisines: [...(settings().cuisines || [])], deck: null };
 }
 function tasteContext() {
   let profile, state;
@@ -47,6 +47,7 @@ function tasteContext() {
       ...initial("family"),
       diet: f.diet,
       exclude: f.exclude || [],
+      cuisines: f.cuisines || [],
       maxMinutes: f.minutes || 0,
     };
     state = f;
@@ -56,14 +57,16 @@ function tasteContext() {
     state = settingsTasting;
   } else if (route === "tastes") {
     discovery ||= startingDiscovery();
-    profile = { ...settings(), votes: discovery.votes };
+    discovery.cuisines ??= [...(settings().cuisines || [])];
+    profile = { ...settings(), votes: discovery.votes, cuisines: discovery.cuisines };
     state = discovery;
   } else return null;
   const votes = route === "start" ? state.votes : profile.votes,
     pool = tastePool(profile);
   const signature = pool.map((r) => r.id).join("/");
+  const cuisines = profile.cuisines || [];
   if (!state.deck) {
-    state.deck = { ...newTasting(pool, votes), signature };
+    state.deck = { ...newTasting(pool, votes, "new", cuisines), signature };
     persistTasting();
   } else if (state.deck.signature !== signature) {
     const deck = state.deck;
@@ -74,13 +77,13 @@ function tasteContext() {
     const used = new Set([...reviewed,...upcoming,...(deck.passed || [])]);
     const fresh = pool.filter(r=>!used.has(r.id) && votes[r.id]==null);
     const fill = deck.scope === "new" && deck.index < deck.ids.length
-      ? sampleTasting(fresh, Math.max(0,tastingSize-reviewed.length-upcoming.length), recentDishes()) : [];
+      ? sampleTasting(fresh, Math.max(0,tastingSize-reviewed.length-upcoming.length), recentDishes(), Math.random, cuisines) : [];
     deck.ids = [...reviewed,...upcoming,...fill];
     deck.signature = signature;
     if(fill.length) recordDishes(fill);
     persistTasting();
   }
-  return { state, pool, votes, deck: state.deck, signature };
+  return { state, profile, pool, votes, deck: state.deck, signature };
 }
 function persistTasting() {
   if (route === "start") rememberFlow();
@@ -120,9 +123,49 @@ function tastingAlternative(r, pool, votes, deck) {
   const upcoming = new Set(deck.ids.slice(deck.index+1).filter(id=>!(deck.passed||[]).includes(id)));
   return similarOptions(r,pool.filter(x=>upcoming.has(x.id) && !votes[x.id]),votes)[0]?.r;
 }
+function tasteCuisineEntry(selection) {
+  const names = selection.map(key => cuisineNames[key]);
+  const summary = names.length > 2 ? names.slice(0, 2).join(", ") + " +" + (names.length - 2) : names.join(", ");
+  return `<button type="button" class="taste-cuisine-entry" data-action="taste-cuisines" aria-haspopup="dialog">
+    ${icon("sliders",18)}<strong>Кухни</strong><span>${$(summary || "Все кухни")}</span>${icon("right",16)}</button>`;
+}
+function tasteCuisineSummary(info) {
+  const pool = info.available.filter(r => fitsCuisines({cuisines: info.selection}, r));
+  const fresh = Math.min(tastingSize, pool.filter(r => info.votes[r.id] == null).length);
+  const liked = pool.filter(r => info.votes[r.id] === 1).length;
+  if (!pool.length) return "С этими ограничениями пока нет блюд";
+  const cards = fresh + " " + plural(fresh,"блюдо","блюда","блюд") + " на пробу";
+  const n = info.selection.length;
+  const selected = n ? n + " " + plural(n, "кухня", "кухни", "кухонь") + " · " : "";
+  return selected + (fresh ? cards : "Все блюда просмотрены") + (liked ? " · уже нравится " + liked : "");
+}
+function updateCuisineSummary() {
+  sheet.querySelector(".cuisine-result").textContent = tasteCuisineSummary(openInfo);
+  sheet.querySelector('[data-action="taste-cuisines-clear"]').disabled = !openInfo.selection.length;
+}
+function tasteCuisineSheet(info) {
+  const counts = new Map();
+  for (const recipe of info.available) for (const key of recipe.cuisines) counts.set(key, (counts.get(key) || 0) + 1);
+  const items = Object.entries(bookCuisines).filter(([key]) => key !== "all")
+    .sort(([a], [b]) => Number(info.selection.includes(b)) - Number(info.selection.includes(a)));
+  return `<section class="sheet-body simple cuisine-sheet">
+    <h2 id="sheet-title">Какие кухни любите?</h2><p>Можно выбрать несколько. Оставьте выбор пустым, чтобы попробовать все кухни.</p>
+    <label class="cuisine-search">${icon("search",18)}<input id="taste-cuisine-search" type="search" placeholder="Найти кухню" aria-label="Найти кухню" autocomplete="off"></label>
+    <div class="cuisine-list" role="group" aria-label="Кухни">${items.map(([key,name]) => {
+      const count = counts.get(key) || 0;
+      return `<label><input type="checkbox" value="${key}" data-taste-cuisine ${info.selection.includes(key) ? "checked" : ""}>
+        <span>${$(name)}</span><small aria-label="${bookCount(count)}">${count}</small></label>`;
+    }).join("")}<p hidden class="cuisine-no-match">Такой кухни не нашлось. Попробуйте другое название.</p></div>
+    <div class="cuisine-footer"><div><output class="cuisine-result" aria-live="polite">${tasteCuisineSummary(info)}</output>
+    <button type="button" class="link" data-action="taste-cuisines-clear" ${info.selection.length ? "" : "disabled"}>Сбросить</button></div>
+    ${button("Готово","taste-cuisines-apply","primary","check")}</div></section>`;
+}
 function tastingPanel() {
-  const { pool, votes, deck } = tasteContext(),
-    counts = selectedCounts(pool, votes);
+  const ctx = tasteContext();
+  return tasteCuisineEntry(ctx.profile.cuisines || []) + tastingCards(ctx);
+}
+function tastingCards({ pool, votes, deck, profile }) {
+  const counts = selectedCounts(pool, votes);
   const r = byId(deck.ids[deck.index]);
   const left = pool.filter(
     (r) => votes[r.id] !== 1 && votes[r.id] !== -1,
@@ -137,7 +180,7 @@ function tastingPanel() {
   const liked = RECIPES.filter(r=>votes[r.id]===1).length;
   const summary = `<div class="taste-counter"><span>${icon("heart", 15)} Выбрано <b>${liked}</b>${liked>counts.chosen.length ? ` · подходят ${counts.chosen.length}` : ""}</span>${deck.trail.length ? deckLink(icon("undo", 14) + " Отменить", "taste-undo") : ""}</div>`;
   if (!r)
-    return `<section class="taste-end">${summary}<h2>${pool.length ? (counts.chosen.length ? "Вот что вам по вкусу" : "Поищем другие блюда?") : "Пока нет подходящих блюд"}</h2><p>${selectionHint(counts) || "Недельный план будет собран только из вашего выбора."}</p>
+    return `<section class="taste-end">${summary}<h2>${pool.length ? (counts.chosen.length ? "Вот что вам по вкусу" : "Поищем другие блюда?") : "Пока нет подходящих блюд"}</h2><p>${selectionHint(counts) || "Недельный план будет собран только из вашего выбора."}${profile.cuisines?.length && !left && selectionHint(counts) ? " Чтобы увидеть больше блюд, добавьте кухню выше." : ""}</p>
     ${
       counts.chosen.length
         ? `<div class="taste-samples">${counts.chosen
@@ -151,11 +194,12 @@ function tastingPanel() {
     <div class="taste-end-actions">${left ? button("Посмотреть ещё " + Math.min(left, tastingSize), "taste-more", "soft", "plus") : ""}${counts.chosen.length ? deckLink("Изменить понравившиеся", "taste-picked") : ""}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   const title = $(r.title),
     type = r.slot === "b" ? "Завтрак" : mealRole(r) === "lunch" ? "На обед" : mealRole(r) === "dinner" ? "На ужин" : "Обед или ужин",
+    tradition = profile.cuisines?.length ? r.cuisines.filter(key => profile.cuisines.includes(key)).map(key => cuisineNames[key]).join(" / ") : "",
     number = deck.index + 1;
   return `<section class="reaction-card" aria-label="Выбор блюда">
     <div class="reaction-photo" data-taste-id="${r.id}"><img draggable="false" src="${photo(r)}" alt="${title}" loading="eager" fetchpriority="high"><button type="button" data-action="retry-photo" class="btn outline retry-photo" hidden>Загрузить фото ещё раз</button><span>${type}</span><b>${number} / ${deck.ids.length}</b></div>
     <div class="reaction-body"><div class="reaction-track" aria-hidden="true"><i style="width:${Math.round((100 * number) / deck.ids.length)}%"></i></div>
-    <div class="reaction-info" aria-live="polite"><h2>${title}</h2><p>${icon("clock", 16)} ${cookingTime(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
+    <div class="reaction-info" aria-live="polite"><h2>${title}</h2>${tradition ? `<p class="reaction-cuisine">${$(tradition)} кухня</p>` : ""}<p>${icon("clock", 16)} ${cookingTime(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
     <div class="reaction-actions">${button("Не хочу", "taste-no", "outline", "close", `data-id="${r.id}"`)}${button("Хочу в меню", "taste-yes", "primary", "heart", `data-id="${r.id}"`)}</div>
     ${tastingAlternative(r,pool,votes,deck) ? deckLink("Показать похожее блюдо", "taste-similar", `data-id="${r.id}"`) : ""}
     ${summary}</div></section>`;
@@ -175,7 +219,7 @@ function handleTasteAction(action, el) {
     return false;
   const ctx = tasteContext();
   if (!ctx) return true;
-  const { deck, state, votes, pool, signature } = ctx;
+  const { deck, state, votes, pool, signature, profile } = ctx;
   if (action === "taste-similar") {
     const current=byId(deck.ids[deck.index]);
     if (!current || current.id!==el.dataset.id) return true;
@@ -207,6 +251,7 @@ function handleTasteAction(action, el) {
           : action === "taste-picked"
             ? "picked"
             : "new",
+        profile.cuisines,
       ),
       signature,
     };
@@ -241,6 +286,7 @@ function saveDiscovery() {
   }
   const s = settings();
   s.votes = { ...votes };
+  s.cuisines = [...discovery.cuisines];
   s.strictTaste = true;
   useStockForPlanning(s,weekSeed(),weekData().pantry);
   s.tasteAnchor ??= weekSeed(0);

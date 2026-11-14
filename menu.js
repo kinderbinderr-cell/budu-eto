@@ -507,6 +507,7 @@ function initial(mode) {
     budget: 5000,
     diet: "all",
     exclude: [],
+    cuisines: [],
     equipment: ["hob", "oven"],
     cook: [0, 2, 4, 6],
     votes: {},
@@ -792,14 +793,17 @@ function batchDays(s, day) {
   const next = Math.min(7, ...s.cook.filter(d => d > start));
   return Array.from({ length: next - start }, (_, i) => start + i);
 }
+function fitsCuisines(profile, recipe) {
+  return !profile.cuisines?.length || profile.cuisines.some(key => recipe.cuisines?.includes(key));
+}
 function eligible(s, r) {
   return (
-    allowed(s, r) &&
+    fitsCuisines(s, r) && allowed(s, r) &&
     (s.strictTaste ? s.votes[r.id] === 1 : s.votes[r.id] !== -1)
   );
 }
 function manualCandidate(s, r, slot) {
-  return Boolean(r && r.slot === (slot === 0 ? "b" : "m") && allowed(s,r) && s.votes[r.id] !== -1);
+  return Boolean(r && r.slot === (slot === 0 ? "b" : "m") && fitsCuisines(s,r) && allowed(s,r) && s.votes[r.id] !== -1);
 }
 function candidates(s, slot) {
   return RECIPES.filter(

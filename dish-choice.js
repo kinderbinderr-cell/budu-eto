@@ -14,14 +14,24 @@ function recordDishes(ids) {
   try { localStorage.setItem(tasteHistoryKey, JSON.stringify(memoryHistory)); } catch {}
 }
 const classicDish = r => /(?:борщ|рассольник|(?:^| )щи |окрошк|крупеник|сырник|блины|блинчик|шаньг|драник|пельмен|вареник|голубц|винегрет|гречк|пш[её]нн|пожарски)/iu.test(r.title);
-function sampleTasting(pool, limit, history = [], random = Math.random) {
+function sampleTasting(pool, limit, history = [], random = Math.random, cuisines = []) {
   const order = new Map((pool.length <= limit ? [] : history).map((id,i)=>[id,i])), usedKinds = new Map();
   const rows = pool.map(r=>({r, age:order.get(r.id) ?? -1, ticket:random(), kind:dishKind(r)}));
   const result = [];
+  const served = new Map(cuisines.map(key => [key, 0]));
   while (rows.length && result.length < limit) {
-    const wanted = result.length % 3 === 0 ? "b" : "m";
-    let options = rows.filter(x=>x.r.slot === wanted);
-    if (!options.length) options = rows;
+    let options = rows;
+    let leastServed = [];
+    if (served.size > 1) {
+      const remaining = new Set(rows.flatMap(x => x.r.cuisines || []));
+      const active = cuisines.filter(key => remaining.has(key));
+      const lowest = Math.min(...active.map(key => served.get(key)));
+      leastServed = active.filter(key => served.get(key) === lowest);
+      options = rows.filter(x => x.r.cuisines.some(key => leastServed.includes(key)));
+    }
+    const wanted = result.filter(r => r.slot === "b").length < (result.length + 1) / 3 ? "b" : "m";
+    const matchingSlot = options.filter(x => x.r.slot === wanted);
+    if (matchingSlot.length) options = matchingSlot;
     // Draw unseen dishes first, then recycle the oldest, never the last deck first.
     const oldest = Math.min(...options.map(x=>x.age));
     options = options.filter(x=>x.age===oldest);
@@ -31,6 +41,9 @@ function sampleTasting(pool, limit, history = [], random = Math.random) {
     }
     options.sort((a,b)=>((usedKinds.get(a.kind)||0) - (usedKinds.get(b.kind)||0)) || a.ticket-b.ticket);
     const pick = options[0]; result.push(pick.r);
+    // A dish shared by traditions occupies one card and one turn in the rotation.
+    const credited = leastServed.find(key => pick.r.cuisines.includes(key));
+    if (credited) served.set(credited, served.get(credited) + 1);
     usedKinds.set(pick.kind,(usedKinds.get(pick.kind)||0)+1);
     rows.splice(rows.indexOf(pick),1);
   }
