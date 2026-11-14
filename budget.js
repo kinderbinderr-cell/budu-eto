@@ -12,6 +12,14 @@ function cataloguePurchase(key, g, store) {
   return Number.isFinite(row.cents) && !row.expired ? row : null;
 }
 function estimatedPurchase(key,g,store) {
+  const city=typeof cityObservations==="undefined" ? null : cityObservations[key];
+  if(city) {
+    const purchase=typicalPurchase(key,g);
+    // Retail pack capacities are in edible grams, including liquids and eggs.
+    const divisor=city.unit==="kg" ? 1000 : city.unit==="10pcs" && key==="egg" ? 500
+      : city.unit==="l" ? ({milk:1030,oil:920,cream:1000})[key] : null;
+    if(divisor>0) return {quantity:purchase.label,cents:Math.round(city.kopecks*purchase.weight/divisor),city};
+  }
   // Use a dated Moscow shelf for the same ingredient; keep its real pack size and identify it as a benchmark.
   let benchmark=null, latest="";
   if(typeof referenceCatalogs!=="undefined") for(const [id,shelf] of Object.entries(referenceCatalogs)) {
@@ -25,11 +33,36 @@ function estimatedPurchase(key,g,store) {
   const purchase=typicalPurchase(key,g);
   return {quantity:purchase.label,cents:Math.round(FOOD[key][4]*purchase.weight)};
 }
+const displayPriceDate = iso => iso.split("-").reverse().join(".");
+const cityPeriods=new Map();
+function cityPeriod(iso) {
+  if(iso.length===10)return displayPriceDate(iso);
+  if(!cityPeriods.has(iso)) cityPeriods.set(iso,new Intl.DateTimeFormat("ru-RU",{year:"numeric",month:"long",timeZone:"UTC"}).format(new Date(iso+"-01T00:00:00Z")).replace(/ г\.$/,""));
+  return cityPeriods.get(iso);
+}
+function cityPublisher(c) {return c.source.startsWith("https://77.rosstat.gov.ru/") ? "Мосстат" : "Росстат · ЕМИСС";}
+function storePriceNote(store,row) {
+  const shelf=storeShelf(store);
+  const date=shelf?.checkedOn ? displayPriceDate(shelf.checkedOn) : row.at ? new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Moscow"}).format(new Date(row.at)) : "";
+  return "Цена магазина · "+(shelf?.name || shopName(store))+(date ? " · "+date : " · дата неизвестна");
+}
+function priceOrigin(row,store,own) {
+  if(own) return storePriceNote(store,row);
+  if(row.city) return "Средняя по Москве · "+cityPublisher(row.city)+" · "+cityPeriod(row.city.period);
+  if(row.shelf) return "Другой магазин · "+row.shelf.name+" · "+displayPriceDate(row.shelf.checkedOn);
+  return "Оценка «Буду это» · нет данных о цене";
+}
+function shoppingPriceNote(key,g,store) {
+  const own=cataloguePurchase(key,g,store),row=own || estimatedPurchase(key,g,store);
+  return "≈ "+rubles(row.cents/100)+" · "+priceOrigin(row,store,!!own);
+}
 function estimatedRow({key,g,status,expired},store) {
   const row=estimatedPurchase(key,g,store);
   const note=status==="unavailable" ? " · нет в наличии" : expired ? " · прежняя цена устарела" : "";
-  const source=row.shelf ? 'ориентир по Москве · <a href="'+$(row.offer.url)+'" target="_blank" rel="noopener noreferrer">'+$(row.shelf.name)+'</a> · '+$(row.shelf.checkedOn.split("-").reverse().join(".")) : 'базовая оценка «Буду это»';
-  return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · ${source}${note}</small></div><strong>≈ ${money(row.cents/100)}</strong></li>`;
+  const url=row.city?.source || row.offer?.url, caption=priceOrigin(row,store,false);
+  const source=url ? '<a href="'+$(url)+'" target="_blank" rel="noopener noreferrer">'+$(caption)+'</a>' : $(caption);
+  const rate=row.city ? '<small>'+$(row.city.category)+' · '+rubles(row.city.kopecks/100)+' / '+({kg:"кг",l:"л","10pcs":"10 шт."})[row.city.unit]+'</small>' : "";
+  return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · ${source}${note}</small>${rate}</div><strong>≈ ${rubles(row.cents/100)}</strong></li>`;
 }
 // Compare the additional checkout cost of a recipe, including the unused part of each pack.
 function marginalCheckout(store,pantry) {
@@ -54,21 +87,22 @@ function budgetScorer(s, {planning = false} = {}) {
     const items = Object.entries(counts).map(([key,g]) => [key,Math.max(0,neededGrams(g) - (pantry[key] || 0))]).filter(([,g]) => g > 0);
     let best = null;
     for (const store of sources) {
-      let cents = 0, known = 0, benchmark = 0;
+      let cents = 0, known = 0, benchmark = 0, city = 0;
       for (const [key,g] of items) {
         const token = store + "/" + key + "/" + g;
         let line = cache.get(token);
         if (!line) {
           const row = cataloguePurchase(key,g,store);
           const price=row || estimatedPurchase(key,g,store);
-          line = {cents:price.cents,known:!!row,benchmark:!!price.shelf};
+          line = {cents:price.cents,known:!!row,benchmark:!!price.shelf,city:!!price.city};
           cache.set(token,line);
         }
         cents += line.cents;
         known += Number(line.known);
         benchmark += Number(line.benchmark);
+        city += Number(line.city);
       }
-      const amount = {store,cents,known,benchmark,count:items.length};
+      const amount = {store,cents,known,benchmark,city,count:items.length};
       // An entirely unpriced store gives no basis for comparing it with a priced one.
       if (!best || (known > 0 && !best.known) || (Boolean(known) === Boolean(best.known) &&
         (cents < best.cents || (cents === best.cents && known > best.known)))) best = amount;
@@ -130,8 +164,9 @@ function budgetSource(q) {
     parts.push(shelf ? shelf.name+" · Яндекс Еда · "+shelf.address+" · "+shelf.checkedOn.split("-").reverse().join(".") : shopName(q.store));
     parts.push("По витрине магазина "+q.known+" из "+q.count+" поз.");
   }
-  if(q.benchmark) parts.push("Московский ценовой ориентир — "+q.benchmark+" поз.");
-  const estimated=q.count-q.known-q.benchmark;
+  if(q.city) parts.push("Средняя по Москве — "+q.city+" поз.");
+  if(q.benchmark) parts.push("Другая московская витрина — "+q.benchmark+" поз.");
+  const estimated=q.count-q.known-q.benchmark-(q.city||0);
   if(estimated) parts.push("Базовая оценка «Буду это» — "+estimated+" поз.");
   return parts.join(". ")+". С учётом фасовки, без доставки.";
 
@@ -156,6 +191,7 @@ function refreshShoppingEstimate() {
   mountBudgetOffer();
   for(const label of document.querySelectorAll(".grocery input:not(:checked)")) {
     const k=label.dataset.pantry;
+    label.closest(".grocery").querySelector("[data-line-price]").textContent=shoppingPriceNote(k,remainingGrams(k,p.counts[k]),q.store);
     label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,remainingGrams(k,p.counts[k]),q.store);
   }
 }

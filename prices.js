@@ -201,7 +201,7 @@ function priceDate(ts) {
     }).format(ts) + " МСК"
   );
 }
-function rowHTML(r) {
+function rowHTML(r,store) {
   const title = $(FOOD[r.key][0]);
   if (r.status !== "found")
     return `<li><span>${title}</span><small>${r.status === "waiting" ? "Проверяем…" : r.status === "unavailable" ? "Нет в наличии" : "Цена не подтверждена"}</small></li>`;
@@ -224,7 +224,7 @@ function rowHTML(r) {
       " · примерно " +
       grams(r.orderGrams) +
       " после взвешивания";
-  return `<li><div><b>${title}</b><small><a href="${$(o.url)}" target="_blank" rel="noopener noreferrer">${$(o.title)}</a></small><small>${$(calc)}</small>${o.physicalOutlets?.length ? `<small>При проверке в наличии · ${$(o.physicalOutlets.join(", "))}</small>` : ""}${r.archived ? `<small>Цена на ${priceDate(r.at)}${r.expired ? " · в сумму не входит" : ""}</small>` : ""}</div><div class="price-numbers"><strong>${rubles(o.unitPrice)}${u}</strong>${r.cents !== null ? `<small>${o.unit === "kg" ? "≈ " : ""}${rubles(r.cents / 100)}</small>` : ""}</div></li>`;
+  return `<li><div><b>${title}</b>${store ? "<small>"+$(storePriceNote(store,r))+"</small>" : ""}<small><a href="${$(o.url)}" target="_blank" rel="noopener noreferrer">${$(o.title)}</a></small><small>${$(calc)}</small>${o.physicalOutlets?.length ? `<small>При проверке в наличии · ${$(o.physicalOutlets.join(", "))}</small>` : ""}${r.archived ? `<small>Цена на ${priceDate(r.at)}${r.expired ? " · в сумму не входит" : ""}</small>` : ""}</div><div class="price-numbers"><strong>${rubles(o.unitPrice)}${u}</strong>${r.cents !== null ? `<small>${o.unit === "kg" ? "≈ " : ""}${rubles(r.cents / 100)}</small>` : ""}</div></li>`;
 }
 function quoteInfo(store, items) {
   const rows = items.map((i) => priceLine(i, store)),
@@ -310,7 +310,7 @@ function drawQuotes() {
         if (storeShelf(k))
           return referenceMarket(items, false, open.has(k), k);
         const q = quoteInfo(k, items);
-        return `<details class="price-market" data-store="${k}" ${open.has(k) ? "open" : ""}><summary><div><strong>${shopName(k)}</strong><small>${shopCaption(k)}</small></div><div class="price-numbers"><b>${q.fullSum}</b><small>${q.label} · ${q.sum}</small></div></summary><p>${q.note}Цены найдены для ${q.coverage} продуктов. Для остальных учтена примерная стоимость покупки. Весовой итог зависит от фактического веса.${k === "vv" ? " Наличие и персональные скидки уточняются по адресу во ВкусВилле." : k === "tvoydom" ? " Ниже указаны гипермаркеты, где нашёлся каждый товар. Цена в зале может отличаться от цены витрины." : ""}</p><ul class="price-rows">${q.rows.map(row=>Number.isFinite(row.cents)&&!row.expired ? rowHTML(row) : estimatedRow(row,k)).join("")}</ul></details>`;
+        return `<details class="price-market" data-store="${k}" ${open.has(k) ? "open" : ""}><summary><div><strong>${shopName(k)}</strong><small>${shopCaption(k)}</small></div><div class="price-numbers"><b>${q.fullSum}</b><small>${q.label} · ${q.sum}</small></div></summary><p>${q.note}Цены найдены для ${q.coverage} продуктов. Для остальных учтена примерная стоимость покупки. Весовой итог зависит от фактического веса.${k === "vv" ? " Наличие и персональные скидки уточняются по адресу во ВкусВилле." : k === "tvoydom" ? " Ниже указаны гипермаркеты, где нашёлся каждый товар. Цена в зале может отличаться от цены витрины." : ""}</p><ul class="price-rows">${q.rows.map(row=>Number.isFinite(row.cents)&&!row.expired ? rowHTML(row,k) : estimatedRow(row,k)).join("")}</ul></details>`;
       })
       .join("");
 }

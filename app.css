@@ -1837,6 +1837,7 @@ button:active:not(:disabled) {
 .summary .btn+.btn {margin-top:8px}
 .grocery i{flex-shrink:0}
 .grocery b{white-space:normal;text-align:right;max-width:46%}
+.grocery .line-price{display:block;font-size:12px;line-height:1.45;color:var(--ink);margin-top:4px}.grocery .line-price:empty{display:none}
 .grocery .recipe-need{font-size:12px;line-height:1.4;margin-top:3px}
 
 .budget-actions [hidden] { display: none; }
