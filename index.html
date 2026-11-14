@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#fafbf7" />
+    <title>Буду это · Меню по вашему вкусу</title>
+    <meta
+      name="description"
+      content="Отметьте блюда, которые хочется съесть, и соберите свои три недели меню со списками покупок."
+    />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="funnel.css" />
+    <script>
+      // Read Telegram's launch fragment before the planner starts using hash navigation.
+      const miniLaunch = new URLSearchParams(location.search).get("mini") === "1" ||
+        /(?:^#|&)tgWebApp(?:Data|Version|Platform)=/.test(location.hash);
+      let loadTelegram = miniLaunch;
+      try {
+        if (miniLaunch) sessionStorage.setItem("tg-launch","1");
+        loadTelegram ||= sessionStorage.getItem("tg-launch") === "1";
+      } catch {}
+      if (loadTelegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js?65"><\/script>');
+    </script>
+    <script defer src="menu.js"></script>
+    <script defer src="collection.js"></script>
+    <script defer src="specials.js"></script>
+    <script defer src="breakfasts.js"></script>
+    <script defer src="greens.js"></script>
+    <script defer src="mains.js"></script>
+    <script defer src="home-cooking.js"></script>
+    <script defer src="icons.js"></script>
+    <script defer src="app.js"></script>
+    <script defer src="screens.js"></script>
+    <script defer src="funnel.js"></script>
+    <script defer src="perekrestok.js"></script>
+    <script defer src="perekrestok-basket.js"></script>
+    <script defer src="amounts.js"></script>
+    <script defer src="reference-prices.js"></script>
+    <script defer src="prices.js"></script>
+    <script defer src="dish-choice.js"></script>
+    <script defer src="tasting.js"></script>
+    <script defer src="budget.js"></script>
+    <link rel="stylesheet" href="coupons.css" />
+    <script defer src="coupons.js"></script>
+    <script defer src="portion-targets.js"></script>
+    <script defer src="events.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Перейти к меню</a>
+    <header id="top"></header>
+    <main id="content" tabindex="-1"></main>
+    <nav id="dock" aria-label="Основные разделы"></nav>
+    <dialog id="sheet" aria-labelledby="sheet-title"></dialog>
+    <div id="toast" aria-live="polite" role="status"></div>
+  </body>
+</html>
