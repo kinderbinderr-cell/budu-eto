@@ -77,6 +77,7 @@ addPack("walnut sunflowerSeeds raisin driedApricot prunes sesame poppy",100,"100
 addPack("chick bean corn olive",220,"≈ 220 г без заливки","jar");
 addPack("tuna cannedSaury spratTomato pinkSalmonCanned sprats codLiver",160,"≈ 160 г съедобной части","jar");
 addPack("honey appleButter",250,"250 г","jar");
+addPack("grapeLeaves",500,"500 г");
 addPack("puffPastry cornFrozen peas pelmeni",500,"500 г");
 addPack("starch",200,"200 г");
 function typicalPurchase(key,g) {

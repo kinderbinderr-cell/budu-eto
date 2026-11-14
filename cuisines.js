@@ -28,6 +28,7 @@ function cuisineLabel(key) {
 }
 
 const existingCuisineIds = {
+  everyday: "rd029",
   russian: `buckapple syrniki mushroomBuck rb001 rb002 rb003 rb004 rb006 rb010 rb012 rb013
     rb016 rb019 rb020 rb022 rb023 rb024 rb025 rb026 rb027 rb030 rb035 rb037 rb038 rb059 rb060
     rb061 rb062 rb063 rb064 rb069 rb070 rb072 rb073 rb076 rb077 rb078 rb080 rb085 rb089 rb092 rb094 rb096
@@ -40,9 +41,11 @@ const existingCuisineIds = {
     rl079 rl093 rl096 rd021 rd092 rd110 rd117`,
   belarusian: "rb028 rb037 rb095 rl063 rl064 rd033",
   tatar: "rb032 rd025 rd039 rd091 rd115",
-  bashkir: "rb032", karelian: "rb031 wcKarjalanpaisti", crimeanTatar: "rd118",
+  bashkir: "rb032 negubadiya webalish nekullama rd115",
+  ossetian: "rl008 rb010 rd003 nesatsivi", dagestani: "nedushbara webozbash wedovga rd021",
+  karelian: "rb031 wcKarjalanpaisti ncVispipuuro rl018", crimeanTatar: "rd118 weimam rd029 rb001",
   georgian: "rd003 rd015 rd049 rd114", azerbaijani: "rd116",
-  uzbek: "rd096 rd098 rd113", kazakh: "rd098", kyrgyz: "rd098",
+  uzbek: "rd096 rd098 rd113", kazakh: "rd098", kyrgyz: "rd098 rd113 welagman wekuurdak rd096 nekespe wesamsa reTalkan",
   italian: "tomatoPasta eggpot breadTomatoSoup curdGnocchi rb066 rl060",
   french: "berryToast rb044 rd005", spanish: "panTomate rl034",
   swiss: "potatoRosti appleBircher", polish: "rl065 rd111",
