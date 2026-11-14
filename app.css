@@ -1883,6 +1883,11 @@ button:active:not(:disabled) {
 .book-field legend { font-size: 16px; font-weight: 700; padding: 0; margin-bottom: 8px; }
 .book-field > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .book-field .chip { min-height: 40px; }
+.book-cuisine { display: grid; gap: 8px; margin-top: 16px; font-weight: 700; }
+.book-cuisine select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--rule); border-radius: 8px; background-color: var(--white); padding: 6px 10px; font-size: 16px; font-weight: 400; }
+.book-cuisine select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.photo-credit { margin: 18px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.photo-credit a { text-decoration: underline; text-underline-offset: 2px; }
 .book-filter-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 16px; margin-top: 20px; border-top: 1px solid var(--rule); }
 .book-filter-footer .btn { flex: 1; }
 .book-nutrition { margin-top: 20px; border-block: 1px solid var(--rule); }

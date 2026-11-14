@@ -412,6 +412,11 @@ main.addEventListener("submit", (e) => {
     render({ top: true });
   }
 });
+sheet.addEventListener("change", e=>{
+  if(e.target.id!=="book-cuisine" || openInfo?.kind!=="book-filters") return;
+  openInfo.selection.cuisine=e.target.value;
+  refreshBookDraft(openInfo.selection);
+});
 sheet.addEventListener("input",e=>{
   const {nutrient,bound}=e.target.dataset;
   if(!nutrient || openInfo?.kind!=="book-filters") return;

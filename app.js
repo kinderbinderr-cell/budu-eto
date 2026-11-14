@@ -365,11 +365,12 @@ function catCard(r) {
 const libraryPicks = ["rl001","rd022","rb020","rd023","rl041","rb021","rd024","rl021","rb001","rd001","rl004","rb076","rd021","rl049","rb059","rl006","rb030","rd041"];
 const bookMeals = {all:"Все", breakfast:"Завтрак", lunch:"Обед", dinner:"Ужин"};
 const bookGroups = {
+  cuisine: typeof bookCuisines==="undefined" ? {all:"Все кухни"} : bookCuisines,
   minutes: {"0":"Любое", "15":"До 15 мин", "30":"До 30 мин", "45":"До 45 мин"},
   kind: {all:"Любой", "суп":"Супы", "салат":"Салаты", "каша":"Каши", "котлеты":"Котлеты", "паста":"Паста", "запеканка":"Запеканки", "блины и оладьи":"Блины и оладьи", "вареники и пельмени":"Вареники и пельмени"},
   collection: {all:"Все рецепты", favorite:"Избранное", liked:"Хочу в меню"}
 };
-const bookDefaults={meal:"all",minutes:"0",kind:"all",collection:"all"};
+const bookDefaults={meal:"all",minutes:"0",kind:"all",collection:"all",cuisine:"all"};
 const bookNutrients={
   kcal:{label:"Калории",unit:"ккал",value:r=>r.kcal},
   protein:{label:"Белки",unit:"г",value:r=>r.macros[0]},
@@ -402,7 +403,7 @@ function wordStem(word) {
 }
 function recipeSearchWords(r) {
   if(!recipeWords.has(r)){
-    const labels=[r.title,dishKind(r)];
+    const labels=[r.title,dishKind(r),...(r.cuisines || []).map(key=>cuisineNames[key]+" кухня")];
     for(const [k] of r.items){
       const item=FOOD[k];
       labels.push(item[0]);
@@ -422,6 +423,7 @@ function libraryItems(selection=bookFilters, query=search) {
   const s={...settings(),maxMinutes:Number(selection.minutes)};
   const matches=r=>{
     if(!allowed(s,r)) return false;
+    if(selection.cuisine!=="all" && !r.cuisines.includes(selection.cuisine)) return false;
     const role=mealRole(r);
     if(selection.meal!=="all" && selection.meal!==role &&
       !(role==="either" && (selection.meal==="lunch" || selection.meal==="dinner"))) return false;
@@ -503,8 +505,13 @@ function refreshBookDraft(selection) {
 function bookFilterSheet(selection) {
   const labels={minutes:"Время на блюдо",kind:"Вид блюда",collection:"Мои блюда"};
   const n=libraryItems(selection).length;
+  const fields=Object.entries(bookGroups).map(([key,choices])=>{
+    if(key==="cuisine") return `<label class="book-cuisine">Кухня<select id="book-cuisine">${Object.entries(choices).map(([value,label])=>`<option value="${value}" ${selection.cuisine===value?"selected":""}>${label}</option>`).join("")}</select></label>`;
+    const options=Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("");
+    return `<fieldset class="book-field"><legend>${labels[key]}</legend><div>${options}</div></fieldset>${key==="minutes"?bookNutritionFields(selection):""}`;
+  }).join("");
   return `<div class="sheet-body simple book-filter-sheet"><h2 id="sheet-title">Фильтры рецептов</h2>
-    ${Object.entries(bookGroups).map(([key,choices])=>`<fieldset class="book-field"><legend>${labels[key]}</legend><div>${Object.entries(choices).map(([value,label])=>`<button type="button" class="chip" aria-pressed="${selection[key]===value}" data-action="book-option" data-key="${key}" data-value="${value}">${label}</button>`).join("")}</div></fieldset>${key==="minutes"?bookNutritionFields(selection):""}`).join("")}
+    ${fields}
     <div class="book-filter-footer"><button class="link" type="button" data-action="book-reset-draft">Сбросить фильтры</button>
     <button type="button" class="btn primary" data-action="book-apply" aria-live="polite">${bookApplyLabel(n)}</button></div></div>`;
 }
