@@ -339,6 +339,17 @@ document.addEventListener("click", (e) => {
       dismissSheet();
       render();
       break;
+    case "prep-open-date":
+      day=Number(d);
+      render();
+      openSheet({kind:"prep-day"});
+      break;
+    case "prep-day":
+      openSheet({kind:"prep-day"});
+      break;
+    case "prep-recipe":
+      openSheet({kind:"recipe",id,prepId:id});
+      break;
     case "prep":
       openSheet({ kind: "prep" });
       break;
@@ -441,6 +452,16 @@ main.addEventListener("submit", (e) => {
   }
 });
 sheet.addEventListener("change", e=>{
+  if (e.target.hasAttribute("data-prep-done") && openInfo?.kind==="prep-day") {
+    const record=weekData(), tasks=prepWeek()?.[day];
+    if (!tasks) return;
+    record.prepDone ||= {};
+    if (e.target.checked) record.prepDone[day]=prepSignature(tasks);
+    else delete record.prepDone[day];
+    persist();
+    render();
+    return;
+  }
   if (openInfo?.kind === "taste-cuisines" && e.target.hasAttribute("data-taste-cuisine")) {
     openInfo.selection = toggleValue(openInfo.selection, e.target.value);
     updateCuisineSummary();

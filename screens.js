@@ -205,7 +205,7 @@ function renderSheet() {
               ? swapPanel(info)
               : info.kind === "place"
                 ? placePanel(info)
-                : info.kind === "prep"
+                : info.kind === "prep-day" ? prepDayPanel(prepWeek()[day]) : info.kind === "prep"
                   ? prepPanel()
                   : nutritionPanel();
   sheet.innerHTML = `<div class="dialog-head">${iconBtn("close", "Закрыть окно", "close")}</div><div class="dialog-scroll">${contents}</div>`;
@@ -215,37 +215,30 @@ function recipeDetail(info) {
   const p = plan();
   const isPlanned =
     Number.isInteger(info.slot) && p?.days[day].meals[info.slot].r.id === r.id;
-  const block = isPlanned ? batchDays(settings(), day).filter(d => p.days[d].meals.some(m => m.r.id === r.id)) : [day],
-    one = isPlanned ? p.days[day].meals[info.slot].f : 1;
-  const mealCount = isPlanned ? block.reduce((sum,d)=>sum+p.days[d].meals.filter(m=>m.r.id===r.id).length,0) : 1;
-  const mult =
-    isPlanned && info.batch
-      ? block.reduce(
-          (sum, d) =>
-            sum + p.days[d].meals.reduce((n,m) => n + (m.r.id === r.id ? m.f : 0), 0),
-          0,
-        )
-      : one;
-  const finishNote = {
-    eggs: "Подсушите тост и приготовьте скрэмбл перед подачей.",
-    shakshuka:
-      "Томатную основу можно приготовить заранее. Добавьте яйца в сковороду перед подачей.",
-    beanToast: "Подсушите хлеб и выложите начинку перед подачей.",
-    saladcurd: "Смешайте овощи с творогом перед подачей.",
-  }[r.id];
-  const storageNote =
-    isPlanned && batchDays(settings(), day).length > 3
-      ? "Готовую еду разложите по неглубоким контейнерам и уберите в холодильник в течение двух часов. Порции на пятый день и позже заморозьте. Свежие овощи и зелень добавляйте перед подачей."
-      : "";
+  const prepTask = info.prepId ? prepWeek()?.[day].cook.get(info.prepId) : null;
+  const one = isPlanned ? p.days[day].meals[info.slot].f : 1;
+  let batchFactor=one, mealCount=1;
+  if (isPlanned) {
+    const timing=prepTiming(r,day,settings().cook);
+    const cook=timing.cook;
+    // A serving early in the week may belong to the previous week's last cooking day.
+    const weekOfCook = offset + (cook<0 ? -1 : 0);
+    const current=plan(null,weekOfCook), next=plan(null,weekOfCook+1);
+    const task=current && kitchenWeek(settings(),current,next)[(cook+7)%7].cook.get(r.id);
+    if(task) { batchFactor=task.factor; mealCount=task.uses.length; }
+  }
+  const mult=prepTask ? prepTask.factor : info.batch ? batchFactor : one;
   const stepList = Array.isArray(r.steps)
     ? r.steps
     : r.steps.split(/(?<=[.!?])\s+(?=[А-ЯЁA-Z])/u);
   const panNote =
-    isPlanned && (one > 2 || (info.batch && mult > 2)) && r.equip === "hob"
+    (isPlanned || prepTask) && mult > 2 && (r.equip === "hob" || r.alsoHob)
       ? "Время указано для одной-двух порций. Если всё не помещается в один слой, жарьте партиями и заложите дополнительное время."
       : "";
   let menuAction;
-  if (isPlanned) {
+  if (prepTask) {
+    menuAction=button("К плану готовки","prep-day","outline","left");
+  } else if (isPlanned) {
     menuAction = button("Заменить блюдо", "swap", "primary", "swap", `data-slot="${info.slot}"`);
   } else if (!fitsCuisines(settings(), r)) {
     menuAction = `<p class="quiet">Это блюдо из другой кухни. Чтобы добавить его в недельное меню, расширьте выбор кухонь.</p>${button("К выбору блюд", "discover", "soft", "sliders")}`;
@@ -262,9 +255,8 @@ function recipeDetail(info) {
   const photoCredit=credit ? `<p class="photo-credit">${credit.illustrative ? "Фото: пример подачи" : "Фото"} · <a href="${$(credit.source)}" target="_blank" rel="noopener noreferrer">${$(credit.author)}</a> · <a href="${$(credit.licenseUrl)}" target="_blank" rel="noopener noreferrer">${$(credit.license)}</a> · уменьшено для экрана, возможно кадрирование</p>` : "";
   const perPortion = value => isPlanned ? Math.round(value * (one / servings(settings()))) : bookNumber.format(value);
   const kcal = perPortion(r.kcal);
-  return `<div class="detail-cover"><img src="${photo(r)}" alt="${$(r.title)}"></div><div class="sheet-body"><div class="detail-meta">${icon("clock", 16)} ${cookingTime(r)} <i></i> ${r.alsoHob ? "Плита и духовка" : r.equip === "hob" ? "На плите" : r.equip === "oven" ? "В духовке" : "Без нагрева"}</div><h2 id="sheet-title">${r.title}</h2>${cuisineLine}${isPlanned && p.days[day].meals[info.slot].personFactors ? individualFacts(p.days[day].meals[info.slot]) : `<div class="detail-facts"><span><b>${kcal}</b> ккал</span>${r.macros.map((m, i) => `<span><b>${perPortion(m)}</b> ${["Б", "Ж", "У"][i]}, г</span>`).join("")}</div><p class="fine">На ${isPlanned && data.mode === "personal" ? "вашу" : "одну полную"} порцию · ориентировочно</p>`}<div class="sheet-section"><h3>Ингредиенты</h3>${isPlanned && mealCount > 1 ? `<div class="seg small"><button type="button" data-action="batch" data-value="one" aria-pressed="${!info.batch}">На один приём</button><button type="button" data-action="batch" data-value="all" aria-pressed="${!!info.batch}">На ${mealCount} ${plural(mealCount, "приём", "приёма", "приёмов")}</button></div>` : ""}<p class="quiet">${isPlanned ? `${data.mode === "family" ? portions(servings(settings())) : "1 личная порция"}${info.batch ? " на каждый приём, продукты на весь период готовки" : " на этот приём пищи"}` : "На одну порцию"}</p>${r.items.map(([k, g]) => `<div class="ingredient"><span>${FOOD[k][0]}</span><i></i><b>${kitchenAmount(k, g * mult)}</b></div>`).join("")}</div><div class="sheet-section"><h3>Как приготовить</h3>${isPlanned && (r.homeCooking || r.photoCredit) && Math.abs(mult-1)>0.01 ? `<p class="fine">В шагах количество воды указано на одну порцию; для вашей готовки умножьте его на ${Number(mult.toFixed(2)).toLocaleString("ru-RU")}.</p>` : ""}<ol class="directions">${stepList.map((x) => `<li>${$(x.trim())}</li>`).join("")}</ol>${[
-    isPlanned && block.length > 1 && finishNote,
-    storageNote,
+  return `<div class="detail-cover"><img src="${photo(r)}" alt="${$(r.title)}"></div><div class="sheet-body"><div class="detail-meta">${icon("clock", 16)} ${cookingTime(r)} <i></i> ${equipmentBadges(r)}</div><h2 id="sheet-title">${r.title}</h2>${cuisineLine}${isPlanned && p.days[day].meals[info.slot].personFactors ? individualFacts(p.days[day].meals[info.slot]) : `<div class="detail-facts"><span><b>${kcal}</b> ккал</span>${r.macros.map((m, i) => `<span><b>${perPortion(m)}</b> ${["Б", "Ж", "У"][i]}, г</span>`).join("")}</div><p class="fine">На ${isPlanned && data.mode === "personal" ? "вашу" : "одну полную"} порцию · ориентировочно</p>`}<div class="sheet-section"><h3>Ингредиенты</h3>${isPlanned && mealCount > 1 ? `<div class="seg small"><button type="button" data-action="batch" data-value="one" aria-pressed="${!info.batch}">На один приём</button><button type="button" data-action="batch" data-value="all" aria-pressed="${!!info.batch}">На ${mealCount} ${plural(mealCount, "приём", "приёма", "приёмов")}</button></div>` : ""}<p class="quiet">${prepTask ? portions(prepTask.portions)+" по плану готовки" : isPlanned ? `${data.mode === "family" ? portions(servings(settings())) : "1 личная порция"}${info.batch ? " на каждый приём, продукты на весь период готовки" : " на этот приём пищи"}` : "На одну порцию"}</p>${r.items.map(([k, g]) => `<div class="ingredient"><span>${FOOD[k][0]}</span><i></i><b>${kitchenAmount(k, g * mult)}</b></div>`).join("")}</div><div class="sheet-section"><h3>Как приготовить</h3>${(isPlanned || prepTask) && (r.homeCooking || r.photoCredit) && Math.abs(mult-1)>0.01 ? `<p class="fine">В шагах количество воды указано на одну порцию; для вашей готовки умножьте его на ${Number(mult.toFixed(2)).toLocaleString("ru-RU")}.</p>` : ""}<ol class="directions">${stepList.map((x) => `<li>${$(x.trim())}</li>`).join("")}</ol>${[
+
     panNote,
   ]
     .filter(Boolean)
@@ -298,18 +290,10 @@ function placePanel(info) {
 function prepPanel() {
   const p = plan();
   if (!p) return emptyPlan();
-  const sections = p.days.flatMap((d, i) => {
-    if (d.start !== i) return [];
-    const dishes = new Map();
-    for (const servingDay of batchDays(settings(), i)) {
-      for (const [slot,{r}] of p.days[servingDay].meals.entries()) {
-        if (!dishes.has(r.id)) dishes.set(r.id, {title:r.title, days:[]});
-        dishes.get(r.id).days.push(DAYS[servingDay]+" · "+slotNames[slot].toLowerCase());
-      }
-    }
-    return `<section class="prep-block"><div><h3>${blockText(i)}</h3><small>${d.prep ? "Подготовить заранее" : "Готовим в " + DAYS[i].toLowerCase()}</small></div>${[...dishes.values()].map(r => `<p>${$(r.title)} <small>· ${r.days.join(", ")}</small></p>`).join("")}</section>`;
-  });
-  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${sections.join("")}</div>`;
+  const kitchen=prepWeek();
+  const rows=kitchen.map((tasks,i)=>`<button type="button" class="prep-overview" data-action="prep-open-date" data-day="${i}"><span><b>${dayNames[i]}</b><small>${prepDate(i)} · ${prepCardSummary(tasks)}</small></span>${prepFlags(tasks,i)}${icon("right",16)}</button>`).join("");
+  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${rows}</div>`;
+
 }
 function nutritionPanel() {
   const p = plan(),

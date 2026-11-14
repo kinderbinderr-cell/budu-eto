@@ -1,4 +1,8 @@
 const paths = {
+  oven:'<rect x="3.5" y="3" width="17" height="18" rx="2.5"/><path d="M4 8.5h16M7 5.7h1m3 0h1"/><rect x="7" y="12" width="10" height="6" rx="1"/>',
+  hob:'<rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="9" cy="12" r="3"/><circle cx="16.5" cy="11" r="1.7"/><path d="M15 16h3"/>',
+  cold:'<path d="M3 11h18a9 9 0 0 1-18 0Zm4 9h10M8 10l2-5m3 5 4-7"/>',
+  snow:'<path d="M12 2v20m0-16 3-2m-3 2L9 4m3 14 3 2m-3-2-3 2M3.5 7l17 10M7 9l-3 .7M7 9l-.8-3M17 15l.8 3m-.8-3 3-.7M3.5 17l17-10M7 15l-3-.7m3 .7-.8 3M17 9l.8-3M17 9l3 .7"/>',
   ticket: '<path d="M2 5h20v5a2 2 0 0 0 0 4v5H2v-5a2 2 0 0 0 0-4zM16 7v1m0 3v2m0 3v1"/>',
   undo: '<path d="M8 5 3 10l5 5M4 10h10a6 6 0 1 1 0 12" transform="translate(0 -2)"/>',
   brand:

@@ -198,7 +198,7 @@ function tastingCards({ pool, votes, deck, profile }) {
   return `<section class="reaction-card" aria-label="Выбор блюда">
     <div class="reaction-photo" data-taste-id="${r.id}"><img draggable="false" src="${photo(r)}" alt="${title}" loading="eager" fetchpriority="high"><button type="button" data-action="retry-photo" class="btn outline retry-photo" hidden>Загрузить фото ещё раз</button><span>${type}</span><b>${number} / ${deck.ids.length}</b></div>
     <div class="reaction-body"><div class="reaction-track" aria-hidden="true"><i style="width:${Math.round((100 * number) / deck.ids.length)}%"></i></div>
-    <div class="reaction-info" aria-live="polite"><h2>${title}</h2><p class="reaction-cuisine">${traditions.map(cuisineLabel).join(" · ")}${r.photoCredit?.illustrative ? " · Пример подачи" : ""}</p><p>${icon("clock", 16)} ${cookingTime(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
+    <div class="reaction-info" aria-live="polite"><h2>${title}</h2><p class="reaction-cuisine">${traditions.map(cuisineLabel).join(" · ")}${r.photoCredit?.illustrative ? " · Пример подачи" : ""}</p><p>${icon("clock", 16)} ${cookingTime(r)} ${equipmentBadges(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
     <div class="reaction-actions">${button("Не хочу", "taste-no", "outline", "close", `data-id="${r.id}"`)}${button("Хочу в меню", "taste-yes", "primary", "heart", `data-id="${r.id}"`)}</div>
     ${tastingAlternative(r,pool,votes,deck) ? deckLink("Показать похожее блюдо", "taste-similar", `data-id="${r.id}"`) : ""}
     ${summary}</div></section>`;
