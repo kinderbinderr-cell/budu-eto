@@ -19,7 +19,7 @@ jobs:
       - name: Read public Moscow stores
         run: |
           base=.github/price-refresh
-          python3 "$base/scripts/read-moscow.py" --local-rules "$base/server/moscow-rules.json" --moscow-branch > "$RUNNER_TEMP/shelves.json" || echo "Some stores did not return a complete catalogue"
+          curl --fail --silent --show-error --retry 2 --max-time 35 --cacert .github/reminders/server.pem https://www.kbrcore.ru:8443/budu-eto/moscow-store-observations --output "$RUNNER_TEMP/shelves.json"
           node "$base/scripts/refresh-public-prices.mjs" perekrestok.js "$base/server/moscow-rules.json" "$RUNNER_TEMP/shelves.json"
       - name: Publish verified store prices
         env:
