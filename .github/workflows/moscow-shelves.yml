@@ -1,0 +1,34 @@
+name: Update Moscow grocery prices
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: moscow-shelves
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read public Moscow stores
+        run: |
+          base=.github/price-refresh
+          python3 "$base/scripts/read-moscow.py" --local-rules "$base/server/moscow-rules.json" --moscow-branch > "$RUNNER_TEMP/shelves.json" || echo "Some stores did not return a complete catalogue"
+          node "$base/scripts/refresh-public-prices.mjs" perekrestok.js "$base/server/moscow-rules.json" "$RUNNER_TEMP/shelves.json"
+      - name: Publish verified store prices
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- perekrestok.js; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- perekrestok.js
+          git commit -m "Refresh verified Moscow shelf prices"
+          git push origin HEAD:main
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" >/dev/null

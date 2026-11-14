@@ -1968,3 +1968,16 @@ button:active:not(:disabled) {
 .reminder-choice small { color: #566151; margin-top: .2rem; }
 .reminders-sheet .btn { width: 100%; margin: .8rem 0; }
 .reminder-command { display: block; box-sizing: border-box; width: 100%; height: 3rem; }
+
+.budget-box { display:block; }
+.budget-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.budget-offer { border-top:1px solid var(--rule); margin-top:16px; padding-top:16px; }
+.budget-offer h3 { margin:0 0 12px; font-size:1.1rem; }
+.budget-offer ul { list-style:none; margin:12px 0; padding:0; }
+.budget-offer li { padding:8px 0; }
+.budget-offer li + li { border-top:1px solid var(--rule); }
+.budget-offer li small,.budget-offer li > span,.offer-prices small,.offer-prices strong {display:block;}
+.offer-prices {display:flex; gap:clamp(24px,7vw,80px); margin-bottom:12px;}
+.offer-prices strong {font-size:1.25rem;}
+.budget-offer[hidden] {display:none;}
+@media(max-width:670px){.budget-heading {align-items:flex-start;flex-direction:column;}.budget-offer .btn {min-height:44px;}}

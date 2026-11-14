@@ -11,14 +11,25 @@ function cataloguePurchase(key, g, store) {
     : priceLine({key,g},store);
   return Number.isFinite(row.cents) && !row.expired ? row : null;
 }
-function estimatedPurchase(key,g) {
+function estimatedPurchase(key,g,store) {
+  // Use a dated Moscow shelf for the same ingredient; keep its real pack size and identify it as a benchmark.
+  let benchmark=null, latest="";
+  if(typeof referenceCatalogs!=="undefined") for(const [id,shelf] of Object.entries(referenceCatalogs)) {
+    if(id===store || !shelf.products[key] || !shelf.checkedOn || shelf.checkedOn<=latest) continue;
+    const row=referenceLine({key,g},id);
+    if(!Number.isFinite(row.cents)) continue;
+    benchmark={quantity:row.quantity,cents:row.cents,shelf,offer:shelf.products[key]};
+    latest=shelf.checkedOn;
+  }
+  if(benchmark) return benchmark;
   const purchase=typicalPurchase(key,g);
   return {quantity:purchase.label,cents:Math.round(FOOD[key][4]*purchase.weight)};
 }
-function estimatedRow({key,g,status,expired}) {
-  const row=estimatedPurchase(key,g);
+function estimatedRow({key,g,status,expired},store) {
+  const row=estimatedPurchase(key,g,store);
   const note=status==="unavailable" ? " · нет в наличии" : expired ? " · прежняя цена устарела" : "";
-  return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · примерная цена${note}</small></div><strong>≈ ${money(row.cents/100)}</strong></li>`;
+  const source=row.shelf ? 'ориентир по Москве · <a href="'+$(row.offer.url)+'" target="_blank" rel="noopener noreferrer">'+$(row.shelf.name)+'</a> · '+$(row.shelf.checkedOn.split("-").reverse().join(".")) : 'базовая оценка «Буду это»';
+  return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · ${source}${note}</small></div><strong>≈ ${money(row.cents/100)}</strong></li>`;
 }
 // Compare the additional checkout cost of a recipe, including the unused part of each pack.
 function marginalCheckout(store,pantry) {
@@ -27,7 +38,7 @@ function marginalCheckout(store,pantry) {
     const need=Math.max(0,neededGrams(grams)-(pantry[key]||0));
     if(!need) return 0;
     const cacheKey=key+"/"+need;
-    if(!lines.has(cacheKey)) lines.set(cacheKey,cataloguePurchase(key,need,store)?.cents ?? estimatedPurchase(key,need).cents);
+    if(!lines.has(cacheKey)) lines.set(cacheKey,cataloguePurchase(key,need,store)?.cents ?? estimatedPurchase(key,need,store).cents);
     return lines.get(cacheKey);
   }
   return (recipe,portions,counts)=>recipe.items.reduce((cost,[key,g])=>{
@@ -43,19 +54,21 @@ function budgetScorer(s, {planning = false} = {}) {
     const items = Object.entries(counts).map(([key,g]) => [key,Math.max(0,neededGrams(g) - (pantry[key] || 0))]).filter(([,g]) => g > 0);
     let best = null;
     for (const store of sources) {
-      let cents = 0, known = 0;
+      let cents = 0, known = 0, benchmark = 0;
       for (const [key,g] of items) {
         const token = store + "/" + key + "/" + g;
         let line = cache.get(token);
         if (!line) {
           const row = cataloguePurchase(key,g,store);
-          line = {cents:row?.cents ?? estimatedPurchase(key,g).cents, known:!!row};
+          const price=row || estimatedPurchase(key,g,store);
+          line = {cents:price.cents,known:!!row,benchmark:!!price.shelf};
           cache.set(token,line);
         }
         cents += line.cents;
         known += Number(line.known);
+        benchmark += Number(line.benchmark);
       }
-      const amount = {store,cents,known,count:items.length};
+      const amount = {store,cents,known,benchmark,count:items.length};
       // An entirely unpriced store gives no basis for comparing it with a priced one.
       if (!best || (known > 0 && !best.known) || (Boolean(known) === Boolean(best.known) &&
         (cents < best.cents || (cents === best.cents && known > best.known)))) best = amount;
@@ -111,14 +124,21 @@ function budgetDaily(value,count) {
 }
 function budgetSource(q) {
   if(!q.count) return "Всё есть дома. Для этой недели покупать продукты не нужно.";
-  if(!q.store) return "Оценка с округлением до упаковок и покупного веса. В магазине фасовка и цены могут отличаться.";
-  const shelf=storeShelf(q.store);
-  const source=shelf ? shelf.name+" · Москва, "+new Date(shelf.checkedOn+"T12:00:00Z").toLocaleDateString("ru-RU") : shopName(q.store);
-  return source+". Цены и фасовки магазина: "+q.known+" из "+q.count+" позиций."+(q.known<q.count?" Остальное — по примерной фасовке и весу покупки.":"")+" Без доставки.";
+  const parts=[];
+  if(q.store) {
+    const shelf=storeShelf(q.store);
+    parts.push(shelf ? shelf.name+" · Яндекс Еда · "+shelf.address+" · "+shelf.checkedOn.split("-").reverse().join(".") : shopName(q.store));
+    parts.push("По витрине магазина "+q.known+" из "+q.count+" поз.");
+  }
+  if(q.benchmark) parts.push("Московский ценовой ориентир — "+q.benchmark+" поз.");
+  const estimated=q.count-q.known-q.benchmark;
+  if(estimated) parts.push("Базовая оценка «Буду это» — "+estimated+" поз.");
+  return parts.join(". ")+". С учётом фасовки, без доставки.";
+
 }
 function budgetPanel(p, q=weeklyQuote(p)) {
   const s=settings(), limited=hasBudget(s), edit=button(limited?"Изменить сумму":"Задать бюджет","budget-edit","soft");
-  return `<section class="budget-box"><div><h2>${limited?"Бюджет на неделю · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Докупить примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}${limited?button("Найти замены дешевле","budget-swaps","outline","",q.cents>s.budget*100?"":"hidden"):""}</div></section>`;
+  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет на неделю · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Докупить примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
 }
 function budgetBalance(s,q) {
   if(!hasBudget(s)) return "";
@@ -133,50 +153,13 @@ function refreshShoppingEstimate() {
   for(const el of document.querySelectorAll("[data-purchase-total]")) el.textContent=money(q.cents/100);
   box.querySelector("[data-budget-balance]").textContent=budgetBalance(settings(),q);
   box.querySelector("[data-budget-source]").textContent=budgetSource(q);
-  const swaps=box.querySelector("[data-action=budget-swaps]");
-  if(swaps) swaps.hidden=q.cents<=settings().budget*100;
+  mountBudgetOffer();
   for(const label of document.querySelectorAll(".grocery input:not(:checked)")) {
     const k=label.dataset.pantry;
     label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,remainingGrams(k,p.counts[k]),q.store);
   }
 }
 
-function budgetAlternatives() {
-  const s=settings(),p=plan(),pantry=weekData().pantry,score=budgetScorer(s),base=score(p.counts,pantry).cents,options=[];
-  const pool=RECIPES.filter(r=>eligible(s,r));
-  for(const [d,dayPlan] of p.days.entries()) for(const [slot,meal] of dayPlan.meals.entries()){
-    if(meal.manual) continue;
-    const suitable=pool.filter(r=>!slot || fitsMainSlot(r,slot));
-    const analogues=similarOptions(meal.r,suitable,s.votes).slice(0,24);
-    for(const {r} of analogues){
-      if(!fitsNutritionSwap(s,p,d,slot,r,lastPlan?.previous||[]))continue;
-      const counts={...p.counts};
-      const nextMeals=dayPlan.meals.map((m,i)=>i===slot ? {...m,r,f:factor(s,r,slot)} : {...m});
-      applyDailyTargets(s,nextMeals);
-      for(const m of dayPlan.meals) for(const [k,g] of m.r.items) counts[k]-=g*m.f;
-      for(const m of nextMeals) for(const [k,g] of m.r.items) counts[k]=(counts[k]||0)+g*m.f;
-      const saving=base-score(counts,pantry).cents;
-      if(saving>=100) options.push({day:d,slot,r,old:meal.r,saving});
-    }
-  }
-  const verified=[], ids=new Set();
-  for(const v of options.sort((a,b)=>b.saving-a.saving)){
-    if(ids.has(v.r.id))continue;
-    const projected=plan({["day:"+v.day+"-"+v.slot]:v.r.id});
-    if(!projected || projected.days[v.day].meals[v.slot].r.id!==v.r.id)continue;
-    // Only advertise one-day swaps that actually leave all other meals alone.
-    if(!projected.days.every((x,d)=>x.meals.every((m,i)=>d===v.day&&i===v.slot||m.r.id===p.days[d].meals[i].r.id))) continue;
-    const goals=activePortionTargets(s);
-    if(!projected.days.every((day,d)=>keepsDayTargets(goals,p.days[d].meals,day.meals))) continue;
-    const total=score(projected.counts,pantry).cents;
-    const saving=base-total;
-    if(saving<100) continue;
-    verified.push({...v,saving,total});ids.add(v.r.id);if(verified.length>=3)break;
-  }
-  return verified;
-}
 function budgetDialog(info) {
-  if(info.kind==="budget-edit")return `<div class="sheet-body simple"><h2 id="sheet-title">Сколько потратим за неделю?</h2><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Применить бюджет</button></form></div>`;
-  const choices=info.choices;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Замены дешевле</h2><p class="quiet">Сравнили всю недельную закупку с учётом запасов. Меню изменится, только если выберете замену.</p><div class="options-list">${choices.map(v=>`<button type="button" data-action="budget-swap" data-id="${v.r.id}" data-day="${v.day}" data-slot="${v.slot}"><img src="${photo(v.r)}" alt=""><span><small>${DAYS[v.day]} · ${slotNames[v.slot]} · вместо «${$(v.old.title)}»</small><b>${$(v.r.title)}</b><small>Корзина ≈ ${money(v.total/100)} · экономия ≈ ${money(v.saving/100)}</small></span></button>`).join("")||"<p>Среди близких аналогов не нашлось замены, которая уменьшит закупку. Можно отметить больше блюд или изменить лимит.</p>"}</div></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Сколько потратим за неделю?</h2><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Применить бюджет</button></form></div>`;
 }

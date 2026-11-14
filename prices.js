@@ -14,10 +14,10 @@ let outletChoice = "771766",
 const catalogShops = {
   perekrestok: {
     name: "Перекрёсток",
-    caption: "Москва · Павелецкая площадь, 3 · Яндекс Еда",
+    caption: "Москва · Яндекс Еда",
     reference: true,
   },
-  pyaterochka: { name: "Пятёрочка", caption: "Москва · Новокузнецкая, 39с1 · Яндекс Еда", reference: true },
+  pyaterochka: { name: "Пятёрочка", caption: "Москва · Яндекс Еда", reference: true },
   vv: { name: "ВкусВилл", caption: "Общий каталог · обычные цены" },
   globus: {
     name: "Глобус",
@@ -30,7 +30,7 @@ const catalogShops = {
 };
 const shopName = (id) => catalogShops[id]?.name || "Магнит";
 const shopCaption = (id) =>
-  catalogShops[id]?.caption || shopLocations[id] || "";
+  (catalogShops[id]?.reference && typeof referenceCatalogs!=="undefined" && referenceCatalogs[id]?.address ? referenceCatalogs[id].address+" · Яндекс Еда" : catalogShops[id]?.caption) || shopLocations[id] || "";
 const supportedShop = (id) =>
   Object.hasOwn(catalogShops, id) || Object.hasOwn(shopLocations, id);
 const rubles = (n) =>
@@ -259,7 +259,7 @@ function quoteInfo(store, items) {
     label +=
       " · сохранённые цены на " +
       priceDate(Math.min(...archived.map((r) => r.at)));
-  const fullCents=rows.reduce((total,row)=>total+(Number.isFinite(row.cents)&&!row.expired ? row.cents : estimatedPurchase(row.key,row.g).cents),0);
+  const fullCents=rows.reduce((total,row)=>total+(Number.isFinite(row.cents)&&!row.expired ? row.cents : estimatedPurchase(row.key,row.g,store).cents),0);
   return {
     fullSum:"≈ "+money(fullCents/100),
     rows,
@@ -310,7 +310,7 @@ function drawQuotes() {
         if (storeShelf(k))
           return referenceMarket(items, false, open.has(k), k);
         const q = quoteInfo(k, items);
-        return `<details class="price-market" data-store="${k}" ${open.has(k) ? "open" : ""}><summary><div><strong>${shopName(k)}</strong><small>${shopCaption(k)}</small></div><div class="price-numbers"><b>${q.fullSum}</b><small>${q.label} · ${q.sum}</small></div></summary><p>${q.note}Цены найдены для ${q.coverage} продуктов. Для остальных учтена примерная стоимость покупки. Весовой итог зависит от фактического веса.${k === "vv" ? " Наличие и персональные скидки уточняются по адресу во ВкусВилле." : k === "tvoydom" ? " Ниже указаны гипермаркеты, где нашёлся каждый товар. Цена в зале может отличаться от цены витрины." : ""}</p><ul class="price-rows">${q.rows.map(row=>Number.isFinite(row.cents)&&!row.expired ? rowHTML(row) : estimatedRow(row)).join("")}</ul></details>`;
+        return `<details class="price-market" data-store="${k}" ${open.has(k) ? "open" : ""}><summary><div><strong>${shopName(k)}</strong><small>${shopCaption(k)}</small></div><div class="price-numbers"><b>${q.fullSum}</b><small>${q.label} · ${q.sum}</small></div></summary><p>${q.note}Цены найдены для ${q.coverage} продуктов. Для остальных учтена примерная стоимость покупки. Весовой итог зависит от фактического веса.${k === "vv" ? " Наличие и персональные скидки уточняются по адресу во ВкусВилле." : k === "tvoydom" ? " Ниже указаны гипермаркеты, где нашёлся каждый товар. Цена в зале может отличаться от цены витрины." : ""}</p><ul class="price-rows">${q.rows.map(row=>Number.isFinite(row.cents)&&!row.expired ? rowHTML(row) : estimatedRow(row,k)).join("")}</ul></details>`;
       })
       .join("");
 }

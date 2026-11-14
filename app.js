@@ -185,17 +185,19 @@ function plan(preview = null, weekOffset = offset) {
     if (!key.startsWith(data.mode + "/")) continue;
     const manualHistory=Object.keys(record.replacements || {}).length;
     const nutritionHistory=Object.keys(record.nutritionSwaps || {}).length;
-    if (!manualHistory && !nutritionHistory) continue;
+    const budgetHistory=record.budgetEdits?.length;
+    if (!manualHistory && !nutritionHistory && !budgetHistory) continue;
     const [y, m, d] = key.split("/")[1].split("-").map(Number);
     const edited = Math.round((Date.UTC(y,m-1,d) - Date.UTC(2026,10,9)) / 604800000);
     if (Number.isFinite(edited) && edited <= seed && manualHistory) first=Math.min(first,edited-1-phaseOf(edited-1));
-    if (nutritionHistory && edited<seed) first=Math.min(first,edited-phaseOf(edited));
+    if ((nutritionHistory || budgetHistory) && edited<seed) first=Math.min(first,edited-phaseOf(edited));
   }
   const weeks=Array.from({length:seed-first+1},(_,i)=>data.weeks[data.mode+"/"+weekKey(weekOffset-(seed-first)+i)]);
   const records=weeks.map(w=>w?.replacements || {});
   const nutrition=weeks.map(w=>w?.nutritionSwaps);
+  const budgetEdits=weeks.map(w=>w?.budgetEdits);
   if(preview) records[records.length-1] = {...records[records.length-1],...preview};
-  const signature = JSON.stringify([seed, s, records, nutrition]);
+  const signature = JSON.stringify([seed,s,records,nutrition,budgetEdits]);
   const cached = weekOffset === offset ? lastPlan : adjacentPlan;
   if (cached?.signature === signature) return cached.value;
   const prior = new Map();
@@ -206,6 +208,7 @@ function plan(preview = null, weekOffset = offset) {
     if (!phase) prior.clear();
     value = budgetPlan(s,n,records[n-first],prior,phase,previous);
     value=withNutritionSwaps(s,value,nutrition[n-first],prior,previous);
+    if(budgetEdits[n-first]?.length) value=withBudgetEdits(s,value,budgetEdits[n-first],prior,previous);
     if (n === seed) break;
     if (!value) { previous = []; continue; }
     previous = value.days.slice(-2);

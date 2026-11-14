@@ -1,0 +1,1835 @@
+{
+  "perekrestok": {
+    "name": "Перекрёсток",
+    "brand": "perekrestok",
+    "slug": "perekrestok_zmxso",
+    "address": "Москва, Павелецкая площадь, 3",
+    "categories": {
+      "220389": "https://eda.yandex.ru/retail/perekrestok/cat/sukhie-zavtraki-i-kashi/220389",
+      "1033": "https://eda.yandex.ru/retail/perekrestok/cat/frukty-i-iagody/1033",
+      "25367": "https://eda.yandex.ru/retail/perekrestok/cat/makarony-krupy/25367",
+      "19291": "https://eda.yandex.ru/retail/perekrestok/cat/konservy-i-soleniia/19291",
+      "1028": "https://eda.yandex.ru/retail/perekrestok/cat/khleb/1028",
+      "1034": "https://eda.yandex.ru/retail/perekrestok/cat/ovoshchi-i-zelen/1034",
+      "19283": "https://eda.yandex.ru/retail/perekrestok/cat/maslo-sousy-i-spetsii/19283",
+      "2910": "https://eda.yandex.ru/retail/perekrestok/cat/moloko-iaitsa/2910",
+      "222879": "https://eda.yandex.ru/retail/perekrestok/cat/kefir-tvorog/222879",
+      "15714": "https://eda.yandex.ru/retail/perekrestok/cat/iogurty-i-deserty/15714",
+      "1029": "https://eda.yandex.ru/retail/perekrestok/cat/miaso-i-ptitsa/1029",
+      "178": "https://eda.yandex.ru/retail/perekrestok/cat/ryba-i-moreprodukty/178"
+    },
+    "goods": {
+      "oats": [
+        {
+          "categoryId": 220389,
+          "uid": "a0f06238-9595-4ec2-94c0-7d593fc38d8d",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "khlopia-ovsianye-mistral-tselnozernovye-400g",
+          "title": "Хлопья овсяные Мистраль Нежные средний размер 400 г дизайн упаковки в ассортименте"
+        },
+        {
+          "categoryId": 220389,
+          "uid": "f29da836-4bc2-4365-87d6-329e3d162a13",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "khlopia-mistral-nezhnye-ovsianye-400g",
+          "title": "Хлопья овсяные Мистраль Нежные мелкий размер 400 г"
+        }
+      ],
+      "apple": [
+        {
+          "categoryId": 1033,
+          "uid": "4c28fa7d-a66d-4c3b-b110-9cba06607a9c",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "400 г",
+          "slug": "iabloki-golden",
+          "title": "Яблоки Маркет Перекрёсток Голден вес"
+        },
+        {
+          "categoryId": 1033,
+          "uid": "e2d364bb-987f-4b4e-ae24-effcc7087c4b",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "400 г",
+          "slug": "iabloki-red-chif",
+          "title": "Яблоки Маркет Перекрёсток Ред Чиф вес"
+        }
+      ],
+      "banana": [
+        {
+          "categoryId": 1033,
+          "uid": "4dce09b0-084c-4e87-9fc7-9f43f6ed3adb",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "banany",
+          "title": "Бананы вес"
+        }
+      ],
+      "rice": [
+        {
+          "categoryId": 25367,
+          "uid": "c7f909ac-55b9-44e9-bdaa-df8a24745656",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "ris-mistral-kuban-belyi-kruglozernyi-900g",
+          "title": "Рис Кубань Мистраль круглозерный 900 г дизайн упаковки в ассортименте"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "933f83be-f27a-4a3a-b2aa-bc77e3b0fd2c",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "ris-natsional-krasnodarskii-900g",
+          "title": "Рис Националь Краснодарский 900 г дизайн упаковки в ассортименте"
+        }
+      ],
+      "buck": [
+        {
+          "categoryId": 25367,
+          "uid": "43adafc7-4b10-498b-91a9-40013b8b7471",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "grechka-iadritsa-proparennaia-market-perekrestok-900g",
+          "title": "Гречка ядрица Маркет Перекрёсток пропаренная 900 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "8bbbb1fd-d43f-40f5-867f-dd4d0011e47b",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "grechka-mistral-900g",
+          "title": "Крупа гречневая Мистраль ядрица 900 г дизайн упаковки в ассортименте"
+        }
+      ],
+      "lentil": [
+        {
+          "categoryId": 25367,
+          "uid": "9e853c74-78cf-4650-b4de-ff0025edcc8a",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "chechevitsa-mistral-persidskaia-krasnaia-kolotaia-450g",
+          "title": "Чечевица Мистраль Персидская красная колотая 450 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "0105c876-4974-4f60-91c8-61b75a40b413",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "chechevitsa-agro-alians-krasnaia-450g",
+          "title": "Чечевица красная Агро-Альянс Экстра 450 г"
+        }
+      ],
+      "chick": [
+        {
+          "categoryId": 19291,
+          "uid": "15a8750d-2417-45ad-806e-3155b01720e0",
+          "unit": "pack",
+          "grams": 225,
+          "packLabel": "375 г · около 225 г без заливки",
+          "note": "Съедобная масса в расчёте приблизительная. На витрине указана масса вместе с заливкой.",
+          "expectedWeight": "375 г",
+          "slug": "nut-artfood-naturalnyi-konservirovannyi-375g",
+          "title": "Нут Артфуд (Artfood) натуральный консервированный 375 г"
+        }
+      ],
+      "bean": [
+        {
+          "categoryId": 19291,
+          "uid": "09fe5f39-34f0-45d6-97b9-cec75a9fc95b",
+          "unit": "pack",
+          "grams": 220,
+          "packLabel": "400 г · около 220 г без заливки",
+          "note": "Съедобная масса в расчёте приблизительная. На витрине указана масса вместе с заливкой.",
+          "expectedWeight": "400 г",
+          "slug": "fasol-belaia-naturalnaia-market-perekrestok-400g",
+          "title": "Фасоль белая Маркет натуральная 400 г"
+        }
+      ],
+      "pasta": [
+        {
+          "categoryId": 25367,
+          "uid": "0efb2cce-92f6-4ef8-91a5-ac679586782c",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "makaronnye-izdeliia-barilla-penne-rigate-73-iz-tverdykh-sortov-pshenit",
+          "title": "Макаронные изделия Barilla Пенне Ригате (Penne Rigate) №73 450 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "ec7bbd25-94e1-42e7-ada2-7f07bdec0737",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "makaronnye-izdeliia-barilla-mini-penne-rigate-66-iz-tverdykh-sortov-ps",
+          "title": "Макаронные изделия Barilla Piccolini Mini Пенне №66 450 г"
+        }
+      ],
+      "bread": [
+        {
+          "categoryId": 1028,
+          "uid": "98970fbd-67ca-4f89-945a-be6b1818b16b",
+          "unit": "pack",
+          "grams": 300,
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "khleb-rizhskii-khleb-tselnozernovoi-rzhano-pshenichnyi-300g",
+          "title": "Хлеб Рижский Хлеб цельнозерновой нарезка 300 г"
+        },
+        {
+          "categoryId": 1028,
+          "uid": "bc884108-a8a6-46bd-9aee-4ea6d430445f",
+          "unit": "pack",
+          "grams": 300,
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "khlebets-tselnozernovoi-narezannyi-zelenaia-liniia-300g",
+          "title": "Хлебец цельнозерновой нарезанный Зелёная Линия"
+        }
+      ],
+      "potato": [
+        {
+          "categoryId": 1034,
+          "uid": "765194f0-c4ef-4346-a6ed-1e33287be29f",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "kartofel-krupnyi-otbornyi",
+          "title": "Картофель крупный отборный вес"
+        },
+        {
+          "categoryId": 1034,
+          "uid": "fdc6f73a-4515-4120-a9ca-ceb64e5ba6cb",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "kartofel-krasnyi-mytyi",
+          "title": "Картофель красный мытый вес"
+        }
+      ],
+      "carrot": [
+        {
+          "categoryId": 1034,
+          "uid": "c11bb73d-36ba-488b-bf8d-324253289f34",
+          "unit": "pack",
+          "grams": 1000,
+          "packLabel": "1 кг",
+          "expectedWeight": "1 кг",
+          "slug": "morkov-mytaia-market-fresh-1kg",
+          "title": "Морковь мытая Маркет Фрэш (Маркет Fresh) 1 кг"
+        }
+      ],
+      "tomato": [
+        {
+          "categoryId": 1034,
+          "uid": "2f830bfd-d165-44b2-a239-38d9433685d3",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "200 г",
+          "slug": "tomaty-krasnye-kruglye",
+          "title": "Томаты красные круглые вес"
+        }
+      ],
+      "cucumber": [
+        {
+          "categoryId": 1034,
+          "uid": "6a525aeb-cc8b-47c3-ab05-3a670f439bb9",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "300 г",
+          "slug": "ogurtsy-gladkie-sredneplodnye",
+          "title": "Огурцы среднеплодные гладкие вес"
+        }
+      ],
+      "cabbage": [
+        {
+          "categoryId": 1034,
+          "uid": "5f136553-3420-45b9-a5b8-19fd0d1cca7e",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "2.5 кг",
+          "slug": "kapusta",
+          "title": "Капуста белокочанная вес"
+        }
+      ],
+      "zucchini": [
+        {
+          "categoryId": 1034,
+          "uid": "393c8b4b-f752-43f3-b2f4-419dfcb5f411",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "800 г",
+          "slug": "kabachki",
+          "title": "Кабачки вес"
+        }
+      ],
+      "onion": [
+        {
+          "categoryId": 1034,
+          "uid": "718c5085-8e44-40b8-b2ec-b3959fb17a48",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "luk-repchatyi",
+          "title": "Лук репчатый вес"
+        }
+      ],
+      "paste": [
+        {
+          "categoryId": 19283,
+          "uid": "9247a8a2-ddf0-4e25-a332-3bb61dc05d07",
+          "unit": "pack",
+          "grams": 140,
+          "packLabel": "140 г",
+          "expectedWeight": "140 г",
+          "slug": "tomatnaia-pasta-pomidorka-140g",
+          "title": "Томатная паста Помидорка 140 г"
+        },
+        {
+          "categoryId": 19283,
+          "uid": "24f02bb4-804f-41b1-967a-2141762c08cd",
+          "unit": "pack",
+          "grams": 140,
+          "packLabel": "140 г",
+          "expectedWeight": "140 г",
+          "slug": "tomatnaia-pasta-market-perekrestok-140g",
+          "title": "Томатная паста Маркет Перекрёсток 140 г"
+        }
+      ],
+      "egg": [
+        {
+          "categoryId": 2910,
+          "uid": "2e395857-e0a2-44a7-8911-21377ef36efd",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "10 шт.",
+          "note": "В упаковке 10 яиц С1. Для рецептов принято около 50 г без скорлупы на яйцо.",
+          "expectedWeight": "600 г",
+          "slug": "iaitso-kurinoe-okskoe-stolovoe-s1-10sht",
+          "title": "Яйцо куриное Окское столовое С1 10 шт. 600 г"
+        },
+        {
+          "categoryId": 2910,
+          "uid": "146230c3-8a8e-41cd-a842-605798f984f5",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "10 шт.",
+          "note": "В упаковке 10 яиц С1. Для рецептов принято около 50 г без скорлупы на яйцо.",
+          "expectedWeight": "600 г",
+          "slug": "iaitso-selo-zelenoe-derevenskoe-s1-10sht",
+          "title": "Яйцо куриное Село Зелёное Деревенское цвет яиц в ассортименте С1 10 шт. 600 г"
+        }
+      ],
+      "curd": [
+        {
+          "categoryId": 222879,
+          "uid": "5635360d-68eb-4a92-9f52-3c1c9032255a",
+          "unit": "pack",
+          "grams": 180,
+          "packLabel": "180 г",
+          "expectedWeight": "180 г",
+          "slug": "tvorog-5-molochnyi-znak-180g",
+          "title": "Творог Молочный знак 5% 180 г"
+        },
+        {
+          "categoryId": 222879,
+          "uid": "e616cd17-ee97-4a26-addb-5615c1ca9560",
+          "unit": "pack",
+          "grams": 180,
+          "packLabel": "180 г",
+          "expectedWeight": "180 г",
+          "slug": "tvorog-brest-litovsk-5-180g",
+          "title": "Творог Брест-Литовск 5% 180 г"
+        }
+      ],
+      "yogurt": [
+        {
+          "categoryId": 15714,
+          "uid": "df13d0ec-3f79-41bf-abf6-46fa95317364",
+          "unit": "pack",
+          "grams": 130,
+          "packLabel": "130 г",
+          "expectedWeight": "130 г",
+          "slug": "bioiogurt-aktibio-obogashchennyi-bifidobakteriiami-3-5-130g",
+          "title": "Йогурт АктиБио натуральный 3.5% 130 г"
+        },
+        {
+          "categoryId": 15714,
+          "uid": "d82bd744-b0c4-40d1-96be-12365c7985ca",
+          "unit": "pack",
+          "grams": 140,
+          "packLabel": "140 г",
+          "expectedWeight": "140 г",
+          "slug": "iogurt-teos-grecheskii-2-140g",
+          "title": "Йогурт Теос (Teos) греческий натуральный 2 % 140 г"
+        }
+      ],
+      "milk": [
+        {
+          "categoryId": 2910,
+          "uid": "d1d6426c-2cf2-407a-87d7-1f04c25f45c8",
+          "unit": "pack",
+          "grams": 1030,
+          "packLabel": "1 л",
+          "note": "Около 103 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "moloko-ultrapasterizovannoe-ekoniva-3-2-1l",
+          "title": "Молоко ЭкоНива ультрапастеризованное 3.2% 1 л"
+        },
+        {
+          "categoryId": 2910,
+          "uid": "cdc3b327-e891-4601-a59b-6f125b57d4e7",
+          "unit": "pack",
+          "grams": 1030,
+          "packLabel": "1 л",
+          "note": "Около 103 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "moloko-babushkina-krynka-ultrapasterizovannoe-3-2-1l",
+          "title": "Молоко Бабушкина Крынка ультрапастеризованное 3.2% 1 л"
+        }
+      ],
+      "chicken": [
+        {
+          "categoryId": 1029,
+          "uid": "3a328465-a018-4fdf-95b0-22a72eb291cb",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "file-kurinoe-perekrestok",
+          "title": "Филе куриное Перекрёсток вес"
+        },
+        {
+          "categoryId": 1029,
+          "uid": "8fe5573d-c186-403a-8810-fa0e89cb6029",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "800 г",
+          "slug": "file-grudki-tsyplenka-petelinka-okhlazhdennoe",
+          "title": "Филе куриное Петелинка без кожи охлажденное вес дизайн упаковки в ассортименте"
+        }
+      ],
+      "fish": [
+        {
+          "categoryId": 178,
+          "uid": "865814a0-61fb-406c-a358-a68b5df57b25",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "file-liudi-liubiat-mintaia-bez-kozhi-portsionnoe-morozhenoe-400g",
+          "title": "Филе минтая Люди любят без кожи порционное замороженное 400 г"
+        },
+        {
+          "categoryId": 178,
+          "uid": "911f660c-01dc-4b39-8e12-ff1aa5a59c2e",
+          "unit": "pack",
+          "grams": 750,
+          "packLabel": "750 г",
+          "expectedWeight": "750 г",
+          "slug": "mintai-borealis-tikhookeanskii-file-blochnoe-bez-kozhi-bez-kostei-zamo",
+          "title": "Минтай Бореалис (Borealis) филе порционное замороженное 750 г"
+        }
+      ],
+      "oil": [
+        {
+          "categoryId": 19283,
+          "uid": "862bdf96-c161-4ac9-b39f-f42509772724",
+          "unit": "pack",
+          "grams": 920,
+          "packLabel": "1 л",
+          "note": "Около 92 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "maslo-podsolnechnoe-ia-liubliu-gotovit-rafinirovannoe-dezodorirovannoe",
+          "title": "Масло подсолнечное Я люблю готовить рафинированное 1 л"
+        },
+        {
+          "categoryId": 19283,
+          "uid": "18715d65-5048-4217-b4f1-b1a38fc7d1bc",
+          "unit": "pack",
+          "grams": 920,
+          "packLabel": "1 л",
+          "note": "Около 92 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "maslo-podsolnechnoe-ideal-rafinirovannoe-dezodorirovannoe-vymorozhenno",
+          "title": "Масло подсолнечное Айдиал (Ideal) рафинированное дезодорированное 1 л"
+        }
+      ],
+      "dill": [
+        {
+          "categoryId": 1034,
+          "uid": "346df147-6685-4582-b796-3fdbd03f0ac6",
+          "unit": "pack",
+          "grams": 50,
+          "packLabel": "50 г",
+          "expectedWeight": "50 г",
+          "slug": "ukrop-market-fresh-50g",
+          "title": "Укроп Маркет Фрэш (Маркет Fresh) 50 г"
+        },
+        {
+          "categoryId": 1034,
+          "uid": "e7e3b6e4-2a4e-418c-bc9b-dce16fe581eb",
+          "unit": "pack",
+          "grams": 100,
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "ukrop-zelenyi-market-fresh-100g",
+          "title": "Укроп упаковка Маркет Фрэш (Маркет Fresh) 100 г"
+        }
+      ],
+      "flour": [
+        {
+          "categoryId": 25367,
+          "uid": "6037342c-e047-4827-9689-a00916c686ad",
+          "unit": "pack",
+          "grams": 1000,
+          "packLabel": "1 кг",
+          "expectedWeight": "1 кг",
+          "slug": "muka-pshenichnaia-khlebopekarnaia-vysshego-sorta-market-1kg",
+          "title": "Мука пшеничная Маркет Перекрёсток хлебопекарная высшего сорта 1 кг"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "b7a74461-e3b0-4321-a050-2e12affacae5",
+          "unit": "pack",
+          "grams": 2000,
+          "packLabel": "2 кг",
+          "expectedWeight": "2 кг",
+          "slug": "muka-pshenichnaia-2kg",
+          "title": "Мука Пшеничная 2 кг"
+        }
+      ],
+      "raspberry": [
+        {
+          "categoryId": 1033,
+          "uid": "b0e66ecb-cb0a-44dc-8e13-77852c591e87",
+          "unit": "pack",
+          "grams": 300,
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "malina-i-zimoi-i-letom-bystrozamorozhennaia-300g",
+          "title": "Малина И Зимой И Летом 300 г"
+        },
+        {
+          "categoryId": 1033,
+          "uid": "f64e15db-2770-40a5-99e1-4ae318bcbc1b",
+          "unit": "pack",
+          "grams": 250,
+          "packLabel": "250 г",
+          "expectedWeight": "250 г",
+          "slug": "malina-market-fresh-250g",
+          "title": "Малина Маркет Фрэш (Маркет Fresh) 250 г"
+        }
+      ],
+      "orzo": [
+        {
+          "categoryId": 25367,
+          "uid": "757f5ccf-23d0-460a-840b-497e783b5de2",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "pasta-mistral-rizoni-iz-tverdykh-sortov-pshenitsy-gruppa-a-vysshii-sor",
+          "title": "Макаронные изделия Ризони Мистраль для итальянских блюд 450 г"
+        }
+      ],
+      "salmon": [
+        {
+          "categoryId": 178,
+          "uid": "112a15e6-c445-4313-aa17-4d3688dfef4a",
+          "unit": "pack",
+          "grams": 525,
+          "packLabel": "525 г",
+          "expectedWeight": "525 г",
+          "slug": "losos-atlanticheskii-file-kusok-morozhenyi-liudi-liubiat-525g",
+          "title": "Лосось атлантический Люди любят филе-кусок на коже мороженый 525 г"
+        }
+      ],
+      "mushroom": [
+        {
+          "categoryId": 1034,
+          "uid": "a8cc1c15-3ed4-4757-9849-41d544f9cfc2",
+          "unit": "pack",
+          "grams": 250,
+          "packLabel": "250 г",
+          "expectedWeight": "250 г",
+          "slug": "shampinony-250g",
+          "title": "Шампиньоны Маркет Фрэш (Маркет Fresh) 250 г дизайн упаковки в ассортименте"
+        },
+        {
+          "categoryId": 1034,
+          "uid": "2c5a1095-7366-4a46-9ffd-1f2c2083458f",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "shampinony-market-fresh-400g",
+          "title": "Шампиньоны Маркет Фрэш (Маркет Fresh) 400 г"
+        }
+      ],
+      "parsley": [
+        {
+          "categoryId": 1034,
+          "uid": "2cb6683e-424a-45ad-93b4-26f4a449147b",
+          "unit": "pack",
+          "grams": 100,
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "petrushka-zelenaia-market-fresh-100g",
+          "title": "Петрушка зеленая Маркет Фрэш (Маркет Fresh) 100 г"
+        }
+      ],
+      "pumpkin": [
+        {
+          "categoryId": 1034,
+          "uid": "e32da646-d9d6-4722-b2ea-4b2c29984ec5",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "edibleFraction": 0.75,
+          "note": "Целая тыква весом примерно 1.8 кг; для рецептов используется около трёх четвертей веса после очистки.",
+          "expectedWeight": "1.8 кг",
+          "slug": "tykva-batternat",
+          "title": "Тыква баттернат вес"
+        },
+        {
+          "categoryId": 1034,
+          "uid": "a25f16e7-dc40-4ef2-800b-3bbddda7544f",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "edibleFraction": 0.75,
+          "note": "Целая тыква весом примерно 2 кг; для рецептов используется около трёх четвертей веса после очистки.",
+          "expectedWeight": "2 кг",
+          "slug": "tykva-oranzhevoe-solntse",
+          "title": "Тыква Оранжевое солнце вес"
+        }
+      ],
+      "lemon": [
+        {
+          "categoryId": 1033,
+          "uid": "01316adb-35a6-4c63-9667-ca6f406e1b48",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "limon",
+          "title": "Лимоны Марокко вес"
+        }
+      ],
+      "garlic": [
+        {
+          "categoryId": 1034,
+          "uid": "abdfceaa-1e22-4621-ad58-fbafc30fd5e3",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "100 г",
+          "slug": "chesnok-rannii",
+          "title": "Чеснок ранний вес"
+        }
+      ],
+      "paprika": [
+        {
+          "categoryId": 19283,
+          "uid": "1ff5b9a4-78bb-4c3b-b7d2-178317b3d922",
+          "unit": "pack",
+          "grams": 25,
+          "packLabel": "25 г",
+          "expectedWeight": "25 г",
+          "slug": "paprika-kotanyi-krasnaia-sladkaia-molotaia-25g",
+          "title": "Приправа Kotanyi Паприка сладкая молотая 25 г"
+        }
+      ],
+      "cumin": [
+        {
+          "categoryId": 19283,
+          "uid": "d3b77d64-d099-42b9-9333-29b60689fbd8",
+          "unit": "pack",
+          "grams": 13,
+          "packLabel": "13 г",
+          "expectedWeight": "13 г",
+          "slug": "kumin-tselyi-market-perekrestok-13g",
+          "title": "Кумин Маркет Перекресток целый 13 г"
+        }
+      ],
+      "mustard": [
+        {
+          "categoryId": 19283,
+          "uid": "f6950342-7248-4049-8fd8-c260b4b93302",
+          "unit": "pack",
+          "grams": 100,
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "gorchitsa-stolichnaia-russkaia-100g",
+          "title": "Горчица МЖК Столичная Русская 100 г"
+        }
+      ],
+      "butter": [
+        {
+          "categoryId": 2910,
+          "uid": "1b468099-fe5d-4324-b3e1-ac9b41ac6927",
+          "unit": "pack",
+          "grams": 180,
+          "packLabel": "180 г",
+          "expectedWeight": "180 г",
+          "slug": "maslo-sladkoslivochnoe-ekomilk-traditsionnoe-nesolenoe-vysshego-sorta-",
+          "title": "Масло сливочное Экомилк 82.5% 180 г"
+        }
+      ],
+      "cinnamon": [
+        {
+          "categoryId": 25367,
+          "uid": "8ef7c03d-873e-44e4-8e97-9e281dc6bce2",
+          "unit": "pack",
+          "grams": 16,
+          "packLabel": "16 г",
+          "expectedWeight": "16 г",
+          "slug": "koritsa-molotaia-market-perekrestok-16g",
+          "title": "Корица Маркет молотая 16 г"
+        }
+      ],
+      "salt": [
+        {
+          "categoryId": 19283,
+          "uid": "2248e694-701e-4e52-8d2a-a84fdeab36df",
+          "unit": "pack",
+          "grams": 1000,
+          "packLabel": "1 кг",
+          "expectedWeight": "1 кг",
+          "slug": "sol-povarennaia-pishchevaia-krupnaia-1kg",
+          "title": "Соль поваренная пищевая крупная 1 кг"
+        }
+      ],
+      "chickenThigh": [
+        {
+          "categoryId": 1029,
+          "uid": "5d276857-739f-4788-b8da-fc5e9820c72a",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "800 г",
+          "slug": "file-bedra-tsyplenka-petelinka-bez-kozhi-okhlazhdennoe",
+          "title": "Филе бедра цыпленка-бройлера Петелинка охлажденное без кожи вес дизайн упаковки в ассортименте"
+        }
+      ],
+      "turkey": [
+        {
+          "categoryId": 1029,
+          "uid": "c8d4b4af-c6e8-487f-abdd-151e64f76e33",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "file-grudki-indeiki-pava-pava-premium-okhlazhdennoe-500g",
+          "title": "Филе грудки индейки Пава-Пава Премиум охлажденное 500 г",
+          "grams": 500
+        }
+      ],
+      "beefMince": [
+        {
+          "categoryId": 1029,
+          "uid": "f4be693f-380e-47ac-aee8-7ad020ced947",
+          "unit": "pack",
+          "packLabel": "750 г",
+          "expectedWeight": "750 г",
+          "slug": "farsh-goviazhii-samson-okhlazhdennyi-750g",
+          "title": "Фарш говяжий Самсон охлаждённый 750 г",
+          "grams": 750
+        }
+      ],
+      "chickenLiver": [
+        {
+          "categoryId": 1029,
+          "uid": "a273c5e6-62a3-4765-ba6a-b3f5250e703b",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "pechen-tsypliat-broilerov-okhlazhdennaia-zelenaia-liniia-500g",
+          "title": "Печень цыплят-бройлеров охлаждённая Зелёная Линия 500 г",
+          "grams": 500
+        }
+      ],
+      "pear": [
+        {
+          "categoryId": 1033,
+          "uid": "285a1c58-3f07-4a0a-b5f5-4159500a25f6",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "grusha-konferens-otbornaia-2sht",
+          "title": "Груша Конференс отборная 2 шт 500 г",
+          "grams": 500
+        }
+      ],
+      "beet": [
+        {
+          "categoryId": 1034,
+          "uid": "44434ab0-194f-46c6-b1c3-e6df7209a200",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "200 г",
+          "slug": "svekla-mytaia",
+          "title": "Свекла мытая, вес",
+          "edibleFraction": 0.85
+        }
+      ],
+      "greenOnion": [
+        {
+          "categoryId": 1034,
+          "uid": "7d8f503a-689a-4ba1-b0b1-283ea07feb4a",
+          "unit": "pack",
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "luk-zelenyi-market-fresh-100g",
+          "title": "Лук зеленый Маркет Фрэш (Маркет Fresh) 100 г",
+          "grams": 100
+        }
+      ],
+      "cauliflower": [
+        {
+          "categoryId": 1034,
+          "uid": "aa8adbed-d072-4504-a672-172ae64a6185",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "1.2 кг",
+          "slug": "kapusta-tsvetnaia",
+          "title": "Капуста цветная вес",
+          "edibleFraction": 0.7
+        }
+      ],
+      "radish": [
+        {
+          "categoryId": 1034,
+          "uid": "f026c321-5eb9-4b88-a72e-621bf5e263d2",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "redis-krasnyi-500g",
+          "title": "Редис красный 500 г",
+          "grams": 500
+        }
+      ],
+      "bellPepper": [
+        {
+          "categoryId": 1034,
+          "uid": "9fa40197-888d-4a40-b151-2a76b3938d6b",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "500 г",
+          "slug": "perets-krasnyi-sladkii",
+          "title": "Перец красный сладкий вес",
+          "edibleFraction": 0.82
+        }
+      ],
+      "sauerkraut": [
+        {
+          "categoryId": 19291,
+          "uid": "c8a82ed1-85a1-4578-be8d-57b8f54f0ab9",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "kapusta-kvashenaia-kislo-sladkaia-500g",
+          "title": "Капуста квашеная кисло-сладкая 500 г",
+          "grams": 500
+        }
+      ],
+      "kefir": [
+        {
+          "categoryId": 222879,
+          "uid": "472356d3-8297-479b-927d-68b218fd8524",
+          "unit": "pack",
+          "packLabel": "930 г",
+          "expectedWeight": "930 г",
+          "slug": "kefir-prostokvashino-2-5-930g",
+          "title": "Кефир Простоквашино 2.5% 930 г",
+          "grams": 930
+        }
+      ],
+      "sourCream": [
+        {
+          "categoryId": 222879,
+          "uid": "d0f4df65-c528-48f6-afdc-609ff3faa69f",
+          "unit": "pack",
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "smetana-prostokvashino-15-300g",
+          "title": "Сметана Простоквашино 15% 300 г",
+          "grams": 300
+        }
+      ],
+      "sugar": [
+        {
+          "categoryId": 25367,
+          "uid": "d8cb04ca-a177-4755-b112-dc9778ccdb48",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "sakhar-sytoe-tsarstvo-belyi-kristallicheskii-500g",
+          "title": "Сахар Сытое Царство белый кристаллический 500 г",
+          "grams": 500
+        }
+      ],
+      "cornFlour": [
+        {
+          "categoryId": 25367,
+          "uid": "a3d8d31e-4799-4af1-a913-9d6b80092dfb",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "muka-garnec-kukuruznaia-500g",
+          "title": "Мука кукурузная Гарнец 500 г",
+          "grams": 500
+        }
+      ],
+      "semolina": [
+        {
+          "categoryId": 25367,
+          "uid": "c19a16a1-07f3-4b04-aba7-41bb166f6000",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "manka-shebekinskie-iz-tverdoi-pshenitsy-500g",
+          "title": "Крупа манная Шебекинская из твёрдой пшеницы 500 г",
+          "grams": 500
+        }
+      ],
+      "millet": [
+        {
+          "categoryId": 25367,
+          "uid": "291893a7-36d0-42a7-bb6d-8706bda1712e",
+          "unit": "pack",
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "psheno-mistral-zolotoe-shlifovannoe-900g",
+          "title": "Пшено Мистраль золотое 900 г",
+          "grams": 900
+        }
+      ],
+      "bakingPowder": [
+        {
+          "categoryId": 25367,
+          "uid": "59fefd0f-259a-42b0-8747-a18ee28199de",
+          "unit": "pack",
+          "packLabel": "10 г",
+          "expectedWeight": "10 г",
+          "slug": "razrykhlitel-testa-dr-bakers-10g",
+          "title": "Разрыхлитель теста Др.Эткер (Dr.Oetker) / Др.Бейкерс (Dr.Bakers) 10 г дизайн в ассортименте",
+          "grams": 10
+        }
+      ],
+      "pearlBarley": [
+        {
+          "categoryId": 25367,
+          "uid": "55fa90b0-ef09-476b-b9a2-9694c6e7bb48",
+          "unit": "pack",
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "perlovka-uvelka-5kh80g",
+          "title": "Крупа перловая Увелка в варочных пакетах 5 шт. x 80 г дизайн упаковки в ассортименте",
+          "grams": 400
+        }
+      ],
+      "cream": [
+        {
+          "categoryId": 2910,
+          "uid": "8fd82bed-24af-479c-90de-b5e7f75b7ad3",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "slivki-prostokvashino-ultrapasterizovanye-20-500g",
+          "title": "Сливки Простоквашино ультрапастеризованные 20% 500 г",
+          "grams": 500
+        }
+      ],
+      "cheese": [
+        {
+          "categoryId": 2910,
+          "uid": "61fde478-bd4f-430b-a5c2-f1b65f9e2766",
+          "unit": "pack",
+          "packLabel": "230 г",
+          "expectedWeight": "230 г",
+          "slug": "syr-lamber-50-230g",
+          "title": "Сыр Ламбер полутвердый кусковой 50% 230 г дизайн упаковки в ассортименте",
+          "grams": 230
+        }
+      ],
+      "porkTenderloin": [
+        {
+          "categoryId": 1029,
+          "uid": "be3c1a08-591f-4262-bfb3-1fd0ce701ecb",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "600 г",
+          "slug": "vyrezka-svinaia-perekrestok",
+          "title": "Вырезка свиная Перекрёсток вес"
+        }
+      ],
+      "pork": [
+        {
+          "categoryId": 1029,
+          "uid": "c1b0d346-b73f-48bc-8ed0-11252226fc16",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "700 г",
+          "slug": "lopatka-svinaia-bez-kosti",
+          "title": "Лопатка свиная без кости вес"
+        }
+      ]
+    },
+    "revision": "home-cooking-1"
+  },
+  "pyaterochka": {
+    "name": "Пятёрочка",
+    "brand": "paterocka",
+    "slug": "pyaterochka_qxmaz",
+    "address": "Москва, Новокузнецкая улица, 39с1",
+    "categories": {
+      "220389": "https://eda.yandex.ru/retail/paterocka/cat/sukhie-zavtraki-i-kashi/220389",
+      "1033": "https://eda.yandex.ru/retail/paterocka/cat/frukty-i-iagody/1033",
+      "25367": "https://eda.yandex.ru/retail/paterocka/cat/makarony-krupy/25367",
+      "19291": "https://eda.yandex.ru/retail/paterocka/cat/konservy-i-soleniia/19291",
+      "1028": "https://eda.yandex.ru/retail/paterocka/cat/khleb/1028",
+      "1034": "https://eda.yandex.ru/retail/paterocka/cat/ovoshchi-i-zelen/1034",
+      "19283": "https://eda.yandex.ru/retail/paterocka/cat/maslo-sousy-i-spetsii/19283",
+      "2910": "https://eda.yandex.ru/retail/paterocka/cat/moloko-iaitsa/2910",
+      "222879": "https://eda.yandex.ru/retail/paterocka/cat/kefir-tvorog/222879",
+      "15714": "https://eda.yandex.ru/retail/paterocka/cat/iogurty-i-deserty/15714",
+      "1029": "https://eda.yandex.ru/retail/paterocka/cat/miaso-i-ptitsa/1029",
+      "178": "https://eda.yandex.ru/retail/paterocka/cat/ryba-i-moreprodukty/178",
+      "222905": "https://eda.yandex.ru/retail/paterocka/cat/dlia-vypechki/222905"
+    },
+    "goods": {
+      "oats": [
+        {
+          "categoryId": 220389,
+          "uid": "a4f1a151-3b01-4e26-9410-5960554ea29c",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "khlopia-ovsianye-klinskie-ekstra-500g",
+          "title": "Хлопья овсяные Клинские экстра 500 г"
+        }
+      ],
+      "apple": [
+        {
+          "categoryId": 1033,
+          "uid": "65991620-a2dc-4846-b3b3-39c9c4441c0d",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "1 кг",
+          "slug": "iabloko-sezonnoe",
+          "title": "Яблоки сезонные вес"
+        },
+        {
+          "categoryId": 1033,
+          "uid": "9c126de9-8ef6-4860-a07c-8c6d69ea14d1",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "1 кг",
+          "slug": "iabloki-golden",
+          "title": "Яблоки Голден вес"
+        }
+      ],
+      "banana": [
+        {
+          "categoryId": 1033,
+          "uid": "fc7aab22-e082-4e09-af44-0b0e8b1f2462",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "700 г",
+          "slug": "banany-global-village",
+          "title": "Бананы Global Village вес"
+        }
+      ],
+      "rice": [
+        {
+          "categoryId": 25367,
+          "uid": "20c51614-b065-41a3-8eeb-34f79106718c",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "ris-selianochka-kruglozernyi-shlifovannyi-900g",
+          "title": "Рис Селяночка круглозёрный шлифованный 900 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "ae285bd9-f211-478d-8112-66c331f0965b",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "ris-kruglozernistyi-shlifovannyi-900g",
+          "title": "Рис круглозерный шлифованный 900 г"
+        }
+      ],
+      "buck": [
+        {
+          "categoryId": 25367,
+          "uid": "0a12624d-ceb8-431a-a4c9-20f13262f3b3",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "grechka-iadritsa-900g",
+          "title": "Гречка ядрица 900 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "4940c90a-d2ea-42ee-9249-f270918846ba",
+          "unit": "pack",
+          "grams": 900,
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "grechka-mistral-900g",
+          "title": "Крупа гречневая Мистраль ядрица 900 г дизайн упаковки в ассортименте"
+        }
+      ],
+      "lentil": [
+        {
+          "categoryId": 25367,
+          "uid": "a03120f6-953b-4400-874b-38b2135fbf68",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "chechevitsa-global-village-krasnaia-450g",
+          "title": "Чечевица Глобал Виллидж (Global Village) красная 450 г"
+        }
+      ],
+      "bean": [
+        {
+          "categoryId": 19291,
+          "uid": "417adacb-6544-4009-a209-039edd9daff3",
+          "unit": "pack",
+          "grams": 220,
+          "packLabel": "400 г · около 220 г без заливки",
+          "note": "Съедобная масса в расчёте приблизительная. На витрине указана масса вместе с заливкой.",
+          "expectedWeight": "400 г",
+          "slug": "fasol-global-village-krasnaia-v-sobstvennom-soku-400g",
+          "title": "Фасоль Глобал Виллидж (Global Village) красная в собственном соку 400 г"
+        }
+      ],
+      "pasta": [
+        {
+          "categoryId": 25367,
+          "uid": "b09a80fb-c279-4ac2-acc3-594c3108e1ce",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "makarony-shebekinskie-spirali-366-450g",
+          "title": "Макаронные изделия Шебекинские 366 спирали 450 г"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "802be60a-0d69-4e65-9f36-ae68a41f0b20",
+          "unit": "pack",
+          "grams": 450,
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "izdeliia-makaronnye-baisad-spiral-450g",
+          "title": "Изделия макаронные Байсад (Baisad) Спираль 450 г"
+        }
+      ],
+      "bread": [
+        {
+          "categoryId": 1028,
+          "uid": "c270a048-73d0-4bcd-bcfc-26ec0dd586ab",
+          "unit": "pack",
+          "grams": 300,
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "khleb-rizhskii-khleb-zernovaia-simfoniia-narezka-300g",
+          "title": "Хлеб формовой Рижский Хлеб Зерновая симфония с цельным зерном ржи в нарезке 300 г"
+        },
+        {
+          "categoryId": 1028,
+          "uid": "122e5bf2-dbeb-4db7-8987-675d4e6425ca",
+          "unit": "pack",
+          "grams": 300,
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "khleb-rzhanoi-krai-zernovoi-narezka-300g",
+          "title": "Хлеб Ржаной Край зерновой в нарезке 300 г"
+        }
+      ],
+      "potato": [
+        {
+          "categoryId": 1034,
+          "uid": "0363065c-ed06-44ca-9021-0df3fe24c2e0",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "1.5 кг",
+          "slug": "kartofel-otechestvennyi",
+          "title": "Картофель отечественный вес"
+        }
+      ],
+      "carrot": [
+        {
+          "categoryId": 1034,
+          "uid": "2b5e0aae-2311-484c-b784-71b2ea11ef22",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "600 г",
+          "slug": "morkov",
+          "title": "Морковь вес"
+        }
+      ],
+      "tomato": [
+        {
+          "categoryId": 1034,
+          "uid": "ef98968a-a53d-47a2-800c-6f4bf925fb96",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "700 г",
+          "slug": "tomaty",
+          "title": "Томаты вес"
+        }
+      ],
+      "cucumber": [
+        {
+          "categoryId": 1034,
+          "uid": "47d400d8-efdb-41a3-a9f2-8854611dcfaf",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "700 г",
+          "slug": "ogurtsy-sredneplodnye",
+          "title": "Огурцы среднеплодные вес"
+        }
+      ],
+      "cabbage": [
+        {
+          "categoryId": 1034,
+          "uid": "8d130f9b-b888-475f-b288-dcc94ad83dbd",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "2.2 кг",
+          "slug": "kapusta-belokochannaia",
+          "title": "Капуста белокочанная вес"
+        }
+      ],
+      "zucchini": [
+        {
+          "categoryId": 1034,
+          "uid": "9fc630e9-37e1-4931-9f5e-8726a0cea206",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "800 г",
+          "slug": "kabachki",
+          "title": "Кабачки вес цвет в ассортименте"
+        }
+      ],
+      "onion": [
+        {
+          "categoryId": 1034,
+          "uid": "e20d3575-e061-401f-8c1f-82b0b8fe08df",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "800 г",
+          "slug": "luk-repchatyi",
+          "title": "Лук репчатый вес"
+        }
+      ],
+      "paste": [
+        {
+          "categoryId": 19283,
+          "uid": "8a0592fa-7167-4516-85b3-17fe2bd811cf",
+          "unit": "pack",
+          "grams": 70,
+          "packLabel": "70 г",
+          "expectedWeight": "70 г",
+          "slug": "pasta-global-village-tomatnaia-70g",
+          "title": "Паста Глобал Виллидж (Global Village) томатная 70 г"
+        }
+      ],
+      "egg": [
+        {
+          "categoryId": 2910,
+          "uid": "ea005d0c-9c8c-402c-8f5b-197056d8c306",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "10 шт.",
+          "note": "В упаковке 10 яиц С1. Для рецептов принято около 50 г без скорлупы на яйцо.",
+          "expectedWeight": "600 г",
+          "slug": "iaitso-kurinoe-okskoe-stolovoe-s1-10sht",
+          "title": "Яйцо куриное Окское столовое С1 10 шт. 600 г"
+        },
+        {
+          "categoryId": 2910,
+          "uid": "a8155def-df80-42aa-b3b5-d6a5d17cf607",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "10 шт.",
+          "note": "В упаковке 10 яиц С1. Для рецептов принято около 50 г без скорлупы на яйцо.",
+          "expectedWeight": "600 г",
+          "slug": "iaitso-kurinoe-leto-pishchevoe-s1-10sht",
+          "title": "Яйца куриные Лето коричневые С1 10 шт. 600 г"
+        }
+      ],
+      "curd": [
+        {
+          "categoryId": 222879,
+          "uid": "c307fa65-4341-42c9-ad0c-f0024b0b6dd4",
+          "unit": "pack",
+          "grams": 180,
+          "packLabel": "180 г",
+          "expectedWeight": "180 г",
+          "slug": "tvorog-brest-litovsk-5-bzmzh-180g",
+          "title": "Творог Брест-Литовск 5% 180 г"
+        },
+        {
+          "categoryId": 222879,
+          "uid": "d7a0054e-0cdd-4f0c-b60e-f803e616689c",
+          "unit": "pack",
+          "grams": 200,
+          "packLabel": "200 г",
+          "expectedWeight": "200 г",
+          "slug": "tvorog-prostokvashino-5-bzmzh-200g",
+          "title": "Творог Простоквашино 5% ГОСТ 200 г"
+        }
+      ],
+      "yogurt": [
+        {
+          "categoryId": 15714,
+          "uid": "86c18950-a734-43ee-a09b-4bb86bcc91c8",
+          "unit": "pack",
+          "grams": 130,
+          "packLabel": "130 г",
+          "expectedWeight": "130 г",
+          "slug": "iogurt-aktibio-naturalnyi-3-5-130g",
+          "title": "Йогурт АктиБио натуральный 3.5% 130 г"
+        },
+        {
+          "categoryId": 15714,
+          "uid": "6984596c-2397-4184-b796-17b7c72a9aeb",
+          "unit": "pack",
+          "grams": 140,
+          "packLabel": "140 г",
+          "expectedWeight": "140 г",
+          "slug": "iogurt-teos-grecheskii-2-140g",
+          "title": "Йогурт Теос (Teos) греческий натуральный 2 % 140 г"
+        }
+      ],
+      "milk": [
+        {
+          "categoryId": 2910,
+          "uid": "430a4292-f7ec-4bdb-ba4b-c601f667d6c3",
+          "unit": "pack",
+          "grams": 999,
+          "packLabel": "970 мл",
+          "note": "Около 103 г на 100 мл.",
+          "expectedWeight": "970 мл",
+          "slug": "moloko-stantsiia-molochnaia-ultrapasterizovannoe-3-2-bzmzh-970ml",
+          "title": "Молоко Станция Молочная ультрапастеризованное 3.2% 970 мл"
+        },
+        {
+          "categoryId": 2910,
+          "uid": "c128e43f-e663-4aa2-858c-f59bc775f345",
+          "unit": "pack",
+          "grams": 978,
+          "packLabel": "950 мл",
+          "note": "Около 103 г на 100 мл.",
+          "expectedWeight": "950 мл",
+          "slug": "moloko-selo-zelenoe-ultrapasterizovannoe-3-2-bzmzh-950ml",
+          "title": "Молоко Село Зеленое ультрапастеризованное 3.2% 950 мл"
+        }
+      ],
+      "chicken": [
+        {
+          "categoryId": 1029,
+          "uid": "7a681ce2-8fd4-45e3-95be-ee8096ce8646",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "900 г",
+          "slug": "file-kurinoe-okhlazhdennoe",
+          "title": "Филе грудки куриное охлажденное вес"
+        },
+        {
+          "categoryId": 1029,
+          "uid": "e51343f7-bf9e-419b-8167-cba729645ea0",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "900 г",
+          "slug": "file-grudki-tsyplenka-petelinka-okhlazhdennoe",
+          "title": "Филе куриное Петелинка без кожи охлажденное вес дизайн упаковки в ассортименте"
+        }
+      ],
+      "fish": [
+        {
+          "categoryId": 178,
+          "uid": "cc5fd9b3-ff2e-42b8-9b3a-50e98c2c21da",
+          "unit": "pack",
+          "grams": 600,
+          "packLabel": "600 г",
+          "expectedWeight": "600 г",
+          "slug": "mintai-fish-house-file-bez-kozhi-zamorozhennoe-600g",
+          "title": "Минтай Fish House филе без кожи замороженное 600 г"
+        },
+        {
+          "categoryId": 178,
+          "uid": "f5ced1a2-7af4-48e9-aa81-abea5420107b",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "mintai-borealis-file-blochnoe-bez-kozhi-bez-kostei-400g",
+          "title": "Минтай Бореалис (Borealis) филе блочное без кожи без костей 400 г"
+        }
+      ],
+      "oil": [
+        {
+          "categoryId": 19283,
+          "uid": "2b669436-4467-42b5-86e8-4c48c762c5e2",
+          "unit": "pack",
+          "grams": 920,
+          "packLabel": "1 л",
+          "note": "Около 92 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "maslo-selianochka-podsolnechnoe-rafinirovannoe-dezodorirovannoe-1l",
+          "title": "Масло подсолнечное Селяночка рафинированное дезодорированное высший сорт 1 л"
+        },
+        {
+          "categoryId": 19283,
+          "uid": "a256851b-2ebd-42d8-9983-c9e29324b7aa",
+          "unit": "pack",
+          "grams": 920,
+          "packLabel": "1 л",
+          "note": "Около 92 г на 100 мл.",
+          "expectedWeight": "1 л",
+          "slug": "maslo-zolotaia-semechka-podsolnechnoe-rafinirovannoe-1l",
+          "title": "Масло подсолнечное Золотая Семечка Без запаха рафинированное 1 л"
+        }
+      ],
+      "dill": [
+        {
+          "categoryId": 1034,
+          "uid": "41308cd8-110b-4faa-8cfc-8ddc0454c97b",
+          "unit": "pack",
+          "grams": 50,
+          "packLabel": "50 г",
+          "expectedWeight": "50 г",
+          "slug": "ukrop-global-village-svezhii-50g",
+          "title": "Укроп Global Village свежий 50 г"
+        }
+      ],
+      "flour": [
+        {
+          "categoryId": 25367,
+          "uid": "908c3722-ed84-4262-abad-cb7a4eb6cab9",
+          "unit": "pack",
+          "grams": 2000,
+          "packLabel": "2 кг",
+          "expectedWeight": "2 кг",
+          "slug": "muka-pshenichnaia-v-assortimente-2kg",
+          "title": "Мука Пшеничная 2 кг"
+        },
+        {
+          "categoryId": 25367,
+          "uid": "db051d35-7a2b-4030-9103-e4758a9273a1",
+          "unit": "pack",
+          "grams": 2000,
+          "packLabel": "2 кг",
+          "expectedWeight": "2 кг",
+          "slug": "muka-makfa-vysshego-sorta-2kg",
+          "title": "Мука пшеничная Макфа (Makfa) высший сорт 2 кг"
+        }
+      ],
+      "raspberry": [
+        {
+          "categoryId": 1033,
+          "uid": "c6b4e1f2-1cb5-4b2d-9806-124f59c21aa9",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "100 г",
+          "slug": "malina",
+          "title": "Малина вес"
+        }
+      ],
+      "mushroom": [
+        {
+          "categoryId": 1034,
+          "uid": "c51a4b80-3575-4df1-9677-b7ad5405c613",
+          "unit": "pack",
+          "grams": 250,
+          "packLabel": "250 г",
+          "expectedWeight": "250 г",
+          "slug": "shampinony-global-village-250g",
+          "title": "Шампиньоны Global Village 250 г"
+        },
+        {
+          "categoryId": 1034,
+          "uid": "43b05252-3d48-4c35-a157-fe777fcd74c4",
+          "unit": "pack",
+          "grams": 400,
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "shampinony-global-village-rezanye-bystrozamorozhennye-400g",
+          "title": "Шампиньоны Глобал Виллидж (Global Village) резаные быстрозамороженные 400 г"
+        }
+      ],
+      "parsley": [
+        {
+          "categoryId": 1034,
+          "uid": "4fe2221a-d38d-4227-bb25-257d15c8c33c",
+          "unit": "pack",
+          "grams": 50,
+          "packLabel": "50 г",
+          "expectedWeight": "50 г",
+          "slug": "petrushka-global-village-50g",
+          "title": "Петрушка Global Village 50 г"
+        }
+      ],
+      "pumpkin": [
+        {
+          "categoryId": 1034,
+          "uid": "6d655c05-011d-4428-b032-65c0311f64b1",
+          "unit": "pack",
+          "grams": 500,
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "tykva-stolovaia-svezhaia-narezannaia-500g",
+          "title": "Тыква Глобал Виллидж (Global Village) столовая свежая нарезанная 500 г"
+        }
+      ],
+      "salmon": [
+        {
+          "categoryId": 178,
+          "uid": "c9fdfa34-117f-4dff-939e-1ad6ee043df3",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "edibleFraction": 0.8,
+          "note": "Замороженный кусок атлантического лосося, около 1 кг. Вес мякоти после разделки ориентировочно 80%.",
+          "expectedWeight": "1 кг",
+          "slug": "losos-vkus-art-atlanticheskii-kusok-zamorozhennyi",
+          "title": "Лосось Вкус арт атлантический кусок замороженный вес"
+        }
+      ],
+      "lemon": [
+        {
+          "categoryId": 1033,
+          "uid": "7c67cc29-8d78-4d69-a78f-0f667909a694",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "500 г",
+          "slug": "limony",
+          "title": "Лимоны вес"
+        }
+      ],
+      "garlic": [
+        {
+          "categoryId": 1034,
+          "uid": "29b8e2c7-ea6b-4b19-833d-cdf334537f8b",
+          "unit": "kg",
+          "packLabel": "на вес",
+          "expectedWeight": "200 г",
+          "slug": "chesnok",
+          "title": "Чеснок вес"
+        }
+      ],
+      "paprika": [
+        {
+          "categoryId": 19283,
+          "uid": "1fd0e654-2ae0-4bef-a13c-cfba795523ad",
+          "unit": "pack",
+          "grams": 15,
+          "packLabel": "15 г",
+          "expectedWeight": "15 г",
+          "slug": "paprika-restoriia-krasnaia-molotaia-15g",
+          "title": "Паприка красная молотая Рестория 15 г"
+        }
+      ],
+      "cumin": [
+        {
+          "categoryId": 19283,
+          "uid": "69fd01d1-2d2d-44b0-b55d-4f76d961d866",
+          "unit": "pack",
+          "grams": 15,
+          "packLabel": "15 г",
+          "expectedWeight": "15 г",
+          "slug": "kumin-restoriia-tselyi-15g",
+          "title": "Кумин Рестория целый 15 г"
+        }
+      ],
+      "mustard": [
+        {
+          "categoryId": 19283,
+          "uid": "00dacc24-b95d-4bc0-9164-1ab3224a302e",
+          "unit": "pack",
+          "grams": 100,
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "gorchitsa-stolichnaia-russkaia-100g",
+          "title": "Горчица МЖК Столичная Русская 100 г"
+        }
+      ],
+      "butter": [
+        {
+          "categoryId": 2910,
+          "uid": "27bc098a-7136-4126-934d-c887d8e2c8ed",
+          "unit": "pack",
+          "grams": 180,
+          "packLabel": "180 г",
+          "expectedWeight": "180 г",
+          "slug": "maslo-sladkoslivochnoe-ekomilk-traditsionnoe-82-5-bzmzh-180g",
+          "title": "Масло сливочное Экомилк 82.5% 180 г"
+        }
+      ],
+      "salt": [
+        {
+          "categoryId": 19283,
+          "uid": "3ec22dd1-4e18-43eb-941b-462eddb7a252",
+          "unit": "pack",
+          "grams": 1000,
+          "packLabel": "1 кг",
+          "expectedWeight": "1 кг",
+          "slug": "sol-povarennaia-pishchevaia-krupnaia-1kg",
+          "title": "Соль поваренная пищевая крупная 1 кг"
+        }
+      ],
+      "beefMince": [
+        {
+          "categoryId": 1029,
+          "uid": "b38297fa-f7f9-4666-831a-f7fe7f545f0c",
+          "unit": "pack",
+          "packLabel": "400 г",
+          "expectedWeight": "400 г",
+          "slug": "farsh-goviazhii-restoriia-400g",
+          "title": "Фарш говяжий Рестория охлажденный 400 г",
+          "grams": 400
+        }
+      ],
+      "chickenLiver": [
+        {
+          "categoryId": 1029,
+          "uid": "b52f127b-757b-46e3-95c7-8e1efed787e3",
+          "unit": "pack",
+          "packLabel": "450 г",
+          "expectedWeight": "450 г",
+          "slug": "pechen-miratorg-tsypliat-broilerov-450g",
+          "title": "Печень цыплят-бройлеров Мираторг охлажденная 450 г",
+          "grams": 450
+        }
+      ],
+      "pear": [
+        {
+          "categoryId": 1033,
+          "uid": "3db28018-f7d8-4feb-86f7-1bc6554f8fe9",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "600 г",
+          "slug": "grushi-konferentsiia",
+          "title": "Груша Конференция вес",
+          "edibleFraction": 0.9
+        }
+      ],
+      "raisin": [
+        {
+          "categoryId": 1033,
+          "uid": "b6b5544b-65ce-4e9d-90b8-a294e7cd6364",
+          "unit": "pack",
+          "packLabel": "100 г",
+          "expectedWeight": "100 г",
+          "slug": "izium-krasnaia-tsena-100g",
+          "title": "Изюм темный Красная цена 100 г",
+          "grams": 100
+        }
+      ],
+      "driedApricot": [
+        {
+          "categoryId": 1033,
+          "uid": "f546dbfe-2bb5-493e-bcef-c6677ae75925",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "300 г",
+          "slug": "kuraga",
+          "title": "Курага вес"
+        }
+      ],
+      "beet": [
+        {
+          "categoryId": 1034,
+          "uid": "8ba1f0bb-e16b-4be9-abbf-8dd8aef500b5",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "800 г",
+          "slug": "svekla",
+          "title": "Свекла вес",
+          "edibleFraction": 0.85
+        }
+      ],
+      "greenOnion": [
+        {
+          "categoryId": 1034,
+          "uid": "9b520c92-da21-42fa-8051-a04de95f008a",
+          "unit": "pack",
+          "packLabel": "50 г",
+          "expectedWeight": "50 г",
+          "slug": "luk-zelenyi-50g",
+          "title": "Лук зеленый Global Village 50 г",
+          "grams": 50
+        }
+      ],
+      "cauliflower": [
+        {
+          "categoryId": 1034,
+          "uid": "dd0d3d08-3739-494f-a710-c9b2d5a4d617",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "1.2 кг",
+          "slug": "kapusta-tsvetnaia-svezhaia",
+          "title": "Капуста цветная вес",
+          "edibleFraction": 0.7
+        }
+      ],
+      "radish": [
+        {
+          "categoryId": 1034,
+          "uid": "20bc495e-867b-4c29-912e-79c34dcc0a20",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "redis-krasnyi-500g",
+          "title": "Редис красный 500 г",
+          "grams": 500
+        }
+      ],
+      "greenRadish": [
+        {
+          "categoryId": 1034,
+          "uid": "7eccc5ca-77bd-43db-9568-10a53ff5785c",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "500 г",
+          "slug": "redka-zelenaia",
+          "title": "Редька зелёная вес",
+          "edibleFraction": 0.85
+        }
+      ],
+      "bellPepper": [
+        {
+          "categoryId": 1034,
+          "uid": "3ff19529-8282-49dc-a688-847eb770f0ab",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "500 г",
+          "slug": "perets-krasnyi-sladkii",
+          "title": "Перец красный сладкий вес",
+          "edibleFraction": 0.82
+        }
+      ],
+      "sauerkraut": [
+        {
+          "categoryId": 19291,
+          "uid": "cbcaec57-c868-4e06-9a73-1ab5066abc60",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "kapusta-kvashenaia-s-morkoviu-global-village-500g",
+          "title": "Капуста квашеная Глобал Виллидж (Global Village) белокочанная с морковью 500 г",
+          "grams": 500
+        }
+      ],
+      "kefir": [
+        {
+          "categoryId": 222879,
+          "uid": "a3ccf975-a8a2-4edb-be4e-b82bf25ef74e",
+          "unit": "pack",
+          "packLabel": "930 г",
+          "expectedWeight": "930 г",
+          "slug": "kefir-prostokvashino-2-5-bzmzh-930g",
+          "title": "Кефир Простоквашино 2.5% 930 г",
+          "grams": 930
+        }
+      ],
+      "sourCream": [
+        {
+          "categoryId": 222879,
+          "uid": "f78613ae-5226-4dde-b045-caadbe2824bb",
+          "unit": "pack",
+          "packLabel": "300 г",
+          "expectedWeight": "300 г",
+          "slug": "smetana-prostokvashino-15-bzmzh-300g",
+          "title": "Сметана Простоквашино 15% 300 г",
+          "grams": 300
+        }
+      ],
+      "bakingPowder": [
+        {
+          "categoryId": 222905,
+          "uid": "7e11249f-4777-460c-abf4-970130a25c0f",
+          "unit": "pack",
+          "packLabel": "10 г",
+          "expectedWeight": "10 г",
+          "slug": "razrykhlitel-testa-dr-bakers-10g",
+          "title": "Разрыхлитель теста Др.Эткер (Dr.Oetker) / Др.Бейкерс (Dr.Bakers) 10 г дизайн в ассортименте",
+          "grams": 10
+        }
+      ],
+      "sugar": [
+        {
+          "categoryId": 25367,
+          "uid": "27612847-0f52-4d0c-ad5c-15c8e7a336a5",
+          "unit": "pack",
+          "packLabel": "500 г",
+          "expectedWeight": "500 г",
+          "slug": "sakhar-sytoe-tsarstvo-belyi-kristallicheskii-sveklovichnyi-500g",
+          "title": "Сахар Сытое Царство белый кристаллический 500 г",
+          "grams": 500
+        }
+      ],
+      "millet": [
+        {
+          "categoryId": 25367,
+          "uid": "3bdd53c3-4cd1-46f7-9fa5-e322ce0cde09",
+          "unit": "pack",
+          "packLabel": "800 г",
+          "expectedWeight": "800 г",
+          "slug": "psheno-selianochka-shlifovannoe-800g",
+          "title": "Пшено Селяночка шлифованное 800 г",
+          "grams": 800
+        }
+      ],
+      "pearlBarley": [
+        {
+          "categoryId": 25367,
+          "uid": "7d8d796e-59d8-43c4-94d9-adf00ab8df6c",
+          "unit": "pack",
+          "packLabel": "900 г",
+          "expectedWeight": "900 г",
+          "slug": "perlovka-900g",
+          "title": "Крупа перловая ячменная 900 г",
+          "grams": 900
+        }
+      ],
+      "cheese": [
+        {
+          "categoryId": 2910,
+          "uid": "c4ae28bb-3a02-475f-a8b1-78e5bd8a9941",
+          "unit": "kg",
+          "packLabel": "за 1 кг",
+          "expectedWeight": "500 г",
+          "slug": "syr-lamber-50-bzmzh-500g",
+          "title": "Сыр Ламбер Классический полутвердый 50% вес"
+        }
+      ]
+    },
+    "revision": "home-cooking-1"
+  }
+}

@@ -13,7 +13,7 @@ function render({ top = false } = {}) {
               ? groceries()
               : weekPage();
   if (route === "coupons" || route === "week") mountCoupons();
-  if (route === "week" || route === "list") mountQuotes();
+  if (route === "week" || route === "list") {mountQuotes();mountBudgetOffer();}
   else clearPerekQuote();
   if (top) {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -69,7 +69,9 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
     notify("Эта замена не оставляет блюда для чередования. Выберите другое блюдо или добавьте ещё одно в «Что хочется съесть?».");
     return;
   }
-  weekData().replacements[key]=id;
+  const record=weekData();
+  record.replacements[key]=id;
+  if(record.budgetEdits) record.budgetEdits=record.budgetEdits.filter(e=>e.d!==d || e.slot!==slot);
   if (weekData().nutritionSwaps) delete weekData().nutritionSwaps[d+"-"+slot];
   day = d;
   persist();
@@ -193,11 +195,11 @@ document.addEventListener("click", (e) => {
       delete settings().portionTargets; persist(); dismissSheet(); render(); break;
     case "budget-edit":
       openSheet({kind:"budget-edit",value:hasBudget(settings())?settings().budget:null});break;
-    case "budget-swaps":
-      openSheet({kind:"budget-swaps",choices:budgetAlternatives()});break;
-    case "budget-swap":
-      if(openInfo?.kind==="budget-swaps" && openInfo.choices.some(x=>x.r.id===id && x.day===Number(d) && x.slot===Number(slot)))
-        replaceMeal(id,Number(d),Number(slot),true);
+    case "budget-apply":
+      applyBudgetOffer();break;
+    case "budget-keep":
+    case "budget-review":
+      if(budgetSuggestion) {budgetSuggestion.kept=action==="budget-keep";mountBudgetOffer();}
       break;
     case "budget-preset": {
       const field=btn.closest(".budget-fields").querySelector("input");
@@ -582,6 +584,9 @@ sheet.addEventListener("click", (e) => {
 addEventListener("storage", event => {
   if (event.key !== key || !event.newValue) return;
   const latest = loadData();
+  if (budgetSuggestion && latest.quizRun===data.quizRun) {
+    Object.assign(data,latest); budgetSuggestion=null; render(); return;
+  }
   if (latest.quizRun !== data.quizRun) {
     history.replaceState(null, "", "#start");
     location.reload();

@@ -106,7 +106,7 @@ function packPurchase(key, count, label, kind = foodPacks[key] || "pack") {
   return countLabel(count, kind) + (count === 1 ? " · " : " по ") + label;
 }
 function shoppingAmount(key, g, store) {
-  return cataloguePurchase(key, g, store)?.quantity || generalPurchase(key, g);
+  return cataloguePurchase(key, g, store)?.quantity || estimatedPurchase(key,g,store).quantity;
 }
 function kitchenFraction(n) {
   const quarters = Math.max(1, Math.round(n * 4));

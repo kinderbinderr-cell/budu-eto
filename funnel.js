@@ -358,6 +358,7 @@ function submitFlow() {
     if (wk.startsWith(s.mode + "/")) {
       record.replacements = {};
       delete record.nutritionSwaps;
+      delete record.budgetEdits;
     }
   offset = 0;
   day = todayIndex;
