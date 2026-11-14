@@ -1840,3 +1840,24 @@ button:active:not(:disabled) {
 .grocery .recipe-need{font-size:12px;line-height:1.4;margin-top:3px}
 
 .budget-actions [hidden] { display: none; }
+
+.nutrition-tip { margin: 0 0 22px; padding: 16px 18px; border-radius: var(--radius); background: var(--soft); }
+.nutrition-tip h3 { margin: 4px 0; font-size: 18px; }
+.nutrition-tip small,.swap-recipe small { color: var(--muted); }
+.nutrition-tip p { margin: 0 0 8px; }
+.nutrition-tip .link { min-height: 40px; text-align: left; }
+.swap-preview .swap-recipe { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.swap-recipe img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
+.swap-recipe small { display: block; margin-top: 4px; }
+.swap-comparison { border-collapse: collapse; width: 100%; margin: 22px 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.swap-comparison caption { text-align: left; font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.swap-comparison td,.swap-comparison th { padding: 8px 4px; border-bottom: 1px solid var(--rule); text-align: right; }
+.swap-comparison th:first-child { text-align: left; }
+.swap-comparison thead,.swap-comparison small { color: var(--muted); }
+.swap-comparison small { display: block; font-size: 12px; font-weight: 400; }
+.swap-comparison td:nth-child(3) { background: var(--soft); font-weight: 700; }
+.swap-preview-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 420px) {
+  .swap-comparison { font-size: 13px; }
+  .swap-preview-actions > button { flex: 1 0 100%; }
+}

@@ -182,15 +182,20 @@ function plan(preview = null) {
   // beginning of the preceding cycle, with ordinary weeks still taking one to three passes.
   if (preview && Object.keys(preview).length) first=Math.min(first,seed-1-phaseOf(seed-1));
   for (const [key, record] of Object.entries(data.weeks)) {
-    if (!key.startsWith(data.mode + "/") || !Object.keys(record.replacements || {}).length) continue;
+    if (!key.startsWith(data.mode + "/")) continue;
+    const manualHistory=Object.keys(record.replacements || {}).length;
+    const nutritionHistory=Object.keys(record.nutritionSwaps || {}).length;
+    if (!manualHistory && !nutritionHistory) continue;
     const [y, m, d] = key.split("/")[1].split("-").map(Number);
     const edited = Math.round((Date.UTC(y,m-1,d) - Date.UTC(2026,10,9)) / 604800000);
-    if (Number.isFinite(edited) && edited <= seed) first = Math.min(first, edited - 1 - phaseOf(edited - 1));
+    if (Number.isFinite(edited) && edited <= seed && manualHistory) first=Math.min(first,edited-1-phaseOf(edited-1));
+    if (nutritionHistory && edited<seed) first=Math.min(first,edited-phaseOf(edited));
   }
-  const records = Array.from({length:seed-first+1}, (_,i) =>
-    data.weeks[data.mode + "/" + weekKey(offset - (seed-first) + i)]?.replacements || {});
+  const weeks=Array.from({length:seed-first+1},(_,i)=>data.weeks[data.mode+"/"+weekKey(offset-(seed-first)+i)]);
+  const records=weeks.map(w=>w?.replacements || {});
+  const nutrition=weeks.map(w=>w?.nutritionSwaps);
   if(preview) records[records.length-1] = {...records[records.length-1],...preview};
-  const signature = JSON.stringify([seed, s, records]);
+  const signature = JSON.stringify([seed, s, records, nutrition]);
   if (lastPlan?.signature === signature) return lastPlan.value;
   const prior = new Map();
   let value;
@@ -199,12 +204,13 @@ function plan(preview = null) {
     const phase = phaseOf(n);
     if (!phase) prior.clear();
     value = budgetPlan(s,n,records[n-first],prior,phase,previous);
+    value=withNutritionSwaps(s,value,nutrition[n-first],prior,previous);
     if (n === seed) break;
     if (!value) { previous = []; continue; }
     previous = value.days.slice(-2);
     rememberWeek(prior,value);
   }
-  if (!preview) lastPlan = { signature, value };
+  if (!preview) lastPlan = { signature, value, previous };
   return value;
 }
 function readRoute() {
@@ -347,7 +353,7 @@ function weekSummary(p) {
 }
 function weekPage() {
   const p = plan();
-  return `<div class="wrap page">${hero(p)}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p)}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2><p class="quiet">${prepNote(p)}</p></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} ${p.pairMisses[day]>0 ? "КБЖУ вне диапазона" : "КБЖУ дня"}</button>` : ""}</div><div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div></section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
+  return `<div class="wrap page">${hero(p)}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p)}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2><p class="quiet">${prepNote(p)}</p></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} ${p.pairMisses[day]>0 ? "КБЖУ вне диапазона" : "КБЖУ дня"}</button>` : ""}</div>${nutritionSwapCard(p,day)}<div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div></section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
 }
 function emptyPlan() {
   return `<div class="empty"><h2>Добавьте блюда для чередования</h2><p>Для недельного меню нужны минимум два подходящих завтрака и два основных блюда.</p>${button("Выбрать блюда", "discover", "primary", "heart")}</div>`;

@@ -191,7 +191,7 @@ function renderSheet() {
   const info = openInfo;
   if (!info) return;
   const contents =
-    info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : ["budget-edit","budget-swaps"].includes(info.kind) ? budgetDialog(info) : info.kind === "restart"
+    info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : ["budget-edit","budget-swaps"].includes(info.kind) ? budgetDialog(info) : info.kind === "restart"
       ? `<div class="sheet-body simple"><h2 id="sheet-title">Пройти анкету заново?</h2><p>Выбор блюд, магазины и настройки обоих меню сбросятся на этом устройстве. Замены и отметки «есть дома» тоже очистятся. Избранные рецепты сохранятся.</p><div class="restart-actions">${button("Отмена", "close", "outline")}${button("Начать заново", "confirm-restart", "primary")}</div></div>`
       : info.kind === "perek-address"
       ? perekAddressDialog()
@@ -300,7 +300,7 @@ function nutritionPanel() {
   const p = plan(),
     m = p.macros[day],
     g = macroGoal(settings());
-  if(activePortionTargets(settings()))return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayNames[day]} · по ингредиентам трёх блюд, приблизительно</p>${p.pairMisses[day]>0 ? '<p>На этот день часть показателей выходит за ваш диапазон. Ниже видно, у кого и насколько. Можно добавить понравившиеся блюда для подбора.</p>' : ""}${portionReport(p.days[day].meals)}${button("Изменить цели","portion-edit","outline")}</div>`;
+  if(activePortionTargets(settings()))return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayNames[day]} · по ингредиентам трёх блюд, приблизительно</p>${p.pairMisses[day]>0 ? '<p>На этот день часть показателей выходит за ваш диапазон. Ниже видно, у кого и насколько.</p>' : ""}${portionReport(p.days[day].meals)}${button("Изменить цели","portion-edit","outline")}</div>`;
   if (settings().plainPortion)
     return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayNames[day]} · три приёма пищи</p><p>${Math.round(m[0] * 4 + m[1] * 9 + m[2] * 4)} ккал · Б ${Math.round(m[0])} г · Ж ${Math.round(m[1])} г · У ${Math.round(m[2])} г</p></div>`;
   return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p class="quiet">${dayNames[day]}, ${dateText(dateAt(day), { day: "numeric", month: "long" })}. Для трёх запланированных приёмов пищи.</p><table class="nutritable"><thead><tr><th>Показатель</th><th>В меню</th><th>Ориентир</th></tr></thead><tbody>${[["Калории, ккал", m[0] * 4 + m[1] * 9 + m[2] * 4, energy(settings())], ...m.map((v, i) => [["Белки, г", "Жиры, г", "Углеводы, г"][i], v, g[i]])].map(([n, v, x]) => `<tr><th>${n}</th><td>${Math.round(v)}</td><td>${Math.round(x)}</td></tr>`).join("")}</tbody></table></div>`;

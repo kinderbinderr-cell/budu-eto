@@ -352,7 +352,10 @@ function submitFlow() {
   clearDiscovery(s.mode);
   data.quizDone = true;
   for (const [wk, record] of Object.entries(data.weeks))
-    if (wk.startsWith(s.mode + "/")) record.replacements = {};
+    if (wk.startsWith(s.mode + "/")) {
+      record.replacements = {};
+      delete record.nutritionSwaps;
+    }
   offset = 0;
   day = todayIndex;
   persist();

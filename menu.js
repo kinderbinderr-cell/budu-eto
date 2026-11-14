@@ -1192,3 +1192,100 @@ function planWeek(
   ].filter((id) => !prior?.has(id)).length;
   return { days, counts, macros, cost: Math.round(cost), newCount, phase, pairMisses };
 }
+
+// A confirmed nutrition substitution is local to one serving day. Start from the
+// weekly plan each time so changes to goals, allergies and manual pins still apply.
+function fitsNutritionSwap(s,week,d,slot,recipe,previous=[]) {
+  const meals=week.days[d].meals;
+  if (!recipe || meals[slot].manual || !manualCandidate(s,recipe,slot)) return false;
+  if (slot && !fitsMainSlot(recipe,slot)) return false;
+  if (meals.some(m=>m.r.id===recipe.id)) return false;
+  const days=previous.slice(-2).concat(week.days);
+  const position=days.length-7+d;
+  const contains=i=>i===position || days[i]?.meals.some(m=>m.r.id===recipe.id);
+  for(let first=position-2; first<=position; first++) {
+    if(contains(first) && contains(first+1) && contains(first+2)) return false;
+  }
+  return true;
+}
+function swapDayTotals(meals,goals) {
+  return goals.map((_,i)=>mealNutrients(meals,meals.map(m=>m.personFactors[i])));
+}
+function swapDayScore(totals,goals) {
+  return totals.map((row,i)=>{
+    const gaps=row.map((v,j)=>goals[i][j] ? nutrientGap(v,goals[i][j]) : 0);
+    return {gaps,worst:Math.max(...gaps),sum:gaps.reduce((a,b)=>a+b,0)};
+  });
+}
+function withNutritionSwaps(s,week,records,prior,previous) {
+  const goals=activePortionTargets(s);
+  if (!week || goals?.length!==2 || !records || !Object.keys(records).length) return week;
+  const result={...week,days:week.days.slice(),macros:week.macros.slice(),pairMisses:week.pairMisses.slice()};
+  let changed=false;
+  for(const [d,original] of week.days.entries()) {
+    const meals=original.meals.map(m=>({...m}));
+    let edited=false;
+    for(const [slot,m] of meals.entries()) {
+      const edit=records[d+"-"+slot];
+      if(!edit || edit.from!==m.r.id) continue;
+      const r=RECIPES.find(x=>x.id===edit.to);
+      if(!fitsNutritionSwap(s,result,d,slot,r,previous)) continue;
+      m.r=r; m.manual=true; edited=true;
+      result.days[d]={...original,meals};
+    }
+    if(!edited) continue;
+    changed=true;
+    applyDailyTargets(s,meals);
+    result.macros[d]=mealNutrients(meals,meals.map(m=>m.f)).slice(1);
+    result.pairMisses[d]=Math.max(...swapDayScore(swapDayTotals(meals,goals),goals).map(x=>x.worst));
+  }
+  if(!changed) return week;
+  const counts={},ids=new Set();
+  let cost=0;
+  for(const day of result.days) for(const {r,f} of day.meals) {
+    ids.add(r.id);
+    cost+=r.cost*f;
+    for(const [key,g] of r.items) counts[key]=(counts[key]||0)+g*f;
+  }
+  result.counts=counts;
+  result.cost=Math.round(cost);
+  result.newCount=[...ids].filter(id=>!prior?.has(id)).length;
+  return result;
+}
+// Rank unrounded daily totals. Preserve each person's previously met targets and
+// improve at least one person's fit without worsening the other's aggregate or worst miss.
+function beneficialSwap(before,after) {
+  const eps=1e-7;
+  return after.every((p,i)=>p.worst<=before[i].worst+eps && p.sum<=before[i].sum+eps &&
+    p.gaps.every((gap,j)=>before[i].gaps[j]>0 || gap===0)) &&
+    after.some((p,i)=>p.sum<before[i].sum-0.0001);
+}
+function suggestNutritionSwap(s,week,d,previous=[]) {
+  const goals=activePortionTargets(s);
+  if(goals?.length!==2 || !(week?.pairMisses[d]>0)) return null;
+  const meals=week.days[d].meals,before=swapDayTotals(meals,goals);
+  const current=swapDayScore(before,goals);
+  const approved=RECIPES.filter(r=>s.votes[r.id]===1);
+  const unseen=RECIPES.filter(r=>!s.votes[r.id]);
+  for(const pool of [approved,unseen]) {
+    let best=null;
+    for(const [slot,old] of meals.entries()) {
+      if(old.manual) continue;
+      for(const r of pool) {
+        if(!fitsNutritionSwap(s,week,d,slot,r,previous)) continue;
+        const candidate=meals.map((m,i)=>({...m,r:i===slot?r:m.r}));
+        applyDailyTargets(s,candidate);
+        const after=swapDayTotals(candidate,goals),score=swapDayScore(after,goals);
+        if(!beneficialSwap(current,score)) continue;
+        const rank=[Math.max(...score.map(x=>x.worst)),score[0].sum+score[1].sum,
+          -(dishSimilarity(old.r,r)?.score||0),r.minutes];
+        const diff=best ? rank.findIndex((v,i)=>v!==best.rank[i]) : -1;
+        if(!best || (diff!==-1 && rank[diff]<best.rank[diff])) {
+          best={d,slot,old:old.r,r,before,after,rank,liked:s.votes[r.id]===1};
+        }
+      }
+    }
+    if(best) return best;
+  }
+  return null;
+}

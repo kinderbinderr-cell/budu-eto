@@ -66,3 +66,55 @@ sheet.addEventListener("submit",e=>{
   }
   settings().portionTargets=goals;useStockForPlanning(settings(),weekSeed(),weekData().pantry);persist();render();openSheet({kind:"nutrition"});
 });
+
+const nutritionOffers=new WeakMap();
+function dayNutritionOffer(p,d) {
+  let days=nutritionOffers.get(p);
+  if(!days) { days=new Map(); nutritionOffers.set(p,days); }
+  if(!days.has(d)) days.set(d,suggestNutritionSwap(settings(),p,d,lastPlan?.previous || []));
+  return days.get(d);
+}
+function nutritionSwapCard(p,d) {
+  if(!(p.pairMisses[d]>0)) return "";
+  const offer=dayNutritionOffer(p,d);
+  if(!offer) return '<aside class="nutrition-tip"><h3>Подходящей замены пока нет</h3><p>Среди подходящих блюд не нашлось замены, которая приблизит вас к целям без ухудшения результата для другого.</p><button type="button" class="link" data-action="discover">Выбрать ещё блюда</button></aside>';
+  return `<aside class="nutrition-tip"><small>${slotNames[offer.slot]} · замена по КБЖУ</small><h3>${$(offer.r.title)}</h3><p>Вместо «${$(offer.old.title)}»</p><button type="button" class="link" data-action="nutrition-swap-preview">Сравнить КБЖУ для двоих ${icon("right",15)}</button></aside>`;
+}
+function nutritionSwapPreview(offer) {
+  const goals=activePortionTargets(settings());
+  const format=n=>Number(n.toFixed(1)).toLocaleString("ru-RU");
+  const titles=["Энергия, ккал","Белки, г","Жиры, г","Углеводы, г"];
+  const table=goals.map((target,i)=>{
+    const rows=target.map((range,j)=>{
+      const before=offer.before[i][j],after=offer.after[i][j];
+      const status=(v)=>!range?"":v<range[0]-1e-7?"Ниже":v>range[1]+1e-7?"Выше":"В цели";
+      const cell=v=>`<td>${format(v)}<small>${status(v)}</small></td>`;
+      const goal=!range?"—":range[0]===range[1]?format(range[0]):range.map(format).join("–");
+      return `<tr><th scope="row">${titles[j]}</th>${cell(before)}${cell(after)}<td>${goal}</td></tr>`;
+    }).join("");
+    return `<table class="swap-comparison"><caption>${personTitle(i,2)} · за день</caption><thead><tr><th scope="col">Показатель</th><th scope="col">Сейчас</th><th scope="col">После</th><th scope="col">Цель</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }).join("");
+  const bothHaveGoals=goals.every(row=>row.some(Boolean));
+  const status=offer.rank[0]===0
+    ? (bothHaveGoals ? "Оба попадёте в свои дневные диапазоны." : "Все заданные показатели будут в диапазоне.")
+    : "Дневные итоги станут ближе к целям. Часть показателей останется вне диапазона.";
+  let budgetNote="";
+  if(hasBudget(settings())) {
+    const current=plan(), cell=offer.d+"-"+offer.slot;
+    const adjusted=withNutritionSwaps(settings(),current,{[cell]:{from:offer.old.id,to:offer.r.id}},null,lastPlan.previous);
+    const from=weeklyQuote(current).cents, to=weeklyQuote(adjusted).cents;
+    if(Math.round(from/100)!==Math.round(to/100)) budgetNote=" Закупка на неделю: примерно "+money(from/100)+" сейчас и "+money(to/100)+" после.";
+  }
+  return `<div class="sheet-body simple swap-preview"><p class="quiet">${dayNames[offer.d]} · ${slotNames[offer.slot].toLowerCase()}</p><h2 id="sheet-title">Что изменится за день</h2><div class="swap-recipe"><img src="${photo(offer.r)}" alt=""><div><strong>${$(offer.r.title)}</strong><small>Вместо «${$(offer.old.title)}»</small></div></div><p>${status}</p>${table}<p class="quiet">${offer.liked?"Из понравившихся блюд.":"Новое для вашего меню."} Замена только на этот день. Список покупок обновится.${budgetNote}</p><div class="swap-preview-actions">${button("Применить замену","nutrition-swap-apply","primary")}${button("Оставить как есть","close","outline")}</div></div>`;
+}
+function confirmNutritionSwap() {
+  const info=openInfo;
+  if(info?.kind!=="nutrition-swap") return;
+  const {offer}=info,p=plan();
+  if(p!==info.plan || day!==offer.d || info.week!==weekKey() || dayNutritionOffer(p,day)!==offer) {
+    dismissSheet(); render(); notify("Меню изменилось. Откройте новое сравнение."); return;
+  }
+  const record=weekData();
+  record.nutritionSwaps={...record.nutritionSwaps,[day+"-"+offer.slot]:{from:offer.old.id,to:offer.r.id}};
+  persist(); dismissSheet(); render(); notify("Блюдо заменено. Порции и список покупок пересчитаны.");
+}

@@ -70,6 +70,7 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
     return;
   }
   weekData().replacements[key]=id;
+  if (weekData().nutritionSwaps) delete weekData().nutritionSwaps[d+"-"+slot];
   day = d;
   persist();
   const move = route !== "week";
@@ -178,6 +179,14 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "nutrition-swap-preview": {
+      const p=plan(), offer=dayNutritionOffer(p,day);
+      if(offer) openSheet({kind:"nutrition-swap",offer,plan:p,week:weekKey()});
+      break;
+    }
+    case "nutrition-swap-apply":
+      confirmNutritionSwap();
+      break;
     case "portion-edit":
       if(portionCount(settings()))openSheet({kind:"portion-edit"});break;
     case "portion-off":
