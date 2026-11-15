@@ -81,6 +81,13 @@ const mime={".js":"application/javascript",".css":"text/css",".html":"text/html"
           after:document.querySelector(".offer-prices > div:last-child strong").textContent,
           expected:"≈ "+money(selected.after.cents/100),status:document.querySelector(".budget-offer [aria-live]").textContent,
           gap:Math.max(0,selected.after.cents-entry.offer.limit)};});
+        const checkout=p.locator(".offer-checkout");
+        assert.ok((await checkout.innerText()).includes(await p.evaluate(()=>rangeText())));
+        assert.ok((await checkout.innerText()).includes(summary.expected.replace("≈ ","")));
+        assert.match(await checkout.innerText(),/Применить 2 замены/);
+        await choices.nth(Math.floor(n/2)).evaluate(el=>el.scrollIntoView({block:"center"}));
+        const geometry=await p.evaluate(()=>({footer:document.querySelector(".offer-checkout").getBoundingClientRect().toJSON(),dock:document.querySelector("#dock").getBoundingClientRect().top}));
+        assert.ok(geometry.footer.top>=0 && geometry.footer.bottom<=geometry.dock+2,"checkout sits above mobile navigation");
         assert.equal(summary.after,summary.expected);
         assert.match(summary.status,summary.gap?/Сверх бюджета/:/В пределах бюджета/);
         assert.deepEqual(await capture(p),baseline,"preview modified the menu");

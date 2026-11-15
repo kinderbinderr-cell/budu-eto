@@ -2040,3 +2040,19 @@ button:active:not(:disabled) {
 .portion-comparison details{padding:12px 0;border-bottom:1px solid var(--rule)}
 .portion-comparison summary{cursor:pointer;font-weight:650}
 .portion-comparison .btn{display:flex;width:100%;margin-top:12px}
+
+.carry-line{padding:10px 12px;margin:0 0 8px;background:var(--base);border-radius:8px}
+.carry-line strong,.carry-line small,.shop-row .grocery small,.pantry-row .grocery small{display:block}
+.carry-line small{color:var(--muted);margin:4px 0}
+.carry-line>div{display:flex;gap:6px 16px;flex-wrap:wrap}
+.carry-line button{min-height:40px}
+.shopping-period{position:sticky;top:var(--mini-top,0px);z-index:2;padding:6px 0;background:var(--base);border-bottom:1px solid var(--rule)}
+.shopping-period .week-control{justify-content:flex-start;min-height:40px;flex-wrap:wrap}
+.offer-checkout{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;padding:10px 12px;margin:12px -4px 0;background:var(--base);border:1px solid var(--rule);border-radius:12px}
+.offer-checkout strong,.offer-checkout span,.offer-checkout small{display:block}
+.offer-checkout span,.offer-checkout small{font-size:12px;color:var(--muted)}
+.offer-choices input{scroll-margin-block:80px 180px}
+.resume-draft{padding-block:40px;max-width:580px}
+.resume-draft h1{margin:0}
+.resume-draft .btn{display:flex;width:fit-content;margin-top:8px}
+@media(max-width:650px){.offer-checkout{bottom:calc(52px + max(5px,var(--mini-bottom,env(safe-area-inset-bottom,0px))));gap:6px}.offer-checkout strong{font-size:14px}.offer-checkout .btn{padding:8px 12px;min-height:44px}}

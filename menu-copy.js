@@ -62,6 +62,10 @@ function copyWeekRecord(raw) {
   const exchange=v=>copyObject(v)&&copyRecipe(v.from)&&copyRecipe(v.to);
   requireCopy(copyMap(r.replacements,k=>/^(day:)?[0-6]-[0-2]$/.test(k),copyRecipe) && copyGrams(r.pantry));
   if(raw.budgetLimit!=null){requireCopy(budgetRange(raw.budgetLimit));r.budgetLimit=raw.budgetLimit;}
+  if(raw.carryFrom!=null){
+    requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(r.pantry,k),v=>typeof v==="string" && !!copyDate(v)));
+    r.carryFrom={...raw.carryFrom};
+  }
   if(raw.paidStock!=null){requireCopy(copyGrams(raw.paidStock));r.paidStock=raw.paidStock;}
   if(raw.cart!=null){requireCopy(copyGrams(raw.cart));r.cart=raw.cart;}
   if(raw.purchases!=null){

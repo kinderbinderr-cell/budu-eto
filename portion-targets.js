@@ -25,21 +25,33 @@ function portionFields(count, values, ranges, prefix) {
     return `<fieldset class="portion-fields"><legend>${person}</legend><div class="range-grid${ranges ? "" : " point-grid"}">${ranges ? "<span></span><small>От</small><small>До</small>" : ""}${inputs}</div></fieldset>`;
   }).join("");
 }
-function editorProfile(){
-  return portionCount(settings())?settings():weekProfile();
+function editorProfile(info){
+  return info.future?settings():weekProfile(info.off);
 }
-function portionEditor() {
-  const s=editorProfile(), n=portionCount(s), goals=activePortionTargets(s);
-  const dates=savedPortionDates().filter(off=>portionCount(weekProfile(off))===n);
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Свои диапазоны КБЖУ</h2><p>Укажите цели на день${n===2?" для каждого человека":""}. Для одного значения достаточно поля «От». Пустой показатель можно пропустить.${n===2 ? " Посчитаем порцию каждого для общих блюд." : ""}</p><form id="portion-form">
-  ${portionFields(n,goals,true,"r")}
-  <p class="form-error" role="alert"></p>${portionCount(settings())?'<button class="btn primary" type="submit">Сохранить для будущих меню</button>':""}
-  ${dates.length?`<div class="portion-period">
-  <label class="field">Изменить порции в готовом меню<select name="period">${dates.map(off=>'<option value="'+off+'" '+(off===offset?'selected':'')+'>'+rangeText(off)+'</option>').join("")}</select></label>
-  <button class="btn outline" name="preview" type="submit">Посмотреть изменения недели</button>
-  <button class="link" type="submit" name="ordinary" formnovalidate>Посмотреть с обычными порциями</button></div>`:""}
-  ${portionCount(settings()) && goals ? button("Обычные порции для будущих меню","portion-off","outline") : ""}</form></div>`;
+function portionEditor(info) {
+  const s=editorProfile(info),n=portionCount(s),goals=activePortionTargets(s);
+  const title=info.future?"Цели для будущих меню":"КБЖУ на "+rangeText(info.off);
+  const action=info.future?"Сохранить для будущих меню":"Сравнить порции";
+  const ordinary=info.future?button("Обычные порции для будущих меню","portion-off","outline")
+    :'<button class="link" type="submit" name="ordinary" formnovalidate>Сравнить с обычными порциями</button>';
+  return `<div class="sheet-body simple"><h2 id="sheet-title">${title}</h2><p>Укажите цели на день${n===2?" для каждого человека":""}. Можно заполнить только нужные показатели.</p><form id="portion-form">
+    ${portionFields(n,goals,true,"r")}
+    <p class="form-error" role="alert"></p><p class="quiet" data-goal-status role="status">${goals?"Эти цели уже действуют":"Сейчас используются обычные порции"}</p>
+    <button class="btn primary" name="compare" type="submit" disabled>${action}</button> ${goals?ordinary:""}</form></div>`;
 }
+function goalsFromForm(form,count){
+  const fields=new FormData(form);
+  const goals=Array.from({length:count},(_,i)=>targetLabels.map((_,j)=>dailyTargetPair(fields.get(`r-${i}-${j}-0`),fields.get(`r-${i}-${j}-1`))));
+  return goals.some(row=>row.some(Boolean))?goals:null;
+}
+sheet.addEventListener("input",e=>{
+  if(e.target.form?.id!=="portion-form" || openInfo?.kind!=="portion-edit")return;
+  const form=e.target.form,s=editorProfile(openInfo),old=activePortionTargets(s);
+  const same=JSON.stringify(goalsFromForm(form,portionCount(s)))===JSON.stringify(old);
+  form.elements.compare.disabled=same;
+  form.querySelector("[data-goal-status]").textContent=same?(old?"Эти цели уже действуют":"Сейчас используются обычные порции"):"";
+  form.querySelector(".form-error").textContent="";
+});
 function portionReport(meals) {
   const goals=activePortionTargets(weekProfile());
   return goals.map((target,i)=>{
@@ -64,32 +76,22 @@ function individualFacts(meal) {
 sheet.addEventListener("submit",e=>{
   if(e.target.id!=="portion-form") return;
   e.preventDefault();
-  const n=portionCount(editorProfile()), fields=new FormData(e.target);
-  const goals=Array.from({length:n},(_,i)=>targetLabels.map((_,j)=>dailyTargetPair(fields.get(`r-${i}-${j}-0`), fields.get(`r-${i}-${j}-1`))));
-  const ordinary=e.submitter?.name==="ordinary",preview=ordinary || e.submitter?.name==="preview";
-  const empty=ordinary || !goals.some(person=>person.some(Boolean));
-  if(empty && !preview){
-    e.target.querySelector(".form-error").textContent="Укажите хотя бы одну дневную цель.";return;
+  const info=openInfo;
+  if(info?.kind!=="portion-edit" || (!info.future && info.date!==plannedDate(info.off)))return;
+  const s=editorProfile(info),goals=e.submitter?.name==="ordinary"?null:goalsFromForm(e.target,portionCount(s));
+  if(goals && !activePortionTargets({...s,portionTargets:goals})){
+    e.target.querySelector(".form-error").textContent="Проверьте диапазоны. Минимум должен быть не больше максимума.";return;
   }
-  if(!empty && !activePortionTargets({...editorProfile(),portionTargets:goals})){
-    e.target.querySelector(".form-error").textContent="Проверьте диапазоны: оба числа должны быть положительными, минимум не больше максимума.";return;
-  }
-  if(preview){
-    const off=Number(fields.get("period"));
-    if(!savedPortionDates().includes(off) || portionCount(weekProfile(off))!==n)return;
-    const profile={...weekProfile(off),portionTargets:empty?null:goals};
-    const base=plan(null,off);
-    openSheet({kind:"portion-preview",off,base,profile,next:resizedWeek(base,profile),date:plannedDate(off)});
-  }else if(portionCount(settings())===n)saveFutureGoals(goals);
+  if(JSON.stringify(goals)===JSON.stringify(activePortionTargets(s)))return;
+  if(info.future){saveFutureGoals(goals);return;}
+  const off=info.off,base=plan(null,off),profile={...s,portionTargets:goals};
+  openSheet({kind:"portion-preview",off,base,profile,next:resizedWeek(base,profile),date:info.date});
 });
 
-function savedPortionDates(){
-  return Object.keys(data.savedWeeks||{}).filter(k=>k.startsWith(data.mode+"/")).map(k=>
-    copyDistance(startDate(settings()),copyDate(k.split("/")[1]))/7).filter(Number.isInteger).sort((a,b)=>a-b);
-}
 function saveFutureGoals(goals){
   protectPortionPolicies();
   if(goals)settings().portionTargets=goals;else delete settings().portionTargets;
+  if(draft?.mode===data.mode){if(goals)draft.portionTargets=structuredClone(goals);else delete draft.portionTargets;}
   persist();dismissSheet();render();notify("Цели сохранены для будущих меню");
 }
 function portionPreview({off,base,next,profile}){
@@ -108,7 +110,7 @@ function portionPreview({off,base,next,profile}){
   return '<div class="sheet-body simple portion-comparison"><h2 id="sheet-title">Порции на '+rangeText(off)+'</h2><p>Те же блюда, новые порции. Сравните КБЖУ каждого за день.</p>'+days+
     '<h3>Корзина ≈ '+money(first.cents/100)+' → ≈ '+money(last.cents/100)+'</h3><p>Учтены остатки дома и покупки.</p>'+
     (extra.length?'<details><summary>Понадобится докупить больше · '+extra.length+'</summary><ul>'+extra.join("")+'</ul></details>':'<p>Дополнительных продуктов не потребуется.</p>')+
-    button("Применить к "+rangeText(off),"portion-apply","primary")+button("Оставить как есть","close","outline")+'</div>';
+    button("Обновить порции на "+rangeText(off),"portion-apply","primary")+button("Оставить как есть","close","outline")+'</div>';
 }
 function confirmWeekPortions(){
   const info=openInfo;

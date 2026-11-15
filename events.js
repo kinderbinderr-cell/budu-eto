@@ -1,4 +1,5 @@
 function render({ top = false } = {}) {
+  rememberMenuView();
   header();
   main.innerHTML =
     route === "coupons" ? couponsPage() : route === "tastes"
@@ -30,7 +31,7 @@ function restartMenu() {
     return;
   }
   try {
-    sessionStorage.removeItem(flowKey);
+    clearFlowDraft();
     for (const mode of ["family", "personal"]) {
       sessionStorage.removeItem("zastol-quiz-2" + mode);
       sessionStorage.removeItem("kbr-syt-tasting-" + mode);
@@ -40,6 +41,7 @@ function restartMenu() {
   location.reload();
 }
 function changeWeek(delta) {
+  pinnedView=true;
   offset = settings().startDate ? Math.max(0,offset+delta) : offset+delta;
   day = currentDay(offset);
   if(history.state?.menuCopy) history.replaceState({...history.state,weekOffset:offset},"",location.href);
@@ -200,6 +202,18 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "resume-draft":
+      if(route==="start" && resumeDraft){resumeDraft=false;rememberFlow();render({top:true});}
+      break;
+    case "carry-use":
+    case "carry-edit": {
+      if(btn.dataset.week!==weekKey() || !FOOD[id])break;
+      const offer=carrySuggestion(id);
+      if(!offer)break;
+      if(action==="carry-edit")openSheet({kind:"carry",id,offer,date:weekKey()});
+      else if(!offer.unknown && !Object.hasOwn(weekData().pantry,id))acceptCarry(id,weekKey(),offer.date,offer.available);
+      break;
+    }
     case "purchase-edit":
       if(weekData().cart?.[id])openSheet({kind:"purchase",id});break;
     case "stock":
@@ -221,9 +235,11 @@ document.addEventListener("click", (e) => {
       confirmNutritionSwap();
       break;
     case "portion-edit":
-      if(portionCount(editorProfile()))openSheet({kind:"portion-edit"});break;
+      if(portionCount(weekProfile()))openSheet({kind:"portion-edit",off:offset,date:plannedDate()});break;
+    case "future-portions":
+      if(portionCount(settings()))openSheet({kind:"portion-edit",future:true});break;
     case "portion-off":
-      saveFutureGoals(null);break;
+      if(openInfo?.future)saveFutureGoals(null);break;
     case "portion-apply": confirmWeekPortions();break;
     case "budget-edit":
       openSheet({kind:"budget-edit",value:hasBudget(spendingProfile())?spendingProfile().budget:null});break;
@@ -284,7 +300,7 @@ document.addEventListener("click", (e) => {
       navTo(action);
       break;
     case "day":
-      day = Number(d);
+      pinnedView=true;day = Number(d);
       render();
       break;
     case "prev":
@@ -698,6 +714,7 @@ addEventListener("hashchange", () => {
     if (sheet.open) dismissSheet(false);
     if (next !== "settings") draft = null;
     route = next;
+    if(data.quizDone && savedSections.includes(next))pinnedView=true;
     render({ top: true });
   }
 });
@@ -743,7 +760,7 @@ function bindTelegram() {
   if (t.isVersionAtLeast("7.10")) t.setBottomBarColor("#fafbf7");
   tgBack();
 }
-route = readRoute();
+route = restoreMenuView(readRoute());
 const legacy = location.hash.match(/^#(family|personal)\/(week|[123])$/);
 if (legacy) {
   data.mode = legacy[1];

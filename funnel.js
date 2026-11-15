@@ -36,33 +36,42 @@ function restoreFlow(saved) {
   if (!saved.votes && fresh.stage > 2) fresh.stage = 2;
   return fresh;
 }
+let resumeDraft=false, lastDraftText;
+function compatibleDraft(text){
+  try{
+    const f=JSON.parse(text);
+    return f && f.run===data.quizRun && Number.isInteger(f.stage) && f.stage>=0 && f.stage<4 ? restoreFlow(f):null;
+  }catch{return null;}
+}
 function getFlow() {
-  if (flow) return flow;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(flowKey));
-    if (
-      saved && saved.run === data.quizRun &&
-      Number.isInteger(saved.stage) &&
-      saved.stage >= 0 &&
-      saved.stage < 4
-    )
-      flow = restoreFlow(saved);
-  } catch {}
-  return (flow ||= firstFlow());
+  if(flow)return flow;
+  let tabDraft,deviceDraft;
+  try{tabDraft=compatibleDraft(sessionStorage.getItem(flowKey));}catch{}
+  try{lastDraftText=localStorage.getItem(flowKey);deviceDraft=compatibleDraft(lastDraftText);}catch{}
+  flow=deviceDraft || tabDraft || firstFlow();
+  resumeDraft=!tabDraft && !!deviceDraft && !!(flow.who || flow.stage);
+  if(tabDraft && !deviceDraft)rememberFlow();
+  return flow;
+}
+function clearFlowDraft(){
+  try{sessionStorage.removeItem(flowKey);}catch{}
+  try{localStorage.removeItem(flowKey);}catch{}
+  lastDraftText=null;resumeDraft=false;
 }
 function previousFlowStep() {
-  if (history.state?.foodQuiz && flow.stage > 0) history.back();
+  if (history.state?.foodQuiz && flow.stage > (history.state.flowBaseStage??0)) history.back();
   else if (flow.stage > 0) changeFlow((f) => f.stage--, true);
 }
 function advanceFlowStep() {
+  const flowBaseStage=history.state?.flowBaseStage??flow.stage;
   history.replaceState(
-    { ...history.state, foodQuiz: true, snapshot: structuredClone(flow) },
+    { ...history.state, foodQuiz: true, flowBaseStage, snapshot: structuredClone(flow) },
     "",
     location.href,
   );
   flow.stage++;
   history.pushState(
-    { foodQuiz: true, snapshot: structuredClone(flow) },
+    { foodQuiz: true, flowBaseStage, snapshot: structuredClone(flow) },
     "",
     "#start",
   );
@@ -70,15 +79,19 @@ function advanceFlowStep() {
   render({ top: true });
 }
 function rememberFlow() {
-  if (history.state?.foodQuiz)
-    history.replaceState(
-      { ...history.state, snapshot: structuredClone(flow) },
-      "",
-      location.href,
-    );
-  try {
-    sessionStorage.setItem(flowKey, JSON.stringify(flow));
-  } catch {}
+  if(!flow || resumeDraft || data.quizDone)return;
+  const text=JSON.stringify(flow);
+  try{
+    const current=localStorage.getItem(flowKey);
+    if(lastDraftText!==undefined && current!==lastDraftText && compatibleDraft(current)){
+      location.reload();return;
+    }
+    if(current!==text)localStorage.setItem(flowKey,text);
+    lastDraftText=text;
+  }catch{}
+  try{sessionStorage.setItem(flowKey,text);}catch{}
+  if(history.state?.foodQuiz)
+    history.replaceState({...history.state,snapshot:structuredClone(flow)},"",location.href);
 }
 function changeFlow(fn, top = false) {
   fn(getFlow());
@@ -215,6 +228,11 @@ function sampleDay() {
 }
 function funnelPage() {
   const s = getFlow().stage;
+  if(resumeDraft){
+    const likes=Object.values(flow.votes||{}).filter(v=>v===1).length;
+    return '<div class="wrap resume-draft"><h1>Продолжить выбор меню?</h1><p>Шаг '+(s+1)+' из 4 · '+flowLabels[s]+'</p>'+
+      button("Продолжить выбор"+(likes?" · отмечено "+likes+" "+plural(likes,"блюдо","блюда","блюд"):""),"resume-draft","primary","arrow")+button("Восстановить из копии","copy-restore","outline")+'</div>';
+  }
   const first = s === 0;
   const subtitles = [
     null,
@@ -397,9 +415,7 @@ function submitFlow() {
   day = 0;
   protectMenus();persist();
   flow = null;
-  try {
-    sessionStorage.removeItem(flowKey);
-  } catch {}
+  clearFlowDraft();
   miniStats.built();
   navTo("week");
   notify("Ваше меню на семь дней готово");

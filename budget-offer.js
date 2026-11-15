@@ -124,14 +124,21 @@ function budgetOfferHtml(entry) {
   const rows=offer.edits.map((e,i)=>({e,i})).sort((a,b)=>a.e.d-b.e.d||a.e.slot-b.e.slot).map(({e,i})=>
     '<li><label><input type="checkbox" data-offer-index="'+i+'" '+(entry.selected.has(i)?'checked':'')+'><span><small>'+prepDate(e.d)+' · '+slotNames[e.slot]+'</small>'+$(byId(e.from).title)+' → <b>'+$(byId(e.to).title)+'</b></span></label></li>').join('');
   const table='<ul class="offer-choices">'+rows+'</ul>';
-  if(!preview) return '<p role="status">Эти замены вместе нарушают чередование блюд. Измените выбор.</p>'+table;
+  if(!preview){
+    const n=entry.selected.size;
+    return table+'<div class="offer-checkout"><div role="status"><small>'+rangeText()+'</small><strong>Сейчас ≈ '+money(offer.before.cents/100)+'</strong><span>Эти замены нарушают чередование блюд. Измените выбор.</span></div>'+
+      button('Применить '+n+' '+plural(n,'замену','замены','замен'),'budget-apply','primary','','disabled')+'</div>';
+  }
   const amounts=[['Сейчас',offer.before],['После выбранных замен',preview.after]].map(([label,q])=>'<div><small>'+label+'</small><strong>≈ '+money(q.cents/100)+'</strong>'+(q.store?'<small>'+$(shopName(q.store))+'</small>':'')+'</div>').join('');
   const gap=preview.after.cents-offer.limit,n=preview.edits.length;
   const saving=(offer.before.cents-preview.after.cents)/100;
   const canApply=n && preview.withinTargets;
+  const summary='<div class="offer-checkout"><div aria-live="polite"><small>'+rangeText()+'</small><strong>Корзина ≈ '+money(offer.before.cents/100)+' → '+money(preview.after.cents/100)+'</strong>'+
+    '<span>'+(gap>0?'Сверх бюджета ≈ '+money(gap/100):'В пределах бюджета')+'</span></div>'+
+    button('Применить '+n+' '+plural(n,'замену','замены','замен'),'budget-apply','primary','',canApply?'':'disabled')+'</div>';
   return '<div class="offer-prices" aria-label="Стоимость корзины">'+amounts+'</div><p aria-live="polite">'+(saving>0?'Экономия ≈ '+money(saving)+'. ':saving<0?'Дороже на ≈ '+money(-saving)+'. ':'')+(gap>0?'Сверх бюджета ≈ '+money(gap/100):'В пределах бюджета')+'.</p>'+
     table+macroChanges(entry.p,preview.next,preview.affected)+(!preview.withinTargets?'<p>С таким выбором КБЖУ дальше от цели. Измените сочетание замен.</p>':'')+
-    '<div class="budget-actions">'+button('Применить '+n+' '+plural(n,'замену','замены','замен'),'budget-apply','primary','',canApply?'':'disabled')+button('Оставить меню','budget-keep','soft')+'</div>';
+    button('Оставить меню','budget-keep','soft')+summary;
 }
 function mountBudgetOffer() {
   const host=document.querySelector('[data-budget-offer]');
