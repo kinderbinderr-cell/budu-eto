@@ -2005,3 +2005,14 @@ button:active:not(:disabled) {
 .week-spending{margin:8px 0 16px;background:#f0f3e9;border-radius:14px;padding:12px 14px}.week-spending summary{cursor:pointer;font-size:14px}.week-spending summary b{color:#3d5935;text-decoration:underline;margin-left:8px}.week-spending .budget-box{margin:12px 0}
 .week-next,.shopping-switch{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.cart-figures{background:#eaf0df;padding:15px;border-radius:12px;margin-bottom:14px}.cart-figures span{display:block;font-size:14px;margin-top:4px}
 @media(max-width:700px){.week-first .menu-heading h2{font-size:23px}.week-first .week-body{margin-top:0}.week-first .week-control{gap:8px}.week-title span{font-size:13px}.week-first .week-line{flex-wrap:wrap}.week-first .week-title{margin-top:4px}}
+
+.settings-copies{display:flex;flex-wrap:wrap;gap:2px 22px;padding:6px 0;margin:4px 0 18px;border-block:1px solid var(--rule)}
+.settings-copies .link,.welcome-restore{min-height:44px;font-size:14px}
+.settings-copies .link:first-child{display:inline-flex;align-items:center;gap:7px}
+.welcome-restore{display:block;margin:12px auto 0}
+.menu-copy p{line-height:1.5}.menu-copy .copy-period{font-size:19px;font-weight:700;color:var(--olive)}
+.menu-copy>.btn,.menu-copy details .btn{width:100%;margin-top:8px}
+.menu-copy details{margin:18px 0}.menu-copy summary{cursor:pointer;font-weight:650;padding:10px 0}
+.menu-copy textarea{display:block;width:100%;min-height:84px;resize:vertical;padding:10px;margin:6px 0;border:1px solid var(--rule);border-radius:8px;font:inherit}
+.copy-feedback:not(:empty){margin-top:12px}.copy-feedback:empty{margin:0}
+.copy-weeks{list-style:none;margin:18px 0;padding:0}.copy-weeks li{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-top:1px solid var(--rule)}.copy-weeks li span{text-align:right}.copy-weeks li small{grid-column:1/-1;color:var(--muted)}

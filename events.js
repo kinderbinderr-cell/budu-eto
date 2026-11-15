@@ -42,6 +42,7 @@ function restartMenu() {
 function changeWeek(delta) {
   offset = settings().startDate ? Math.max(0,offset+delta) : offset+delta;
   day = currentDay(offset);
+  if(history.state?.menuCopy) history.replaceState({...history.state,weekOffset:offset},"",location.href);
   render();
 }
 function markFavorite(id) {
@@ -175,6 +176,7 @@ document.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn || btn.disabled) return;
   const { action, day: d, slot, id, value } = btn.dataset;
+  if(action.startsWith("copy-")) {void handleCopyAction(action);return;}
   if (
     handleSweetAction(action,btn) ||
     handleTasteAction(action, btn) ||
@@ -477,6 +479,7 @@ main.addEventListener("submit", (e) => {
   }
 });
 sheet.addEventListener("change", e=>{
+  if(e.target.hasAttribute("data-menu-copy-file")) {void readMenuCopyFile(e.target);return;}
   if (e.target.hasAttribute("data-reminder-flag") && openInfo?.kind==="reminders") {
     const flag=Number(e.target.dataset.reminderFlag);
     openInfo.flags=e.target.checked?openInfo.flags|flag:openInfo.flags&~flag;

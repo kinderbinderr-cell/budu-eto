@@ -234,6 +234,7 @@ function funnelPage() {
   return `<div class="flow-shell ${first ? "welcome-step" : s === 2 ? "tasting-step" : ""}">${visual}<section class="flow-form">${progress}
     <form id="flow-form">${heading}<div class="flow-options">${[peopleQuestion, timeQuestion, flavorQuestion, storeQuestion][s]()}</div>
     <p id="flow-error" role="alert"></p>${taste ? tasteProgressDetails(taste) : ""}<div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste && !taste.complete ? 'disabled aria-describedby="taste-progress"' : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
+    ${first ? '<button class="link welcome-restore" type="button" data-action="copy-restore">Восстановить из копии</button>' : ""}
   </section></div>`;
 }
 function flowProfile(f) {

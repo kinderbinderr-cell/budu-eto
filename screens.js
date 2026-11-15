@@ -163,7 +163,7 @@ function livePreview() {
 }
 function setupPage() {
   if (!draft) startDraft();
-  return `<div class="wrap inner-page setup"><div class="setup-rail"><button type="button" class="link" data-action="exit-setup">${icon("left", 16)} К меню недели</button><h2>Настройки меню</h2><ol>${stepNames.map((t, i) => `<li class="${i + 1 === step ? "current" : i + 1 < step ? "completed" : ""}"><i>${i + 1 < step ? icon("check", 13) : i + 1}</i>${t}</li>`).join("")}</ol><div class="rail-preview">${livePreview()}</div></div><section class="setup-form"><div class="steptrack">${stepNames.map((_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div><div class="settings-step"><div class="step-count">Шаг ${step} из 4 · ${stepNames[step - 1]}</div><button type="button" class="link restart-link" data-action="restart-menu">Пройти заново</button></div><h1>${stepTitles[step - 1]}</h1><p class="setup-desc">${stepDesc[step - 1]}</p><button class="link setup-taste-entry" type="button" data-action="discover">Выбрать блюда по фото ${icon("right", 15)}</button><form id="setup-form">${[profileInputs, preferences, rhythm, tastingPanel][step - 1]()}${step === 2 ? '<div class="inline-preview">' + livePreview() + "</div>" : ""}<p class="form-error" id="setup-error" role="alert"></p><div class="form-footer">${step > 1 ? button("Назад", "prev-step", "outline", "left") : ""}<button type="submit" class="btn primary">${step === 4 ? "Применить и открыть меню" : "Далее"} ${icon("arrow", 17)}</button></div></form></section></div>`;
+  return `<div class="wrap inner-page setup"><div class="setup-rail"><button type="button" class="link" data-action="exit-setup">${icon("left", 16)} К меню недели</button><h2>Настройки меню</h2><ol>${stepNames.map((t, i) => `<li class="${i + 1 === step ? "current" : i + 1 < step ? "completed" : ""}"><i>${i + 1 < step ? icon("check", 13) : i + 1}</i>${t}</li>`).join("")}</ol><div class="rail-preview">${livePreview()}</div></div><section class="setup-form"><div class="steptrack">${stepNames.map((_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div><div class="settings-step"><div class="step-count">Шаг ${step} из 4 · ${stepNames[step - 1]}</div><button type="button" class="link restart-link" data-action="restart-menu">Пройти заново</button></div><h1>${stepTitles[step - 1]}</h1><p class="setup-desc">${stepDesc[step - 1]}</p><button class="link setup-taste-entry" type="button" data-action="discover">Выбрать блюда по фото ${icon("right", 15)}</button>${step===1 ? '<div class="settings-copies"><button type="button" class="link" data-action="copy-save">'+icon("copy",16)+' Сохранить копию меню</button><button type="button" class="link" data-action="copy-restore">Восстановить из копии</button></div>' : ""}<form id="setup-form">${[profileInputs, preferences, rhythm, tastingPanel][step - 1]()}${step === 2 ? '<div class="inline-preview">' + livePreview() + "</div>" : ""}<p class="form-error" id="setup-error" role="alert"></p><div class="form-footer">${step > 1 ? button("Назад", "prev-step", "outline", "left") : ""}<button type="submit" class="btn primary">${step === 4 ? "Применить и открыть меню" : "Далее"} ${icon("arrow", 17)}</button></div></form></section></div>`;
 }
 function openSheet(info) {
   const fresh = !sheet.open;
@@ -191,7 +191,7 @@ function renderSheet() {
   const info = openInfo;
   if (!info) return;
   const contents =
-    info.kind === "sweet-week" ? sweetEditor(info) : info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
+    info.kind.startsWith("copy-") ? menuCopyPane(info) : info.kind === "sweet-week" ? sweetEditor(info) : info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
       ? `<div class="sheet-body simple"><h2 id="sheet-title">Пройти анкету заново?</h2><p>Выбор блюд, магазины и настройки обоих меню сбросятся на этом устройстве. Замены и отметки «есть дома» тоже очистятся. Избранные рецепты сохранятся.</p><div class="restart-actions">${button("Отмена", "close", "outline")}${button("Начать заново", "confirm-restart", "primary")}</div></div>`
       : info.kind === "perek-address"
       ? perekAddressDialog()
@@ -211,11 +211,11 @@ function renderSheet() {
   sheet.innerHTML = `<div class="dialog-head">${iconBtn("close", "Закрыть окно", "close")}</div><div class="dialog-scroll">${contents}</div>`;
 }
 function recipeDetail(info) {
-  const r = byId(info.id);
   const p = plan();
-  const isPlanned =
-    Number.isInteger(info.slot) && p?.days[day].meals[info.slot]?.r.id === r.id;
+  const meal = Number.isInteger(info.slot) ? p?.days[day].meals[info.slot] : null;
+  const isPlanned = meal?.r.id === info.id;
   const prepTask = info.prepId ? prepWeek()?.[day].cook.get(info.prepId) : null;
+  const r = prepTask?.r || (isPlanned ? meal.r : byId(info.id));
   const one = isPlanned ? p.days[day].meals[info.slot].f : 1;
   let batchFactor=one, mealCount=1;
   if (isPlanned) {

@@ -76,9 +76,9 @@ const dateText = (d, opts) => new Intl.DateTimeFormat("ru-RU", opts).format(d);
 function startDate(profile) {
   if (!profile?.startDate) {
     if(Number.isInteger(profile?.tasteAnchor)) return plusDays(new Date(2026,10,9,12),7*profile.tasteAnchor);
-    return monday;
+    if(!profile?.backupAnchor) return monday;
   }
-  const [y,m,d]=profile.startDate.split("-").map(Number);
+  const [y,m,d]=(profile.startDate || profile.backupAnchor).split("-").map(Number);
   return new Date(y,m-1,d,12);
 }
 function plusDays(date,n) { return new Date(date.getFullYear(),date.getMonth(),date.getDate()+n,12); }
@@ -163,7 +163,9 @@ function openingWeek(profile) {
   return Math.max(0,Math.floor((Date.UTC(today.getFullYear(),today.getMonth(),today.getDate())-
     Date.UTC(startDate(profile).getFullYear(),startDate(profile).getMonth(),startDate(profile).getDate()))/604800000));
 }
-let offset = openingWeek(data[data.mode]),
+const restoredPosition=history.state;
+let offset = restoredPosition?.menuCopy && restoredPosition.menuCopy===data.menuCopies?.[data.mode]?.revision &&
+  Number.isInteger(restoredPosition.weekOffset) ? restoredPosition.weekOffset : openingWeek(data[data.mode]),
   day = currentDay(offset),
   route = "week",
   draft = null,
@@ -207,24 +209,42 @@ function weekSeed(off = offset) {
 }
 let adjacentPlan = null;
 // Separate storage: never overwrite the original profile, pantry or manual edits on upgrade.
-function retainedWeek(profile,seed,swaps,edits,build) {
-  const key="budu-retained-v1/"+profile.mode+"/"+(profile.startDate || "legacy")+"/"+seed;
+function packMenuWeek(week) {
+  const days=week.days.map(d=>({...d,meals:d.meals.map(m=>({...m,r:m.r.id}))}));
+  return {...week,days};
+}
+function unpackMenuWeek({facts,...week},profile) {
+  const lookup=profile.startDate ? byId : originalMenuPlanner.byId;
+  const restoredRecipes=new Map();
+  const days=week.days.map(d=>({...d,meals:d.meals.map(m=>{
+    let r=restoredRecipes.get(m.r) || lookup(m.r);
+    if(!r) throw Error("Не найден рецепт из сохранённого меню.");
+    if(facts?.[m.r] && !restoredRecipes.has(m.r)){
+      const original=facts[m.r];
+      if(JSON.stringify(original)!==JSON.stringify(recipeCopyFacts(r))) r={...r,...original};
+      restoredRecipes.set(m.r,r);
+    }
+    return {...m,r};
+  })}));
+  return {...week,days};
+}
+function retainedWeek(profile,seed,swaps,edits,build,date,record) {
+  const restored=data.menuCopies?.[profile.mode];
+  const fixed=restored?.plans[date];
+  if(fixed && restored.signature===JSON.stringify(profile) && fixed.edits===copyRecordSignature(record)) {
+    return unpackMenuWeek(fixed.week,profile);
+  }
+  const key="budu-retained-v1/"+(restored ? restored.revision+"/" : "")+profile.mode+"/"+(profile.startDate || "legacy")+"/"+seed;
   const signature=JSON.stringify([profile,swaps,edits]);
   try {
     const saved=JSON.parse(localStorage.getItem(key));
     if(saved?.signature===signature && saved.week?.days.length===7){
-      const week=saved.week;
-      for(const day of week.days) for(const meal of day.meals){
-        meal.r=profile.startDate ? byId(meal.r) : originalMenuPlanner.byId(meal.r);
-        if(!meal.r) throw Error("Recipe unavailable");
-      }
-      return week;
+      return unpackMenuWeek(saved.week,profile);
     }
   } catch {}
   const week=build();
   if(week){
-    const days=week.days.map(d=>({...d,meals:d.meals.map(m=>({...m,r:m.r.id}))}));
-    try {localStorage.setItem(key,JSON.stringify({signature,week:{...week,days}}));} catch {}
+    try {localStorage.setItem(key,JSON.stringify({signature,week:packMenuWeek(week)}));} catch {}
   }
   return week;
 }
@@ -271,7 +291,7 @@ function plan(preview = null, weekOffset = offset) {
       return week;
     };
     value=data.quizDone && !preview ? retainedWeek(s,n,records.slice(0,n-first+1),
-      [nutrition.slice(0,n-first+1),budgetEdits.slice(0,n-first+1),desserts.slice(0,n-first+1)],build) : build();
+      [nutrition.slice(0,n-first+1),budgetEdits.slice(0,n-first+1),desserts.slice(0,n-first+1)],build,weekKey(weekOffset+n-seed),weeks[n-first]) : build();
     if (n === seed) break;
     if (!value) { previous = []; continue; }
     previous = value.days.slice(-2);
