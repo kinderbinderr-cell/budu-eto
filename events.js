@@ -160,6 +160,7 @@ function finishSetup() {
   }
   draft = null;
   persist();
+  miniStats.built();
   navTo("week");
   notify("Меню собрано по вашим настройкам");
 }
@@ -653,6 +654,7 @@ function bindTelegram() {
   if (!t || !(t.initData || (t.platform && t.platform !== "unknown"))) return;
   document.body.classList.add("telegram-mini");
   t.ready();
+  miniStats.opened();
   t.expand();
   if (t.isVersionAtLeast("6.9")) {
     t.setHeaderColor("#fafbf7");

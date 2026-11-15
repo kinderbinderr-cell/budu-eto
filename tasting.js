@@ -295,6 +295,7 @@ function saveDiscovery() {
   discovery = null;
   data.quizDone = true;
   persist();
+  miniStats.built();
   navTo("week");
   notify("Выбранные блюда сохранены");
 }

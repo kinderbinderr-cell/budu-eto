@@ -367,6 +367,7 @@ function submitFlow() {
   try {
     sessionStorage.removeItem(flowKey);
   } catch {}
+  miniStats.built();
   navTo("week");
   notify("Ваше меню на семь дней готово");
 }
