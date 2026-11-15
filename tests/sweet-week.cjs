@@ -34,6 +34,7 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
  assert.match(await b('sweet-open').textContent(),/3 раза/);
  await p.locator('#flow-form [type=submit]').click();
  await p.locator('.meal-card').first().waitFor();
+ const otherWeeks=await p.evaluate(()=>JSON.stringify([1,2].map(n=>fullWeekSnapshot(plan(null,n)))));
  const features=await p.evaluate((liked)=>{
    const s=settings(), expected=[1,3,5];
    const ok=(x,msg)=>{if(!x)throw Error(msg)};
@@ -124,7 +125,8 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
  const slotsInView=()=>p.locator('.meal-card .dish-title').evaluateAll(es=>es.map(e=>Number(e.dataset.slot)));
  await b('sweet-day').last().click();
  assert.deepEqual(await slotsInView(),[0,1,3,2]);
- assert.deepEqual(await p.evaluate(()=>[0,1,2].map(i=>plan(null,i).days.flatMap((d,index)=>d.meals[3]?[index]:[]))),[[1,5,6],[5,6],[5,6]]);
+ assert.deepEqual(await p.evaluate(()=>plan().days.flatMap((d,i)=>d.meals[3]?[i]:[])),[1,5,6]);
+ assert.deepEqual(await p.evaluate(()=>JSON.stringify([1,2].map(n=>fullWeekSnapshot(plan(null,n))))),otherWeeks);
  assert.match(await p.locator('.meal-card').nth(2).textContent(),/после обеда/);
  assert.match(await p.evaluate(()=>overviewWeek(plan())),/Десерт · после обеда/);
  const totals=()=>p.evaluate(()=>[plan().counts,plan().macros,weeklyQuote(plan()).cents]);

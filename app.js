@@ -418,7 +418,8 @@ function overviewWeek(p) {
   return `<div class="sheet-body simple"><h2 id="sheet-title">Меню на семь дней</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${threeWeekTabs()}<div class="week-overview">${p.days.map((item, i) => `<button type="button" data-action="overview-day" data-day="${i}"><img src="${photo(item.meals[2].r)}" alt=""><span><b>${dayName(i)}</b>${servingSlots(item.meals).map(slot => `<small>${sweetMealLabel(item.meals[slot],slot)} · ${$(item.meals[slot].r.title)}</small>`).join("")}</span>${icon("right", 15)}</button>`).join("")}</div></div>`;
 }
 function threeWeekTabs() {
-  return `<div class="three-weeks" aria-label="Ближайшие три недели">${[0, 1, 2].map((i) => `<button type="button" data-action="jump-week" data-value="${i}" aria-pressed="${offset === i}">Неделя ${i + 1}<small>${dateText(dateAt(0, i), { day: "numeric", month: "short" })} – ${dateText(dateAt(6, i), { day: "numeric", month: "short" })}</small></button>`).join("")}</div>`;
+  const first=Math.floor(offset/3)*3;
+  return `<div class="three-weeks" aria-label="Три недели меню">${[first, first+1, first+2].map((i) => `<button type="button" data-action="jump-week" data-value="${i}" aria-pressed="${offset === i}">Неделя ${i-first+1}<small>${dateText(dateAt(0, i), { day: "numeric", month: "short" })} – ${dateText(dateAt(6, i), { day: "numeric", month: "short" })}</small></button>`).join("")}</div>`;
 }
 function weekVariety(p) {
   if (!p || !settings().strictTaste) return "";
@@ -458,7 +459,7 @@ function mealCard(meal, slot) {
 }
 function weekSummary(p,kitchen) {
   const s = weekProfile(),
-    n = Object.keys(p.counts).length;
+    n = Object.keys(shoppingCounts(p)).length;
   return `<aside class="summary"><h3>Неделя в деталях</h3><div class="summary-row">${icon("pot", 21)}<div><b>Дни готовки</b><small>${prepLoad(kitchen)}</small></div><button type="button" data-action="prep" class="mini-btn" aria-label="Посмотреть план готовки">${icon("right", 17)}</button></div><div class="summary-row">${icon("bag", 21)}<div><b>Продукты на неделю</b><small>${n} ${plural(n, "позиция", "позиции", "позиций")} · корзина ≈ <span data-purchase-total>${money(weeklyQuote(p).cents/100)}</span></small></div></div>${button("Открыть список", "list", "soft", "bag")}${sweetEntry(s,"week",p)}${sweetAgenda(p)}${portionCount(s) ? button(activePortionTargets(s)?"Изменить мои диапазоны КБЖУ":"Настроить порции по КБЖУ","portion-edit","outline") : ""}</aside>`;
 }
 function weekPage() {
@@ -672,7 +673,7 @@ const categories = [
 const neededGrams = (g) => Math.ceil(g - 1e-7);
 function groceryGroups(p) {
   const groups = categories.map(([label]) => ({ label, items: [] }));
-  for (const [k, g] of Object.entries(p.counts)) {
+  for (const [k, g] of Object.entries(shoppingCounts(p))) {
     let i = categories.findIndex(([, ids]) => ids.includes(k));
     if (i < 0) i = homeFoodGroups[k] ?? groups.length - 1;
     groups[i].items.push({ k, g: neededGrams(g) });
@@ -701,9 +702,10 @@ function cartFigures(p,q) {
   return `<strong>В корзине ≈ ${money((q.pickedCents||0)/100)}</strong><span>Осталось взять ≈ ${money((q.cents-(q.pickedCents||0))/100)} · Всего ≈ ${money(q.cents/100)}</span>`;
 }
 function addPurchase(k){
-  const w=weekData(),p=plan(),need=outstandingGrams(w,k,p.counts[k]||0);
+  const w=weekData(),p=plan(),need=outstandingGrams(w,k,shoppingCounts(p)[k]||0);
   if(!need)return;
   const store=weeklyQuote(p).store,own=cataloguePurchase(k,need,store),row=own||estimatedPurchase(k,need,store);
+  w.prepReceipts??={...w.cart};
   const previous=w.purchases?.[k];
   const grams=(previous?.grams||0)+row.edibleGrams, weightSale=row.weightSale===true;
   const weight=(previous?.weight||0)+(weightSale?row.orderGrams:row.edibleGrams);
@@ -713,7 +715,7 @@ function addPurchase(k){
   (w.cart||={})[k]=grams;(w.paidStock||={})[k]=grams;
 }
 function shopRows(groups,p,q) {
-  const w=weekData();
+  const w=weekData(),counts=shoppingCounts(p);
   const sections=groups.map(({label,items})=>{
     const rows=[];
     for(const {k,g} of items){
@@ -724,9 +726,9 @@ function shopRows(groups,p,q) {
     return rows.length?`<section class="groceries"><h2>${label}</h2>${rows.join("")}</section>`:"";
   }).join("");
   const picked=Object.entries(w.cart||{}).filter(([k,g])=>FOOD[k] && g>0).map(([k,g])=>{
-    const paid=w.purchases?.[k],uncertain=!paid && remainingGrams(k,p.counts[k]||0)>g;
+    const paid=w.purchases?.[k],uncertain=!paid && remainingGrams(k,counts[k]||0)>g;
     return `<div class="pantry-row"><label class="grocery"><input type="checkbox" checked data-picked="${k}" data-cart="${k}" aria-label="Убрать из корзины: ${$(FOOD[k][0])}"><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}<small>${paid?"Уже взяли · ≈ "+money(paid.cents/100)+(paid.source?" · "+$(paid.source):""):"Отмечено в прошлом списке"}</small></span><b>${paid?$(paid.label):"В корзине"}</b></label>
-    ${!outstandingGrams(w,k,p.counts[k]||0)?carryLine(k,neededGrams(p.counts[k]||0)):""}
+    ${!outstandingGrams(w,k,counts[k]||0)?carryLine(k,neededGrams(counts[k]||0)):""}
     ${paid?.weightSale||uncertain?button(paid?"Изменить вес":"Уточнить количество","purchase-edit","link","","data-id="+k):""}</div>`;
   });
   return `<div class="cart-figures" data-cart-total>${cartFigures(p,q)}</div><div class="groups">${sections || "<p>Всё собрано.</p>"}${picked.length?'<section class="groceries"><h2>В корзине</h2>'+picked.join("")+'</section>':""}</div>`;
@@ -743,7 +745,7 @@ function stockUnit(k) {
 }
 function stockPanel(k){
   const unit=stockUnit(k),stock=weekData().pantry[k]||0;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])}</h2><p>На неделю нужно ≈ ${weeklyNeed(k,neededGrams(plan().counts[k]))}. Укажите, сколько уже есть дома.</p>
+  return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])}</h2><p>На неделю нужно ≈ ${weeklyNeed(k,neededGrams(shoppingCounts(plan())[k]||0))}. Укажите, сколько уже есть дома.</p>
     <form id="stock-form" data-key="${k}"><label class="field">Дома, ${unit.unit}<input type="number" inputmode="decimal" name="stock" min="0" max="1000000" step="any" required value="${stock?Number((stock/unit.grams).toFixed(2)):""}"></label>
     <button type="submit" class="btn primary">Сохранить остаток</button></form></div>`;
 }

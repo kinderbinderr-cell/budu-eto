@@ -136,7 +136,7 @@ document.addEventListener("change", (e) => {
 function requiredItems() {
   const p = plan();
   if (!p) return [];
-  return Object.entries(p.counts)
+  return Object.entries(shoppingCounts(p))
     .map(([key, n]) => ({
       key,
       g: outstandingGrams(weekData(),key,n),

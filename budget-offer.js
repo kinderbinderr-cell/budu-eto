@@ -39,12 +39,12 @@ function* findBudgetOffer(s,base,pantry,previous,bought={},purchases={}) {
     return next && keepsDayTargets(goals,week.days[e.d].meals,next.days[e.d].meals)?next:null;
   };
   const pool=RECIPES.filter(r=>eligible(s,r)), score=budgetScorer(s), target=s.budget*100;
-  const before=score(base.counts,pantry,bought,purchases), choices=new Map(), edits=[];
+  const before=score(shoppingCounts(base),pantry,bought,purchases), choices=new Map(), edits=[];
   let week=base, after=before;
   while(after.cents>target) {
     let best=null;
     function consider(next,changes) {
-      const quote=score(next.counts,pantry,bought,purchases);
+      const quote=score(shoppingCounts(next),pantry,bought,purchases);
       if(quote.cents>=after.cents) return;
       const fits=quote.cents<=target, otherFits=best && best.quote.cents<=target;
       if(!best || (fits && !otherFits) || (fits===otherFits &&
@@ -149,7 +149,7 @@ function mountBudgetOffer() {
   const key=budgetOfferKey(p,q);
   if(!budgetSuggestion || budgetSuggestion.p!==p || budgetSuggestion.key!==key) {
     const entry=budgetSuggestion={p,key,offer:null,kept:false};
-    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[],accountedPurchases(weekData(),p.counts),weekData().purchases);
+    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[],accountedPurchases(weekData(),shoppingCounts(p)),weekData().purchases);
     const advance=()=>{
       if(budgetSuggestion!==entry || !document.querySelector('[data-budget-offer]')) { if(budgetSuggestion===entry) budgetSuggestion=null; return; }
       const start=performance.now();

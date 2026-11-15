@@ -39,7 +39,7 @@ function sweetOptions(profile) {
 function dessertPanel() {
   const meal=plan()?.days[day].meals[3];
   const current=meal?.r.id;
-  const timing=openInfo.moment ?? sweetMoment(meal?.sweetMoment ?? settings().dessertPrefs?.moment);
+  const timing=openInfo.moment ?? sweetMoment(meal?.sweetMoment ?? weekProfile().dessertPrefs?.moment);
   const options = sweetOptions(settings());
   const rows = options.map(r => `<button type="button" data-action="dessert-pick" data-id="${r.id}" aria-pressed="${current === r.id}">
     <img src="${photo(r)}" alt=""><span><b>${$(r.title)}</b><small>${cookingTime(r)} · ${Math.round(r.kcal * dessertPortion)} ккал на порцию</small></span>
@@ -57,14 +57,14 @@ function setDayDessert(id, timeOnly=false) {
   const current=plan(),week = weekData();
   week.desserts ??= {};
   if (id) {
-    const moment=openInfo?.moment ?? plan()?.days[day].meals[3]?.sweetMoment ?? settings().dessertPrefs?.moment;
+    const moment=openInfo?.moment ?? plan()?.days[day].meals[3]?.sweetMoment ?? weekProfile().dessertPrefs?.moment;
     const existing=week.desserts[day];
     const automatic=timeOnly && (!existing || existing.auto);
     week.desserts[day] = automatic ? {auto:true,moment:sweetMoment(moment)} : {id,moment:sweetMoment(moment)};
   }
-  else if (sweetFrequency(settings().dessertPrefs)) week.desserts[day]=null;
+  else if (sweetFrequency(weekProfile().dessertPrefs)) week.desserts[day]=null;
   else delete week.desserts[day];
-  const when=sweetMoment(openInfo?.moment??current.days[day].meals[3]?.sweetMoment??settings().dessertPrefs?.moment);
+  const when=sweetMoment(openInfo?.moment??current.days[day].meals[3]?.sweetMoment??weekProfile().dessertPrefs?.moment);
   setSavedWeek(editDessert(weekProfile(),current,day,id,when));
   persist();
   dismissSheet();
@@ -112,7 +112,7 @@ function sweetEditor(info) {
   const cards=options.map(r=>`<button type="button" class="sweet-card" data-action="sweet-like" data-id="${r.id}" aria-pressed="${likes.includes(r.id)}">
     <span class="sweet-image"><img src="${photo(r)}" alt=""><i>${icon("heart",17)}</i></span>
     <strong>${$(r.title)}</strong><small>${r.minutes} мин · ${Math.round(r.kcal*dessertPortion)} ккал</small></button>`).join("");
-  return `<div class="sheet-body simple sweet-editor"><small class="sweet-kicker">МЕНЮ НА НЕДЕЛЮ</small><h2 id="sheet-title">Что на сладкое?</h2>
+  return `<div class="sheet-body simple sweet-editor"><small class="sweet-kicker">${info.inFlow?"МЕНЮ НА НЕДЕЛЮ":rangeText()}</small><h2 id="sheet-title">Что на сладкое?</h2>
     <p class="quiet">Как распределить десерты по неделе?</p>
     <div class="seg sweet-mode">${choiceChip("sweet-mode","auto","По количеству",!byDay)}${choiceChip("sweet-mode","days","Выбрать дни",byDay)}</div>
     ${schedule}
@@ -127,7 +127,7 @@ function handleSweetAction(action,btn) {
     target?.focus({preventScroll:true});target?.closest("article").scrollIntoView({block:"center"});return true;
   }
   if(action==="sweet-open"){
-    const inFlow=btn.dataset.scope==="flow", profile=inFlow?flowProfile(getFlow()):settings();
+    const inFlow=btn.dataset.scope==="flow", profile=inFlow?flowProfile(getFlow()):weekProfile();
     openSheet({kind:"sweet-week",inFlow,profile,frequency:sweetFrequency(profile.dessertPrefs),likes:sweetLikes(profile).map(r=>r.id),
       byDay:chosenWeekdays(profile.dessertPrefs).length>0,days:chosenWeekdays(profile.dessertPrefs),
       moment:sweetMoment(profile.dessertPrefs?.moment)});
@@ -150,7 +150,7 @@ function handleSweetAction(action,btn) {
     const days=i.byDay?i.days:[];
     const frequency=days.length || i.frequency;
     if(frequency&&!i.likes.length) return true;
-    const target=i.inFlow?getFlow():settings();
+    const target=i.inFlow?getFlow():weekData();
     if(!i.inFlow)protectMenus();
     target.dessertPrefs={frequency,days:days.slice(),moment:i.moment,likes:i.likes.slice()};
     if(i.inFlow) rememberFlow(); else {updateSavedDesserts();persist();}

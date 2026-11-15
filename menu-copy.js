@@ -26,6 +26,13 @@ function copyDistance(start,date) {
 function copyRecordSignature(record={}) {
   return JSON.stringify([record.replacements||{},record.desserts||{},record.nutritionSwaps||{},record.budgetEdits||[]]);
 }
+function copyDessertPrefs(prefs) {
+  requireCopy(copyObject(prefs));
+  const {frequency,likes,days,moment}=prefs;
+  requireCopy(Number.isInteger(frequency) && frequency>=0 && frequency<=7 &&
+    validCopyList(likes,copyToken) && (days==null || validCopyList(days,copyDay,7)) && (moment==null || copyMoment(moment)));
+  return {frequency,likes,...(days!=null && {days}),...(moment!=null && {moment})};
+}
 function copyProfile(raw) {
   requireCopy(copyObject(raw) && ["family","personal"].includes(raw.mode));
   const profile=initial(raw.mode);
@@ -48,12 +55,7 @@ function copyProfile(raw) {
   if(profile.portionTargets!=null) requireCopy(validCopyList(profile.portionTargets,row=>Array.isArray(row)&&row.length===4&&row.every(
     range=>range===null || (Array.isArray(range)&&range.length===2&&copyNumber(range[0],0.01)&&copyNumber(range[1],range[0]))),2));
   if(profile.planningPantry!=null) requireCopy(copyMap(profile.planningPantry,k=>/^-?\d{1,4}$/.test(k),copyGrams));
-  if(profile.dessertPrefs!=null) {
-    const {frequency,likes,days,moment}=profile.dessertPrefs;
-    requireCopy(copyObject(profile.dessertPrefs) && Number.isInteger(frequency) && frequency>=0 && frequency<=7 &&
-      validCopyList(likes,copyToken) && (days==null || validCopyList(days,copyDay,7)) && (moment==null || copyMoment(moment)));
-    profile.dessertPrefs={frequency,likes,...(days!=null && {days}),...(moment!=null && {moment})};
-  }
+  if(profile.dessertPrefs!=null) profile.dessertPrefs=copyDessertPrefs(profile.dessertPrefs);
   return profile;
 }
 function copyWeekRecord(raw) {
@@ -61,11 +63,13 @@ function copyWeekRecord(raw) {
   const r={replacements:raw.replacements||{},pantry:raw.pantry||{}};
   const exchange=v=>copyObject(v)&&copyRecipe(v.from)&&copyRecipe(v.to);
   requireCopy(copyMap(r.replacements,k=>/^(day:)?[0-6]-[0-2]$/.test(k),copyRecipe) && copyGrams(r.pantry));
+  if(raw.dessertPrefs!=null)r.dessertPrefs=copyDessertPrefs(raw.dessertPrefs);
   if(raw.budgetLimit!=null){requireCopy(budgetRange(raw.budgetLimit));r.budgetLimit=raw.budgetLimit;}
   if(raw.carryFrom!=null){
     requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(r.pantry,k),v=>typeof v==="string" && !!copyDate(v)));
     r.carryFrom={...raw.carryFrom};
   }
+  if(raw.prepReceipts!=null){requireCopy(copyGrams(raw.prepReceipts));r.prepReceipts={...raw.prepReceipts};}
   if(raw.paidStock!=null){requireCopy(copyGrams(raw.paidStock));r.paidStock=raw.paidStock;}
   if(raw.cart!=null){requireCopy(copyGrams(raw.cart));r.cart=raw.cart;}
   if(raw.purchases!=null){

@@ -1,5 +1,8 @@
 function startDraft() {
-  draft = structuredClone(spendingProfile());
+  draft = structuredClone(settings());
+  const spending=spendingProfile();
+  draft.budget=spending.budget;
+  draft.budgetChosen=spending.budgetChosen;
   if (draft.plainPortion) draft.targetMode = "portion";
   step = 1;
   settingsTasting = null;

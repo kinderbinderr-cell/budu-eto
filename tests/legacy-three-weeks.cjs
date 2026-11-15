@@ -16,7 +16,7 @@ async function capture(page){
       weeks.push({
         dates:p.days.map((_,i)=>dateAt(i).toISOString()),cost:p.cost,
         days:p.days.map(d=>d.meals.map(({r,...meal})=>({id:r.id,title:r.title,items:r.items,kcal:r.kcal,macros:r.macros,...meal}))),
-        macros:p.macros,pairMisses:p.pairMisses,counts:p.counts,quote:weeklyQuote(p),record:structuredClone(record),
+        macros:p.macros,pairMisses:p.pairMisses,counts:p.counts,servingQuote:budgetScorer(settings())(p.counts,record.pantry),record:structuredClone(record),
         prep:tasks.map((t,i)=>[prepSignature(t),prepDone(t,i)])
       });
     }
@@ -105,6 +105,6 @@ async function capture(page){
     });
     assert.equal(await page.evaluate(()=>plan().days[5].meals[3].r.id),'syrniki');
     assert.deepEqual(errors,[]);
-    console.log('PASS: 21 dates, all '+previous.weeks.flatMap(w=>w.days.flat()).length+' meal slots, individual portions, macros, checkout, grocery quantities, saved replacements, pantry, cooking checks and original storage match across two reloads and Monday rollover.');
+    console.log('PASS: 21 dates, all '+previous.weeks.flatMap(w=>w.days.flat()).length+' meal slots, individual portions, macros, serving-week costs, recipe quantities, saved replacements, pantry, cooking checks and original storage match across two reloads and Monday rollover.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

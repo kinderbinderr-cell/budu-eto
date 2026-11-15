@@ -7,7 +7,7 @@ function carrySuggestion(k){
     const date=plannedDate(off),saved=data.savedWeeks?.[date];
     if(!saved)return null;
     const source=data.weeks[date]||{},home=source.pantry?.[k]||0;
-    const need=neededGrams(saved.counts[k]||0),purchase=source.purchases?.[k];
+    const need=neededGrams(shoppingCounts(savedWeek(saved,weekProfile(off)),off)[k]||0),purchase=source.purchases?.[k];
     if(!need && !purchase && !source.cart?.[k] && !Object.hasOwn(source.pantry||{},k))continue;
     const sourceDate=weekKey(off);
     if(Object.entries(data.weeks).some(([key,w])=>key.startsWith(data.mode+"/") && w.carryFrom?.[k]===sourceDate))return null;

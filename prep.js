@@ -25,10 +25,13 @@ function prepTiming(recipe, serve, cookDays, slot) {
   if (!delicate && freezerKinds.has(kind)) return {cook, storage:"freeze"};
   return {cook:serve, storage:"fresh"};
 }
+function kitchenCookDays(profile) {
+  return DAYS.map((_,i)=>i).filter(i=>!profile.cook.length || profile.cook.includes(weekdayIndex(profile,i)));
+}
 // A later change to serving sizes must keep an earlier shopping and cooking day intact.
 function protectEarlierPrep(off,base){
   if(!data.savedWeeks[plannedDate(off-1)])return;
-  const s=weekProfile(off-1),days=DAYS.map((_,i)=>i).filter(i=>s.cook.includes(weekdayIndex(s,i)));
+  const s=weekProfile(off-1),days=kitchenCookDays(s);
   const record=weekData(off);
   for(const [d,day] of base.days.entries())for(const [slot,m] of day.meals.entries()){
     const timing=prepTiming(m.r,d+7,days,slot);
@@ -40,7 +43,7 @@ function protectEarlierPrep(off,base){
 function kitchenWeek(profile, current, next, weekOffset=offset) {
   const days = Array.from({length:7},()=>({cook:new Map(),thaw:[],serve:[]}));
   const people = profile.mode === "personal" ? 1 : profile.adults + profile.small;
-  const cookDays = profile.cook.length ? DAYS.map((_,i)=>i).filter(i=>profile.cook.includes(weekdayIndex(profile,i))) : [0,1,2,3,4,5,6];
+  const cookDays = kitchenCookDays(profile);
   const menuDays = [...current.days, ...(next?.days || [])];
   for (const [serve,entry] of menuDays.entries()) {
     for (const [slot,meal] of entry.meals.entries()) {
@@ -65,11 +68,59 @@ function kitchenWeek(profile, current, next, weekOffset=offset) {
   }
   return days;
 }
+function kitchenNextWeek(off) {
+  const id=plannedDate(off+1), snapshot=data.savedWeeks?.[id] || data.prepForecasts?.[id];
+  return snapshot?savedWeek(snapshot,weekProfile(off+1)):plan(null,off+1);
+}
 function prepWeek() {
   const current=plan();
-  const id=plannedDate(offset+1);
-  const forecast=data.savedWeeks?.[id] || data.prepForecasts?.[id];
-  return current && kitchenWeek(weekProfile(),current,forecast?savedWeek(forecast,weekProfile()):plan(null,offset+1));
+  return current && kitchenWeek(weekProfile(),current,kitchenNextWeek(offset),offset);
+}
+// Move only ingredients that cross a shopping week. The saved meals and their
+// portion totals keep describing the week when people actually eat them.
+const earlyPrepCache=new WeakMap();
+function earlyPrep(week,off,receiving,baseline) {
+  if(!week)return {};
+  const previous=weekProfile(off-1), record=data.weeks[plannedDate(off)];
+  const weekdays=kitchenCookDays(previous);
+  const signature=JSON.stringify([weekdays,record?.incomingPrep,receiving]);
+  const cached=earlyPrepCache.get(week);
+  if(cached?.signature===signature && cached.baseline===baseline)return cached.counts;
+  const counts={};
+  for(const [d,day] of week.days.entries())for(const [slot,m] of day.meals.entries()){
+    if(prepTiming(m.r,d+7,weekdays,slot).cook>=7)continue;
+    const committed=baseline?.days[d].meals[slot];
+    const fixed=record?.incomingPrep?.[d+"-"+slot];
+    const prepared=fixed?.id===m.r.id?fixed.f:committed?.r.id===m.r.id?committed.f:m.f;
+    const f=receiving?Math.min(m.f,prepared):prepared;
+    for(const [k,g] of m.r.items)counts[k]=(counts[k]||0)+g*f;
+  }
+  earlyPrepCache.set(week,{signature,baseline,counts});return counts;
+}
+function shoppingTransfer(week,off,receiving=false,baseline=null) {
+  const early=earlyPrep(week,off,receiving,baseline), record=data.weeks[plannedDate(off)];
+  if(!record?.cart)return early;
+  // Older shopping lists could already have a pack against the serving week.
+  // Keep that receipt there, allowing only its unused grams to cover early prep.
+  const moved={...early}, legacy=record.prepReceipts??record.cart;
+  for(const [k,g] of Object.entries(early)){
+    const paid=Math.min(legacy[k]||0,record.cart[k]||0);
+    if(paid<=0)continue;
+    const remaining=Math.max(0,(week.counts[k]||0)-g);
+    moved[k]=Math.max(0,g-Math.max(0,paid-remaining));
+  }
+  return moved;
+}
+function shoppingCounts(week,off=offset,baseline=null) {
+  if(!week || !data.quizDone)return week?.counts||{};
+  const counts={...week.counts}, previous=data.savedWeeks?.[plannedDate(off-1)];
+  if(previous)for(const [k,g] of Object.entries(shoppingTransfer(week,off,true,baseline)))
+    counts[k]=Math.max(0,(counts[k]||0)-g);
+  const next=kitchenNextWeek(off);
+  if(next)for(const [k,g] of Object.entries(shoppingTransfer(next,off+1)))
+    counts[k]=(counts[k]||0)+g;
+  for(const k of Object.keys(counts))if(counts[k]<1e-7)delete counts[k];
+  return counts;
 }
 const prepUseKey = u => [u.r.id,u.cook,u.serve,u.slot,u.storage,u.people,u.f,u.personFactors];
 function prepSignature(tasks){return prepSignatureFor(tasks,weekProfile());}

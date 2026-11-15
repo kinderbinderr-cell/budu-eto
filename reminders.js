@@ -8,12 +8,12 @@ function reminderPacket(flags) {
   const first=openingWeek(settings());
   let current=plan(null,first);
   for(let w=first;w<first+3;w++) {
-    const next=plan(null,w+1);
+    const next=kitchenNextWeek(w);
     if (current) {
       const profile=weekProfile(w),week=kitchenWeek(profile,current,next,w);
       for (const [i,tasks] of week.entries()) {
         const marked=data.weeks[data.mode+"/"+weekKey(w)]?.prepDone?.[i]===prepSignatureFor(tasks,profile);
-        const cooking=!marked && (flags&1) && (!settings().cook.length || settings().cook.includes(weekdayIndex(settings(),i)))
+        const cooking=!marked && (flags&1)
           ? [...tasks.cook.values()].map(t=>[index(t.r),t.portions,t.uses.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]) : [];
         const thaw=!marked && (flags&2) ? tasks.thaw.map(u=>[index(u.r),u.people,u.slot]) : [];
         rows.push([cooking,thaw]);

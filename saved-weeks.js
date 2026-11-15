@@ -44,7 +44,7 @@ function protectMenus() {
 function setSavedWeek(week,off=offset) {
   const record=data.weeks[plannedDate(off)],base=data.savedWeeks[plannedDate(off)];
   if(base && record?.cart){
-    const bought=accountedPurchases(record,base.counts);
+    const bought=accountedPurchases(record,shoppingCounts(savedWeek(base,weekProfile(off)),off));
     if(Object.keys(bought).length)record.paidStock=bought;
   }
   const prior=new Set();
@@ -64,7 +64,8 @@ function portionPolicy(s){
   return Object.fromEntries(portionFieldsToSave.map(k=>[k,structuredClone(s[k]??null)]));
 }
 function weekProfile(off=offset){
-  return {...settings(),...data.portionPolicies?.[plannedDate(off)]};
+  const date=plannedDate(off), prefs=data.weeks[date]?.dessertPrefs;
+  return {...settings(),...data.portionPolicies?.[date],...(prefs && {dessertPrefs:prefs})};
 }
 function protectPortionPolicies(){
   protectMenus();
@@ -129,16 +130,6 @@ function swapOne(s,week,e,r) {
   return changeDayMeals(s,week,e.d,meals);
 }
 
-function visitSavedWeeks(fn) {
-  const prefix=data.mode+"/";
-  for(const [key,snap] of Object.entries(data.savedWeeks||{})){
-    if(!key.startsWith(prefix))continue;
-    const n=copyDistance(startDate(settings()),copyDate(key.slice(prefix.length)))/7;
-    if(!Number.isInteger(n))continue;
-    const week=savedWeek(snap,settings()),next=fn(week,n);
-    if(next!==week)setSavedWeek(next,n);
-  }
-}
 function resizedWeek(week,s) {
     let result=week;
     for(const [d,day] of week.days.entries()){
@@ -158,17 +149,14 @@ function editDessert(s,p,d,id,moment){
   return changeDayMeals(s,p,d,meals);
 }
 function updateSavedDesserts(){
-  const choices=sweetLikes(settings());
-  visitSavedWeeks((week,n)=>{
-    const s=weekProfile(n);
-    let next=week,base=week;
-    for(let d=0;d<7;d++)base=editDessert(s,base,d,null);
-    const schedule=sweetFrequency(s.dessertPrefs) && choices.length?sweetSchedule(s,weekSeed(n),base,choices):{};
-    const edits=data.weeks[plannedDate(n)]?.desserts||{};
-    for(let d=0;d<7;d++){
-      const edit=edits[d],id=edit===undefined || edit?.auto?schedule[d]:edit?.id||edit;
-      next=editDessert(s,next,d,id,sweetMoment(edit?.moment??s.dessertPrefs.moment));
-    }
-    return next;
-  });
+  const s=weekProfile(), week=plan(), choices=sweetLikes(s);
+  let next=week,base=week;
+  for(let d=0;d<7;d++)base=editDessert(s,base,d,null);
+  const schedule=sweetFrequency(s.dessertPrefs) && choices.length?sweetSchedule(s,weekSeed(offset),base,choices):{};
+  const edits=weekData().desserts||{};
+  for(let d=0;d<7;d++){
+    const edit=edits[d],id=edit===undefined || edit?.auto?schedule[d]:edit?.id||edit;
+    next=editDessert(s,next,d,id,sweetMoment(edit?.moment??s.dessertPrefs.moment));
+  }
+  if(next!==week)setSavedWeek(next);
 }

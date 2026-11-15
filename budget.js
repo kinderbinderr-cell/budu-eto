@@ -131,8 +131,9 @@ function accountedPurchases(record,baseCounts) {
   return bought;
 }
 function weeklyQuote(p) {
-  const w=weekData(),base=data.savedWeeks?.[plannedDate()]?.counts||p.counts;
-  return budgetScorer(settings())(p.counts,w.pantry,accountedPurchases(w,base),w.purchases);
+  const w=weekData(),counts=shoppingCounts(p),saved=data.savedWeeks?.[plannedDate()];
+  const base=saved?shoppingCounts(savedWeek(saved,weekProfile())):counts;
+  return budgetScorer(settings())(counts,w.pantry,accountedPurchases(w,base),w.purchases);
 }
 function keepsDayTargets(goals,before,after) {
   if(!goals) return true;
@@ -219,7 +220,7 @@ function budgetBalance(s,q) {
 function refreshShoppingEstimate() {
   const box=document.querySelector(".budget-box");
   if(!box) return;
-  const p=plan(), q=weeklyQuote(p);
+  const p=plan(), q=weeklyQuote(p),counts=shoppingCounts(p);
   for(const el of document.querySelectorAll("[data-purchase-total]")) el.textContent=money(q.cents/100);
   for(const el of document.querySelectorAll("[data-outstanding-total]"))el.textContent=money((q.cents-(q.pickedCents||0))/100);
   box.querySelector("[data-budget-balance]").textContent=budgetBalance(spendingProfile(),q);
@@ -233,14 +234,14 @@ function refreshShoppingEstimate() {
   if(cartTotal){
     cartTotal.innerHTML=cartFigures(p,q);
     for(const box of document.querySelectorAll("[data-cart]:not(:checked)")){
-      const k=box.dataset.cart,need=outstandingGrams(weekData(),k,p.counts[k]),row=box.closest(".grocery");
+      const k=box.dataset.cart,need=outstandingGrams(weekData(),k,counts[k]||0),row=box.closest(".grocery");
       row.querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
       row.querySelector("b").textContent=shoppingAmount(k,need,q.store);
     }
   }
   mountBudgetOffer();
   for(const label of document.querySelectorAll(".grocery input[data-pantry]:not(:checked)")) {
-    const k=label.dataset.pantry,need=outstandingGrams(weekData(),k,p.counts[k]);
+    const k=label.dataset.pantry,need=outstandingGrams(weekData(),k,counts[k]||0);
     if(!need)continue;
     label.closest(".grocery").querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
     label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,need,q.store);

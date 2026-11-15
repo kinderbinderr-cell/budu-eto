@@ -590,6 +590,7 @@ sheet.addEventListener("submit",e=>{
     const byWeight=old?.weightSale??row.weightSale;
     const grams=byWeight?qty*(old?old.grams/old.weight:row.edibleGrams/row.orderGrams):entered;
     const cents=byWeight?Math.round(qty*(old?old.cents/old.weight:row.cents/row.orderGrams)):row.cents;
+    w.prepReceipts??={...w.cart};
     (w.purchases||={})[k]={grams,weight:byWeight?qty:grams,cents,store,source:old?.source||priceOrigin(row,store,!!own),
       weightSale:byWeight,label:byWeight?qty+" г":weeklyNeed(k,grams)};
     w.cart[k]=grams;(w.paidStock||={})[k]=grams;
@@ -653,12 +654,12 @@ main.addEventListener("change", (e) => {
     const w=weekData(); w.cart ||= {};
     if(e.target.checked){
       addPurchase(cartKey);
-    }else {delete w.cart[cartKey];if(w.purchases)delete w.purchases[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
+    }else {delete w.cart[cartKey];if(w.prepReceipts)delete w.prepReceipts[cartKey];if(w.purchases)delete w.purchases[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
     persist(); render(); return;
   }
   if (!e.target.dataset.pantry) return;
   const k = e.target.dataset.pantry;
-  weekData().pantry[k] = e.target.checked ? neededGrams(plan().counts[k]) : 0;
+  weekData().pantry[k] = e.target.checked ? neededGrams(shoppingCounts(plan())[k]||0) : 0;
   persist();
   render();
   main.querySelector(`[data-pantry="${k}"]`)?.focus({ preventScroll: true });

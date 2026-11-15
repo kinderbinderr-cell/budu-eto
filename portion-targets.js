@@ -101,10 +101,11 @@ function portionPreview({off,base,next,profile}){
   const days=next.days.map((d,j)=>'<details class="portion-day"><summary>'+dateText(dateAt(j,off),{weekday:"long",day:"numeric",month:"long"})+'</summary>'+
     Array.from({length:n},(_,i)=>'<h3>'+personTitle(i,n)+'</h3><p>Сейчас · '+facts(figures(base.days[j].meals,before,i))+'<br>После · '+facts(figures(d.meals,profile,i))+'</p>'+
       d.meals.map((m,slot)=>{const old=base.days[j].meals[slot],portion=(meal,s)=>Number((meal.personFactors?.[i]??meal.f/servings(s)).toFixed(2)).toLocaleString("ru");return '<small>'+$(m.r.title)+' · '+portion(old,before)+' → '+portion(m,profile)+' порц.</small>';}).join('<br>')).join("")+'</details>').join("");
-  const score=budgetScorer(profile), bought=accountedPurchases(w,base.counts), quote=p=>score(p.counts,w.pantry,bought,w.purchases);
-  const first=quote(base),last=quote(next), extra=[];
-  for(const [k,g] of Object.entries(next.counts)){
-    const old=outstandingGrams(w,k,base.counts[k]||0),need=outstandingGrams(w,k,g);
+  const beforeCounts=shoppingCounts(base,off),afterCounts=shoppingCounts(next,off,base);
+  const score=budgetScorer(profile), bought=accountedPurchases(w,beforeCounts), quote=counts=>score(counts,w.pantry,bought,w.purchases);
+  const first=quote(beforeCounts),last=quote(afterCounts), extra=[];
+  for(const [k,g] of Object.entries(afterCounts)){
+    const old=outstandingGrams(w,k,beforeCounts[k]||0),need=outstandingGrams(w,k,g);
     if(need>old)extra.push('<li>'+$(FOOD[k][0])+' · '+(old?weeklyNeed(k,old):"0")+' → '+weeklyNeed(k,need)+'</li>');
   }
   return '<div class="sheet-body simple portion-comparison"><h2 id="sheet-title">Порции на '+rangeText(off)+'</h2><p>Те же блюда, новые порции. Сравните КБЖУ каждого за день.</p>'+days+
