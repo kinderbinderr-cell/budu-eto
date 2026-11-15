@@ -176,6 +176,7 @@ document.addEventListener("click", (e) => {
   if (!btn || btn.disabled) return;
   const { action, day: d, slot, id, value } = btn.dataset;
   if (
+    handleSweetAction(action,btn) ||
     handleTasteAction(action, btn) ||
     handleFlowAction(action, value, btn) ||
     handleShopAction(action, value, btn)

@@ -191,7 +191,7 @@ function renderSheet() {
   const info = openInfo;
   if (!info) return;
   const contents =
-    info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
+    info.kind === "sweet-week" ? sweetEditor(info) : info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
       ? `<div class="sheet-body simple"><h2 id="sheet-title">Пройти анкету заново?</h2><p>Выбор блюд, магазины и настройки обоих меню сбросятся на этом устройстве. Замены и отметки «есть дома» тоже очистятся. Избранные рецепты сохранятся.</p><div class="restart-actions">${button("Отмена", "close", "outline")}${button("Начать заново", "confirm-restart", "primary")}</div></div>`
       : info.kind === "perek-address"
       ? perekAddressDialog()

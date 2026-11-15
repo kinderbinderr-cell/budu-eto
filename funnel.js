@@ -183,6 +183,7 @@ function flowPortions(f) { return f.who==="self"?1:f.who==="two"?2:f.adults+f.sm
 function storeQuestion() {
   return (
     budgetFields(flowPortions(flow), flow.budget, "flow") +
+    sweetEntry(flowProfile(flow),"flow") +
     '<h2 class="budget-shop-title">Где покупаете продукты?</h2>' + shopPicker(flow.stores, "flow-store") +
     `<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>`
   );
@@ -211,7 +212,7 @@ function funnelPage() {
     null,
     "Смахните вправо, если хочется попробовать, или нажмите «Хочу в меню».",
     "Время на одну-две порции, включая плиту и духовку. Для большой партии понадобится дольше.",
-    "Лимит общий для всех завтраков, обедов и ужинов. Магазин можно выбрать ниже.",
+    "Один бюджет на всю неделю. Ниже можно добавить десерты и выбрать магазин.",
   ];
   const pictures = [null, ["syrniki", "Сырники с малиной"], ["chickenOrzo", "Орзо с курицей"], ["mushroomBuck", "Гречка с шампиньонами"]];
   const visual = first ? sampleDay() : `<div class="flow-visual panel-${s}"><img src="assets/${pictures[s][0]}.webp" alt="" fetchpriority="high"><div class="flow-visual-copy"><span>Ваше меню</span><em>на неделю</em></div><small>${pictures[s][1]}</small></div>`;
@@ -228,6 +229,7 @@ function flowProfile(f) {
   const mode = f.who === "self" ? "personal" : "family";
   const s = {
     ...initial(mode),
+    dessertPrefs: f.dessertPrefs && structuredClone(f.dessertPrefs),
     diet: f.diet,
     exclude: [...f.exclude],
     cuisines: [...(f.cuisines || [])],
@@ -350,6 +352,7 @@ function submitFlow() {
   }
   if (!budgetRange(f.budget)) { error.textContent="Укажите недельный бюджет от 400 до 150 000 ₽."; return; }
   const s = flowProfile(f);
+  if (sweetFrequency(s.dessertPrefs) && !sweetLikes(s).length) { error.textContent="Для новых настроек выберите десерт ещё раз или укажите 0 дней."; return; }
   data.mode = s.mode;
   data[s.mode] = s;
   clearDiscovery(s.mode);
@@ -359,6 +362,7 @@ function submitFlow() {
       record.replacements = {};
       delete record.nutritionSwaps;
       delete record.budgetEdits;
+      delete record.desserts;
     }
   offset = 0;
   day = todayIndex;
