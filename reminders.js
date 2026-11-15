@@ -6,7 +6,7 @@ function reminderPacket(flags) {
     return indexes.get(r.id);
   };
   const first=openingWeek(settings());
-  let current=plan(null,first);
+  let current=plan(null,first),version=1;
   for(let w=first;w<first+3;w++) {
     const next=kitchenNextWeek(w);
     if (current) {
@@ -14,10 +14,19 @@ function reminderPacket(flags) {
       for (const tasks of week) {
         const cooking=(flags&1)?[...tasks.cook.values()].flatMap(t=>{
           const pending=t.uses.filter(u=>!u.completed);
-          return pending.length?[[index(t.r),pending.reduce((n,u)=>n+u.people,0),
-            pending.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]]:[];
+          if(!pending.length)return [];
+          const frozen=pending.filter(u=>u.storage==="freeze");
+          const people=uses=>uses.reduce((n,u)=>n+u.people,0);
+          const halves=uses=>uses.reduce((n,u)=>n+u.halfPeople,0);
+          const row=[index(t.r),people(pending),people(frozen)];
+          if(halves(pending)){version=2;row.push(halves(pending),halves(frozen));}
+          return [row];
         }):[];
-        const thaw=(flags&2) ? tasks.thaw.filter(u=>!u.thawed).map(u=>[index(u.r),u.people,u.slot]) : [];
+        const thaw=(flags&2)?tasks.thaw.filter(u=>!u.thawed).map(u=>{
+          const row=[index(u.r),u.people,u.slot];
+          if(u.halfPeople){version=2;row.push(u.halfPeople);}
+          return row;
+        }):[];
         rows.push([cooking,thaw]);
       }
     } else {for(let i=0;i<7;i++) rows.push([[],[]]);}
@@ -30,7 +39,7 @@ function reminderPacket(flags) {
     const gap=Math.round((d-plusDays(today,0))/86400000);
     rows.unshift(...Array.from({length:gap},()=>[[],[]])); rows.length=21; d=plusDays(today,0);
   }
-  return [1,[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"),flags,ids,rows];
+  return [version,[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"),flags,ids,rows];
 }
 function reminderEntry() {
   return '<button type="button" class="prep-overview reminder-entry" data-action="reminders"><span><b>Напоминания в Telegram</b><small>Готовка и разморозка · по желанию</small></span>'+icon("right",16)+'</button>';

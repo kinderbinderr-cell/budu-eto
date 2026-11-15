@@ -10,6 +10,37 @@ function sourceStock(k,off){
   const bought=purchase?.grams||0, unknown=!!source.cart?.[k] && !purchase;
   return {off,date:weekKey(off),need,home,bought,unknown,available:Math.max(0,home+bought-need)};
 }
+// Capture only dated transfers that a menu edit can affect, including batches across a week boundary.
+function menuCarrySources(off){
+  const sources=new Map();
+  for(const n of [off-1,off,off+1]){
+    const date=weekKey(n),keys=new Set(),prefix=data.mode+"/";
+    for(const [id,record] of Object.entries(data.weeks)){
+      if(!id.startsWith(prefix))continue;
+      for(const [k,from] of Object.entries(record.carryFrom||{}))
+        if(from===date && record.carryKind?.[k]!=="manual")keys.add(k);
+    }
+    if(keys.size)sources.set(n,[...keys].map(k=>[k,sourceStock(k,n)]));
+  }
+  return sources;
+}
+function menuCarryPreview(base,next,off){
+  const before=shoppingCounts(base,off),after=shoppingCounts(next,off,base),date=weekKey(off);
+  const rows=[];
+  for(const [id,w] of Object.entries(data.weeks)){
+    if(!id.startsWith(data.mode+"/"))continue;
+    for(const [k,from] of Object.entries(w.carryFrom||{})){
+      if(from!==date || w.carryKind?.[k]!=="linked" || !Object.hasOwn(w.pantry,k) ||
+          neededGrams(before[k]||0)===neededGrams(after[k]||0))continue;
+      const src=sourceStock(k,off);
+      if(!src || src.unknown)continue;
+      const grams=Math.max(0,src.home+src.bought-neededGrams(after[k]||0));
+      const old=w.pantryBeforeCheck?.[k]??w.pantry[k];
+      if(grams!==old)rows.push('<li>'+$(FOOD[k][0])+' · к '+dateText(copyDate(id.slice(id.indexOf("/")+1)),{day:"numeric",month:"long"})+' останется '+stockMeasure(k,grams)+' вместо '+stockMeasure(k,old)+'</li>');
+    }
+  }
+  return rows.length?'<ul>'+rows.join("")+'</ul>':"";
+}
 function setOpeningStock(w,k,source,grams,kind){
   if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
   w.pantry[k]=grams;
@@ -27,7 +58,7 @@ function refreshCarriedStock(k,off=offset){
   if(!stock || stock.unknown)return;
   for(const [id,dest] of recipients){
     const n=copyDistance(startDate(settings()),copyDate(id.slice(prefix.length)))/7;
-    if(!Number.isInteger(n) || n<=off || dest.carryKind?.[k]==="manual")continue;
+    if(!Number.isInteger(n) || n<=off || !Object.hasOwn(dest.pantry,k) || dest.carryKind?.[k]==="manual")continue;
     const covered=Object.hasOwn(dest.pantryBeforeCheck||{},k);
     const original=covered?dest.pantryBeforeCheck[k]:dest.pantry[k];
     if(dest.carryKind?.[k]!=="linked"){

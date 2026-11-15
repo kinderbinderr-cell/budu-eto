@@ -83,6 +83,7 @@ function protectMenus() {
 }
 function setSavedWeek(week,off=offset) {
   const record=data.weeks[plannedDate(off)],base=data.savedWeeks[plannedDate(off)];
+  const transfers=menuCarrySources(off);
   if(base){
     const old=savedWeek(base,weekProfile(off)), cooked=kitchenHistory(off,old,null).cells;
     for(const [d,day] of old.days.entries())for(const [slot,m] of day.meals.entries()){
@@ -117,6 +118,10 @@ function setSavedWeek(week,off=offset) {
   data.savedWeeks[plannedDate(off)]=snap;
   decodedWeeks.set(snap,week);
   kitchenEpoch++;lastPlan=null;adjacentPlan=null;
+  for(const [n,entries] of transfers)for(const [k,old] of entries){
+    const now=sourceStock(k,n);
+    if(now && old && (now.need!==old.need || now.home!==old.home))refreshCarriedStock(k,n);
+  }
 }
 const portionFieldsToSave=["adults","small","targetMode","target","plainPortion","weight","height","age","sex","activity","ratio","portionTargets"];
 function portionPolicy(s){

@@ -12,7 +12,8 @@ function readCookingMark(signature){
         Number.isInteger(row[1]) && Number.isInteger(row[2]) && Number.isInteger(row[3]) &&
         row[3]>=0 && row[3]<=3 && ["fresh","today","overnight","fridge","freeze"].includes(row[4]) &&
         Number.isFinite(row[5]) && row[5]>0 && Number.isFinite(row[6]) && row[6]>0 &&
-        (row[7]==null || Array.isArray(row[7]) && row[7].every(Number.isFinite));
+        (row[7]==null || Array.isArray(row[7]) && row[7].every(Number.isFinite)) &&
+        (row[8]==null || Number.isInteger(row[8]) && row[8]>=0 && row[8]<=row[5]);
       if(parsed.slice(2).every(list=>list.every(valid)))rows=parsed;
     }
   }catch{}
@@ -46,7 +47,7 @@ function kitchenHistory(off,current,next){
       const mark=readCookingMark(signature);
       if(!mark)continue;
       const date=Number(index)+7*delta;
-      const decode=([id,cook,serve,slot,storage,people,f,personFactors])=>{
+      const decode=([id,cook,serve,slot,storage,people,f,personFactors,storedHalves])=>{
         serve+=7*delta;cook+=7*delta;
         const meal=(serve<7?current:next)?.days[(serve+7)%7]?.meals[slot];
         let r=meal?.r;
@@ -55,7 +56,7 @@ function kitchenHistory(off,current,next){
           const archived=data.weeks[dated]?.preparedFacts?.[id] || data.savedWeeks?.[dated]?.facts?.[id];
           r={...(settings().startDate?byId(id):originalMenuPlanner.byId(id)||byId(id)),...archived};
         }
-        return {r,cook,serve,slot,storage,people,f,personFactors,
+        return {r,cook,serve,slot,storage,people,f,personFactors,halfPeople:storedHalves??Math.min(people,Number(mark[1])||0),
           sweetMoment:meal?.r.id===id?meal.sweetMoment:undefined,completed:true};
       };
       const cook=mark[2].map(decode);
@@ -90,5 +91,5 @@ function prepComparison(base,next,off=offset){
   const carry=replacementCarry(base,next,off), beforeQuote=weeklyQuote(base), afterQuote=weeklyQuote(next);
   const balance=(beforeQuote.pickedCents || afterQuote.pickedCents)?'<p>Осталось докупить ≈ '+money((beforeQuote.cents-(beforeQuote.pickedCents||0))/100)+' → '+money((afterQuote.cents-(afterQuote.pickedCents||0))/100)+'</p>':'';
   const stock=Object.entries(carry).map(([k,g])=>'<li>'+$(FOOD[k][0])+' · из остатка '+stockMeasure(k,g)+'</li>').join("");
-  return balance+(stock?'<ul>'+stock+'</ul>':'')+(changes.length?'<ul>'+changes.map(c=>'<li>'+dateText(dateAt(c.d,off),{day:"numeric",month:"short"})+' · '+prepChangeText(c)+'</li>').join("")+'</ul>':"");
+  return balance+menuCarryPreview(base,next,off)+(stock?'<ul>'+stock+'</ul>':'')+(changes.length?'<ul>'+changes.map(c=>'<li>'+dateText(dateAt(c.d,off),{day:"numeric",month:"short"})+' · '+prepChangeText(c)+'</li>').join("")+'</ul>':"");
 }

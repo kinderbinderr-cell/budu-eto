@@ -6,7 +6,7 @@ const path=require("node:path");
 const {execFileSync}=require("node:child_process");
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_PATH||"playwright");
 const root=path.resolve(__dirname,".."), origin="https://menu-copy.test";
-const oldRelease="1e7a1fc", input=process.env.MENU_COPY;
+const oldRelease="7df4b29", input=process.env.MENU_COPY;
 const mime={".js":"application/javascript",".css":"text/css",".html":"text/html",".json":"application/json",".webp":"image/webp",".woff2":"font/woff2"};
 const mini=!!process.env.MINI;
 async function checkCookingContinuity(p,action,original){
@@ -101,10 +101,11 @@ async function main(){
   const original=fs.readFileSync(input), backup=JSON.parse(original);
   const browser=mini?await webkit.launch():await chromium.launch({executablePath:process.env.CHROME_PATH});
   try {
-    const ctx=await browser.newContext({timezoneId:"Europe/Moscow",viewport:{width:430,height:932},isMobile:true,hasTouch:true});
+    const options={timezoneId:"Europe/Moscow",viewport:{width:430,height:932},isMobile:true,hasTouch:true};
+    const ctx=await browser.newContext(options);
     let old=true;
     const files=new Map(), errors=[];
-    await ctx.route("**/*",async route=>{
+    const serve=async route=>{
       const u=new URL(route.request().url());
       if(mini && u.origin==="https://telegram.org" && u.pathname==="/js/telegram-web-app.js")
         return route.fulfill({contentType:mime[".js"],body:'window.Telegram={WebApp:{platform:"ios",ready(){},expand(){},isVersionAtLeast(){return false}}}'});
@@ -117,7 +118,8 @@ async function main(){
         body=files.get(name);
       }else body=fs.readFileSync(path.join(root,name));
       return route.fulfill({body,contentType:mime[path.extname(name)]||"application/octet-stream"});
-    });
+    };
+    await ctx.route("**/*",serve);
     const p=await ctx.newPage();
     p.on("pageerror",e=>errors.push(e.message));
     p.setDefaultTimeout(15000);
@@ -141,6 +143,18 @@ async function main(){
     await p.reload();await p.locator(".meal-card").first().waitFor();
     assert.deepEqual(await capture(),before,"Original three weeks changed on upgrade");
     const cleanStorage=await p.evaluate(()=>localStorage.getItem(key));
+    const freshPage=async()=>{
+      const empty=await browser.newContext(options);
+      await empty.route("**/*",serve);
+      const page=await empty.newPage();
+      page.on("pageerror",e=>errors.push(e.message));
+      await page.clock.setFixedTime(new Date("2026-11-15T12:00:00+03:00"));
+      await page.goto(origin+"/"+(mini?"?mini=1":""));
+      return page;
+    };
+    const dinner=await require("./dinner-and-backup.cjs")(p,action,freshPage);
+    await p.evaluate(value=>{localStorage.setItem(key,value);history.replaceState(null,"","#week");},cleanStorage);
+    await p.reload();await p.locator(".meal-card").first().waitFor();
     const kitchen=await p.evaluate(()=>{
       const saved=offset,out=[];
       for(offset=0;offset<3;offset++){
@@ -247,7 +261,7 @@ async function main(){
     await p.reload();await p.locator(".meal-card").first().waitFor();
     const four=await require("./stock-and-serving.cjs")(p,action);
     assert.deepEqual(fs.readFileSync(input),original);assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({mini,four,continuity,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
+    console.log(JSON.stringify({mini,dinner,four,continuity,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
   }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -77,7 +77,8 @@ function copyWeekRecord(raw) {
   if(raw.dessertPrefs!=null)r.dessertPrefs=copyDessertPrefs(raw.dessertPrefs);
   if(raw.budgetLimit!=null){requireCopy(budgetRange(raw.budgetLimit));r.budgetLimit=raw.budgetLimit;}
   if(raw.carryFrom!=null){
-    requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(r.pantry,k),v=>typeof v==="string" && !!copyDate(v)));
+    // Older clients sometimes removed the amount while retaining its source. Preserve an unknown amount.
+    requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(FOOD,k),v=>typeof v==="string" && !!copyDate(v)));
     r.carryFrom={...raw.carryFrom};
   }
   if(raw.carryKind!=null){

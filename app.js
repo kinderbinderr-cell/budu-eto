@@ -472,7 +472,7 @@ function weekPage() {
     <details class="week-spending"><summary><strong>Корзина ≈ <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-quick-balance>${budgetBalance(s,q)}</span><b data-budget-details>${hasBudget(s)&&q.cents>s.budget*100?"Посмотреть замены":"Подробнее"}</b></summary>
     ${budgetPanel(p,q)}${s.stores?.length?'<section id="price-area"></section>':""}</details>
     <div class="week-body"><section class="mealsection"><div class="menu-heading"><h2>${dayName(day)}, ${dateText(dateAt(day),{day:"numeric",month:"short"})}</h2>${nutrition}</div>
-    <div class="meal-grid">${servingSlots(meals).map(slot=>mealCard(meals[slot],slot)).join("")}</div>
+    ${day===0?openingPrepNote(kitchen[0]):""}<div class="meal-grid">${servingSlots(meals).map(slot=>mealCard(meals[slot],slot)).join("")}</div>
     <div class="week-next">${button("Что готовить","prep-day","soft","pot")}${button("Открыть покупки","list","primary","bag")}</div>
     ${meals[3]?"":button("Добавить десерт","dessert-open","outline","plus")}${nutritionSwapCard(p,day)}${weekVariety(p)}
     ${button("Выбрать ещё блюда","discover","outline","heart")}</section>${weekSummary(p,kitchen)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section></div>`;
@@ -751,7 +751,7 @@ function stockUnit(k) {
 function stockPanel(k){
   const unit=stockUnit(k),w=weekData(),stock=Object.hasOwn(w.pantryBeforeCheck||{},k)?w.pantryBeforeCheck[k]:w.pantry[k];
   return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])}</h2><p>На неделю нужно ≈ ${weeklyNeed(k,neededGrams(shoppingCounts(plan())[k]||0))}. Укажите, сколько уже есть дома.</p>
-    <form id="stock-form" data-key="${k}"><label class="field">Дома, ${unit.unit}<input type="number" inputmode="decimal" name="stock" min="0" max="1000000" step="any" required value="${stock?Number((stock/unit.grams).toFixed(2)):""}"></label>
+    <form id="stock-form" data-key="${k}"><label class="field">Дома, ${unit.unit}<input type="number" inputmode="decimal" name="stock" min="0" max="1000000" step="any" required value="${stock!=null?Number((stock/unit.grams).toFixed(2)):""}"></label>
     <button type="submit" class="btn primary">Сохранить остаток</button></form></div>`;
 }
 function pantryRow(k,g,store){

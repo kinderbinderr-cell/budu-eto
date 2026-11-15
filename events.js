@@ -673,6 +673,10 @@ main.addEventListener("change", (e) => {
   if(e.target.checked){
     (w.pantryBeforeCheck||={})[k]=w.pantry[k]??null;
     w.pantry[k]=neededGrams(shoppingCounts(plan())[k]||0);
+  }else if(!Object.hasOwn(w.pantryBeforeCheck||{},k) && Object.hasOwn(w.pantry,k)){
+    e.target.checked=true;
+    openSheet({kind:"stock",id:k});
+    return;
   }else{
     const previous=w.pantryBeforeCheck?.[k];
     if(previous==null)delete w.pantry[k];else w.pantry[k]=previous;
