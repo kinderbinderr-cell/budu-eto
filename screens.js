@@ -1,5 +1,5 @@
 function startDraft() {
-  draft = structuredClone(settings());
+  draft = structuredClone(spendingProfile());
   if (draft.plainPortion) draft.targetMode = "portion";
   step = 1;
   settingsTasting = null;
@@ -191,7 +191,7 @@ function renderSheet() {
   const info = openInfo;
   if (!info) return;
   const contents =
-    info.kind.startsWith("copy-") ? menuCopyPane(info) : info.kind === "sweet-week" ? sweetEditor(info) : info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
+    info.kind==="manual-preview" ? manualPreview(info) : info.kind==="prep-offer" ? prepOfferPanel(info) : info.kind==="stock" ? stockPanel(info.id) : info.kind.startsWith("copy-") ? menuCopyPane(info) : info.kind === "sweet-week" ? sweetEditor(info) : info.kind === "dessert" ? dessertPanel() : info.kind === "taste-cuisines" ? tasteCuisineSheet(info) : info.kind === "book-filters" ? bookFilterSheet(info.selection) : info.kind === "nutrition-swap" ? nutritionSwapPreview(info.offer) : info.kind === "portion-edit" ? portionEditor() : info.kind.startsWith("coupon-") ? couponSheet(info) : info.kind==="budget-edit" ? budgetDialog(info) : info.kind === "restart"
       ? `<div class="sheet-body simple"><h2 id="sheet-title">Пройти анкету заново?</h2><p>Выбор блюд, магазины и настройки обоих меню сбросятся на этом устройстве. Замены и отметки «есть дома» тоже очистятся. Избранные рецепты сохранятся.</p><div class="restart-actions">${button("Отмена", "close", "outline")}${button("Начать заново", "confirm-restart", "primary")}</div></div>`
       : info.kind === "perek-address"
       ? perekAddressDialog()
@@ -274,8 +274,15 @@ function swapPanel(info) {
     r = p.days[day].meals[info.slot].r;
   const s = settings(), other = p.days[day].meals.filter((_,i)=>i!==info.slot).map(m=>m.r.id);
   const choices = similarOptions(r, RECIPES.filter(x=>canPlace(s,x,info.slot)), s.votes, other).slice(0,8);
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Чем заменить ${["завтрак","обед","ужин"][info.slot]}?</h2><p class="quiet">${$(r.title)} · ${shortDay(day)}. Выберите похожее блюдо на этот день. Список покупок обновится.</p><div class="options-list">${choices.map(({r:x,match}) => `<button type="button" data-action="choose-swap" data-id="${x.id}" data-slot="${info.slot}"><img src="${photo(x)}" alt=""><span><b>${$(x.title)}</b><small>${$(match.reason)} · ${cookingTime(x)}</small><small>${s.votes[x.id]===1 ? "Уже нравится" : "Только на этот день"}</small></span>${icon("right", 18)}</button>`).join("") || "<p>Среди подходящих рецептов не нашлось аналога. Можно выбрать другое блюдо в книге рецептов.</p>"}</div></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Чем заменить ${["завтрак","обед","ужин"][info.slot]}?</h2><p class="quiet">${$(r.title)} · ${prepDate(day)}. Выберите похожее блюдо на этот день. Список покупок обновится.</p><div class="options-list">${choices.map(({r:x,match}) => `<button type="button" data-action="choose-swap" data-id="${x.id}" data-slot="${info.slot}"><img src="${photo(x)}" alt=""><span><b>${$(x.title)}</b><small>${$(match.reason)} · ${cookingTime(x)}</small><small>${s.votes[x.id]===1 ? "Уже нравится" : "Только на этот день"}</small></span>${icon("right", 18)}</button>`).join("") || "<p>Среди подходящих рецептов не нашлось аналога. Можно выбрать другое блюдо в книге рецептов.</p>"}</div></div>`;
 
+}
+function manualPreview(info){
+  const {p,next,day:d,slot}=info;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Заменить блюдо?</h2><p>${prepDate(d)} · ${slotNames[slot]}</p>
+    <p>${$(p.days[d].meals[slot].r.title)} → <strong>${$(next.days[d].meals[slot].r.title)}</strong></p>
+    <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${macroChanges(p,next,new Set([d]))}
+    <div class="budget-actions">${button("Применить замену","manual-apply","primary")}${button("Оставить меню","close","outline")}</div></div>`;
 }
 function placePanel(info) {
   const p = plan();
@@ -285,14 +292,22 @@ function placePanel(info) {
     d = info.day ?? day,
     slot = info.slot ?? placementSlots(r)[0],
     old = p.days[d].meals[slot].r;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Поставить в меню</h2><p class="quiet">${r.title} · ${rangeText()}</p>${section("Выберите день", `<div class="chips">${DAYS.map((n, i) => `<button type="button" class="chip" data-action="place-day" data-day="${i}" aria-pressed="${i === d}">${shortDay(i)}</button>`).join("")}</div>`)}${section("Приём пищи", `<div class="chips">${placementSlots(r).map((i) => `<button type="button" class="chip" data-action="place-slot" data-slot="${i}" aria-pressed="${slot === i}">${slotNames[i]}</button>`).join("")}</div>`)}<p class="quiet">Заменит «${old.title}» в меню на ${shortDay(d)}.</p>${button("Поставить в меню", "confirm-place", "primary", "check")}</div>`;
+  const same=p.days[d].meals.some(m=>m.r.id===r.id);
+  const preview=same?null:swapOne(settings(),p,{d,slot,from:old.id},r);
+  const compare=preview?`<p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(preview).cents/100)}</p>${macroChanges(p,preview,new Set([d]))}`:"<p>Это блюдо уже есть в этом дне.</p>";
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Поставить в меню</h2><p class="quiet">${r.title} · ${rangeText()}</p>${section("Выберите день", `<div class="chips">${DAYS.map((n, i) => `<button type="button" class="chip" data-action="place-day" data-day="${i}" aria-pressed="${i === d}">${shortDay(i)}</button>`).join("")}</div>`)}${section("Приём пищи", `<div class="chips">${placementSlots(r).map((i) => `<button type="button" class="chip" data-action="place-slot" data-slot="${i}" aria-pressed="${slot === i}">${slotNames[i]}</button>`).join("")}</div>`)}<p class="quiet">Заменит «${old.title}» в меню на ${prepDate(d)}.</p>${compare}${button("Поставить в меню", "confirm-place", "primary", "check",same?"disabled":"")}</div>`;
 }
 function prepPanel() {
   const p = plan();
   if (!p) return emptyPlan();
   const kitchen=prepWeek();
   const rows=kitchen.map((tasks,i)=>`<button type="button" class="prep-overview" data-action="prep-open-date" data-day="${i}"><span><b>${dayName(i)}</b><small>${prepDate(i)} · ${prepCardSummary(tasks)}</small></span>${prepFlags(tasks,i)}${icon("right",16)}</button>`).join("");
-  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${rows}${reminderEntry()}</div>`;
+  const extra=extraCookDays(kitchen);
+  const details=extra.map(d=>`<p><b>${prepDate(d)}</b> · ${[...kitchen[d].cook.values()].map(t=>$(t.r.title)).join(", ")}</p>`).join("");
+  const options=extra.length?batchCandidates(p,kitchen):[];
+  const swaps=options.map(x=>button(prepDate(x.d)+" · "+slotNames[x.slot]+" → "+$(x.r.title),"prep-preview","soft","","data-day="+x.d+" data-slot="+x.slot)).join("");
+  const load=`<p>${prepLoad(kitchen)}</p>${extra.length?`<details class="prep-extra"><summary>Что готовить в дополнительные дни</summary>${details}<h3>Можно приготовить заранее</h3>${swaps||"<p>Среди выбранных блюд подходящих замен пока нет.</p>"}</details>`:""}`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${load}${rows}${reminderEntry()}</div>`;
 
 }
 function nutritionPanel() {

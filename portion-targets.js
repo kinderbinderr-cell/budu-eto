@@ -64,7 +64,7 @@ sheet.addEventListener("submit",e=>{
   if(!activePortionTargets({...settings(),portionTargets:goals})){
     e.target.querySelector(".form-error").textContent="Проверьте диапазоны: оба числа должны быть положительными, минимум не больше максимума.";return;
   }
-  settings().portionTargets=goals;useStockForPlanning(settings(),weekSeed(),weekData().pantry);persist();render();openSheet({kind:"nutrition"});
+  protectMenus();settings().portionTargets=goals;updateSavedPortions();useStockForPlanning(settings(),weekSeed(),weekData().pantry);persist();render();openSheet({kind:"nutrition"});
 });
 
 const nutritionOffers=new WeakMap();
@@ -100,8 +100,8 @@ function nutritionSwapPreview(offer) {
     : "Дневные итоги станут ближе к целям. Часть показателей останется вне диапазона.";
   let budgetNote="";
   if(hasBudget(settings())) {
-    const current=plan(), cell=offer.d+"-"+offer.slot;
-    const adjusted=withNutritionSwaps(settings(),current,{[cell]:{from:offer.old.id,to:offer.r.id}},null,lastPlan.previous);
+    const current=plan();
+    const adjusted=swapOne(settings(),current,{d:offer.d,slot:offer.slot,from:offer.old.id},offer.r);
     const from=weeklyQuote(current).cents, to=weeklyQuote(adjusted).cents;
     if(Math.round(from/100)!==Math.round(to/100)) budgetNote=" Закупка на неделю: примерно "+money(from/100)+" сейчас и "+money(to/100)+" после.";
   }
@@ -114,6 +114,9 @@ function confirmNutritionSwap() {
   if(p!==info.plan || day!==offer.d || info.week!==weekKey() || dayNutritionOffer(p,day)!==offer) {
     dismissSheet(); render(); notify("Меню изменилось. Откройте новое сравнение."); return;
   }
+  const updated=swapOne(settings(),p,{d:day,slot:offer.slot,from:offer.old.id},offer.r);
+  if(!updated)return;
+  protectMenus();setSavedWeek(updated);
   const record=weekData();
   record.nutritionSwaps={...record.nutritionSwaps,[day+"-"+offer.slot]:{from:offer.old.id,to:offer.r.id}};
   persist(); dismissSheet(); render(); notify("Блюдо заменено. Порции и список покупок пересчитаны.");

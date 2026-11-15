@@ -242,8 +242,22 @@ function tastingPanel() {
   const ctx = tasteContext();
   const possible=selectedCounts(ctx.pool,Object.fromEntries(ctx.pool.map(r=>[r.id,1])));
   const limited=selectionHint(possible) || (!ctx.pool.some(r=>fitsMainSlot(r,1)) ? "Для обеда не нашлось блюд." : "");
-  const help=route==="start" && limited ? `<aside class="flow-details"><strong>${limited}</strong><div class="chips">${button("Добавить кухню","taste-cuisines","soft")}${button("Изменить время","flow-back","outline")}</div></aside>`:"";
+  const help=route==="start" && limited && ctx.pool.length ? `<aside class="flow-details"><strong>${limited}</strong>${widerTasteChoices(ctx)}</aside>`:"";
   return tasteCuisineEntry(ctx.profile.cuisines || []) + help + tastingCards(ctx);
+}
+function widerTasteChoices({profile,pool,votes}) {
+  const known=new Set(pool.map(r=>r.id)), choices=[];
+  function choice(action,value,label,changes){
+    const added=tastePool({...profile,...changes}).filter(r=>!known.has(r.id) && votes[r.id]==null).length;
+    if(added)choices.push(button(label+" · ещё "+bookCount(added),action,"soft","","data-value="+value));
+    return added;
+  }
+  if(profile.maxMinutes)for(const t of [30,45,0]){
+    if(t && t<=profile.maxMinutes)continue;
+    if(choice("wider-time",t,t?"До "+t+" минут":"Любое время",{maxMinutes:t}))break;
+  }
+  if(profile.cuisines?.length)choice("wider-cuisines",0,"Все кухни",{cuisines:[]});
+  return choices.length?'<div class="taste-end-actions">'+choices.join("")+'</div>':'<p>Проверьте выбранные настройки питания и доступную технику.</p>';
 }
 function tastingCards({ pool, votes, deck, profile }) {
   const counts = selectedCounts(pool, votes);
@@ -260,9 +274,13 @@ function tastingCards({ pool, votes, deck, profile }) {
   }
   const liked = RECIPES.filter(r=>votes[r.id]===1).length;
   const summary = `<div class="taste-counter"><span>${icon("heart", 15)} Выбрано <b>${liked}</b>${liked>counts.chosen.length ? ` · подходят ${counts.chosen.length}` : ""}</span>${deck.trail.length ? deckLink(icon("undo", 14) + " Отменить", "taste-undo") : ""}</div>`;
+  if(!pool.length){
+    const filters=[profile.cuisines?.map(k=>cuisineNames[k]).join(", "),profile.diet!=="all"&&diets[profile.diet],profile.maxMinutes&&"до "+profile.maxMinutes+" минут"].filter(Boolean);
+    return `<section class="taste-end"><h2>Нет блюд с такими условиями</h2><p>${filters.map($).join(" · ")}. Пищевые исключения сохранятся.</p>${route==="start"?widerTasteChoices({profile,pool,votes}):""}</section>`;
+  }
   if (!r && route === "start" && !left && !tasteReadiness({pool, votes}).complete)
     return `<section class="taste-end">${summary}<h2>Вы посмотрели все подходящие блюда</h2><p>Добавьте ещё кухню или пересмотрите пропущенные блюда.</p>
-      <div class="taste-end-actions">${button("Выбрать кухни", "taste-cuisines", "soft", "sliders")}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
+      <div class="taste-end-actions">${widerTasteChoices({profile,pool,votes})}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   if (!r)
     return `<section class="taste-end">${summary}<h2>${pool.length ? (counts.chosen.length ? "Вот что вам по вкусу" : "Поищем другие блюда?") : "Пока нет подходящих блюд"}</h2><p>${selectionHint(counts) || "Недельный план будет собран только из вашего выбора."}${profile.cuisines?.length && !left && selectionHint(counts) ? " Чтобы увидеть больше блюд, добавьте кухню выше." : ""}</p>
     ${
@@ -289,6 +307,10 @@ function tastingCards({ pool, votes, deck, profile }) {
     ${summary}</div></section>`;
 }
 function handleTasteAction(action, el) {
+  if(route==="start" && ["wider-time","wider-cuisines"].includes(action)){
+    const f=getFlow();if(action==="wider-time")f.minutes=Number(el.dataset.value);else f.cuisines=[];
+    f.deck=null;rememberFlow();render();return true;
+  }
   if (
     ![
       "taste-yes",
@@ -361,7 +383,7 @@ function handleTasteAction(action, el) {
 }
 function discoveryPage() {
   const content = tastingPanel();
-  return `<div class="discovery-page"><button class="link" type="button" data-action="week">${icon("left", 15)} К меню</button><h1>Что хочется съесть?</h1><p class="quiet">Добавьте блюда для следующих недель. В меню попадут только отмеченные.</p>${content}<p id="discovery-error" class="form-error" role="alert"></p>${button("Сохранить выбор", "save-tastes", "primary", "check")}</div>`;
+  return `<div class="discovery-page"><button class="link" type="button" data-action="week">${icon("left", 15)} К меню</button><h1>Что хочется съесть?</h1><p class="quiet">Сохраним ваши вкусы для новых недель. Уже составленные меню останутся прежними.</p>${content}<p id="discovery-error" class="form-error" role="alert"></p>${button("Сохранить вкусы", "save-tastes", "primary", "check")}</div>`;
 }
 function saveDiscovery() {
   const { pool, votes } = tasteContext(),
@@ -371,6 +393,7 @@ function saveDiscovery() {
     return;
   }
   const s = settings();
+  protectMenus();
   s.votes = { ...votes };
   s.cuisines = [...discovery.cuisines];
   s.strictTaste = true;

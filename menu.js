@@ -1371,8 +1371,8 @@ function suggestNutritionSwap(s,week,d,previous=[]) {
       if(old.manual) continue;
       for(const r of pool) {
         if(!fitsNutritionSwap(s,week,d,slot,r,previous)) continue;
-        const candidate=meals.map((m,i)=>({...m,r:i===slot?r:m.r}));
-        applyDailyTargets(s,candidate);
+        const candidate=meals.slice();
+        candidate[slot]=replacementMeal(s,meals,slot,r);
         const after=swapDayTotals(candidate,goals),score=swapDayScore(after,goals);
         if(!beneficialSwap(current,score)) continue;
         const rank=[Math.max(...score.map(x=>x.worst)),score[0].sum+score[1].sum,

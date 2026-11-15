@@ -97,6 +97,7 @@ function handleShopAction(action, value) {
     return true;
   }
   if (action === "save-stores") {
+    protectMenus();
     settings().stores = [...shopDraft];
     persist();
     shopDraft = null;

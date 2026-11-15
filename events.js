@@ -43,6 +43,7 @@ function changeWeek(delta) {
   offset = settings().startDate ? Math.max(0,offset+delta) : offset+delta;
   day = currentDay(offset);
   if(history.state?.menuCopy) history.replaceState({...history.state,weekOffset:offset},"",location.href);
+  if(data.quizDone && !data.savedWeeks?.[plannedDate()] && protectMenus())persist();
   render();
 }
 function markFavorite(id) {
@@ -66,10 +67,13 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
   if (!canPlace(settings(), recipe, slot)) return;
   if (oneDayAnalog ? !dishSimilarity(plan().days[d].meals[slot].r, recipe) : !eligible(settings(), recipe)) return;
   const key="day:"+d+"-"+slot;
-  if (plan({[key]:id})?.days[d].meals[slot]?.r.id!==id) {
-    notify("Эта замена не оставляет блюда для чередования. Выберите другое блюдо или добавьте ещё одно в «Что хочется съесть?».");
-    return;
+  const p=plan(),old=p?.days[d]?.meals[slot];
+  if(!old || old.r.id===id || p.days[d].meals.some((m,i)=>i!==slot && m.r.id===id)) {
+    notify("Выберите другое блюдо для этого дня.");return;
   }
+  const updated=swapOne(settings(),p,{d,slot,from:old.r.id},recipe);
+  protectMenus();
+  setSavedWeek(updated);
   const record=weekData();
   record.replacements[key]=id;
   if(record.budgetEdits) record.budgetEdits=record.budgetEdits.filter(e=>e.d!==d || e.slot!==slot);
@@ -142,13 +146,23 @@ function finishSetup() {
   }
   if (draft.mode === "personal")
     draft.plainPortion = draft.targetMode === "portion";
+  const old=data[draft.mode];
+  const servingFields=["adults","small","targetMode","target","plainPortion","weight","height","age","sex","activity","portionTargets"];
+  const portionsChanged=servingFields.some(k=>JSON.stringify(old[k])!==JSON.stringify(draft[k]));
+  protectMenus();
   data.quizDone = true;
   data.mode = draft.mode;
+  if(old.fromQuiz || Object.keys(data.weeks).some(key=>key.startsWith(draft.mode+"/"))) protectMenus();
+  if(data.savedWeeks?.[plannedDate()]){
+    if(draft.budget!==spendingProfile().budget)weekData().budgetLimit=draft.budget;
+    draft.budget=old.budget;
+    draft.budgetChosen=old.budgetChosen;
+  }
   useStockForPlanning(draft,weekSeed(),weekData().pantry);
   data[draft.mode] = structuredClone(draft);
   clearDiscovery(draft.mode);
   for (const [week, record] of Object.entries(data.weeks)) {
-    if (!week.startsWith(draft.mode + "/")) continue;
+    if (!week.startsWith(draft.mode + "/") || data.savedWeeks?.[week]) continue;
     for (const [cell, id] of Object.entries(record.replacements)) {
       const oneDay = cell.startsWith("day:");
       const [start, slot] = cell.replace(/^day:/, "").split("-").map(Number);
@@ -159,6 +173,7 @@ function finishSetup() {
         delete record.replacements[cell];
     }
   }
+  if(portionsChanged)updateSavedPortions();
   draft = null;
   persist();
   miniStats.built();
@@ -185,6 +200,8 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "stock":
+      if(FOOD[id])openSheet({kind:"stock",id});break;
     case "shopping-mode":
       data.shoppingMode=value; persist(); render(); break;
     case "dessert-open":
@@ -204,9 +221,9 @@ document.addEventListener("click", (e) => {
     case "portion-edit":
       if(portionCount(settings()))openSheet({kind:"portion-edit"});break;
     case "portion-off":
-      delete settings().portionTargets; persist(); dismissSheet(); render(); break;
+      protectMenus();delete settings().portionTargets;updateSavedPortions(); persist(); dismissSheet(); render(); break;
     case "budget-edit":
-      openSheet({kind:"budget-edit",value:hasBudget(settings())?settings().budget:null});break;
+      openSheet({kind:"budget-edit",value:hasBudget(spendingProfile())?spendingProfile().budget:null});break;
     case "budget-apply":
       applyBudgetOffer();break;
     case "budget-keep":
@@ -226,12 +243,13 @@ document.addEventListener("click", (e) => {
     case "like-recipe": {
       const recipe = byId(id);
       if (!recipe || !allowed(settings(), recipe) || !fitsCuisines(settings(), recipe)) break;
+      protectMenus();
       settings().votes[id] = 1;
       clearDiscovery(data.mode);
       persist();
       render();
       renderSheet();
-      notify("Блюдо добавлено в подбор на неделю");
+      notify("Вкус сохранён для новых недель");
       break;
     }
     case "discover":
@@ -289,9 +307,18 @@ document.addEventListener("click", (e) => {
     case "swap":
       openSheet({ kind: "swap", slot: Number(slot) });
       break;
-    case "choose-swap":
-      replaceMeal(id, day, Number(slot), true);
+    case "choose-swap": {
+      const p=plan(),cell=Number(slot),old=p.days[day].meals[cell].r;
+      const next=swapOne(settings(),p,{d:day,slot:cell,from:old.id},byId(id));
+      if(next)openSheet({kind:"manual-preview",id,day,slot:cell,p,date:weekKey(),next});
       break;
+    }
+    case "manual-apply": {
+      const i=openInfo;
+      if(i?.kind==="manual-preview" && i.p===plan() && i.date===weekKey() && i.day===day)
+        replaceMeal(i.id,i.day,i.slot,true);
+      break;
+    }
     case "place":
       openSheet({
         kind: "place",
@@ -370,6 +397,15 @@ document.addEventListener("click", (e) => {
       try {navigator.clipboard.writeText(field.value).then(()=>notify("Команда скопирована"),()=>field.select());}
       catch {field.select();}
       break;
+    }
+    case "prep-preview": {
+      const offer=batchCandidates(plan(),prepWeek()).find(x=>x.d===Number(d) && x.slot===Number(slot));
+      if(offer)openSheet({kind:"prep-offer",...offer,date:weekKey()});break;
+    }
+    case "prep-apply": {
+      const i=openInfo;
+      if(i?.kind!=="prep-offer" || i.week!==plan() || i.date!==weekKey())break;
+      replaceMeal(i.r.id,i.d,i.slot);break;
     }
     case "prep-day":
       openSheet({kind:"prep-day"});
@@ -526,10 +562,17 @@ sheet.addEventListener("input",e=>{
   refreshBookDraft(selection);
 });
 sheet.addEventListener("submit",e=>{
+  if(e.target.id==="stock-form"){
+    e.preventDefault();
+    const k=e.target.dataset.key,value=Number(e.target.elements.stock.value);
+    if(!FOOD[k] || !Number.isFinite(value) || value<0 || !e.target.reportValidity())return;
+    weekData().pantry[k]=Math.round(value*stockUnit(k).grams*100)/100;
+    persist();dismissSheet();render();notify("Остаток сохранён. Список покупок обновлён.");return;
+  }
   if(e.target.id!=="budget-form")return;
   e.preventDefault(); const n=Number(e.target.elements["weekly-budget"].value);
   if(!budgetRange(n))return;
-  settings().budget=n;settings().budgetChosen=true;useStockForPlanning(settings(),weekSeed(),weekData().pantry);persist();dismissSheet();render();notify("Бюджет на неделю сохранён");
+  protectMenus();weekData().budgetLimit=n;persist();dismissSheet();render();notify("Лимит этой недели сохранён");
 });
 document.addEventListener("input",e=>{
   if(e.target.name!=="weekly-budget")return;
@@ -575,13 +618,13 @@ main.addEventListener("change", (e) => {
   const cartKey=e.target.dataset.cart;
   if(cartKey){
     const w=weekData(); w.cart ||= {};
-    if(e.target.checked) w.cart[cartKey]=remainingGrams(cartKey,plan().counts[cartKey]);
-    else delete w.cart[cartKey];
+    if(e.target.checked){
+      w.cart[cartKey]=remainingGrams(cartKey,plan().counts[cartKey]);(w.paidStock||={})[cartKey]=w.cart[cartKey];
+    }else {delete w.cart[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
     persist(); render(); return;
   }
   if (!e.target.dataset.pantry) return;
   const k = e.target.dataset.pantry;
-  if(weekData().cart) delete weekData().cart[k];
   weekData().pantry[k] = e.target.checked ? neededGrams(plan().counts[k]) : 0;
   persist();
   render();
@@ -607,9 +650,7 @@ addEventListener("storage", event => {
   if (event.key !== key || !event.newValue) return;
   const latest = loadData();
   if (latest.quizDone && !data.quizDone) { location.reload(); return; }
-  if (budgetSuggestion && latest.quizRun===data.quizRun) {
-    Object.assign(data,latest); budgetSuggestion=null; render(); return;
-  }
+  if (latest.quizRun===data.quizRun) { location.reload(); return; }
   if (latest.quizRun !== data.quizRun) {
     history.replaceState(null, "", "#start");
     location.reload();
@@ -694,7 +735,7 @@ if (legacy) {
     step = Number(legacy[2]);
   }
 }
+if(data.quizDone && protectMenus())persist({migration:true});
 render();
-retainUpcomingMenus();
 bindTelegram();
 if(data.quizDone && new URLSearchParams(location.search).get("section")==="reminders" && plan()) openSheet({kind:"reminders",flags:0});

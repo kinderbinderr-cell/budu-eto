@@ -175,17 +175,29 @@ let offset = restoredPosition?.menuCopy && restoredPosition.menuCopy===data.menu
   openInfo = null,
   toastTimer = null,
   lastPlan = null;
-function persist() {
+function readStoredPlanner(){
+  try{return localStorage.getItem(key);}catch{return null;}
+}
+let lastStored=readStoredPlanner();
+function persist({migration=false}={}) {
+  if(readStoredPlanner()!==lastStored){
+    location.reload();throw Error("Меню изменилось в другом окне. Откройте действие ещё раз.");
+  }
+  const serialized=JSON.stringify(data);
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(key, serialized);lastStored=serialized;
   } catch {
     // Optional cached weeks must never take the space needed for the primary user record.
     try {
       for(const name of Object.keys(localStorage)){
         if(name.startsWith("budu-retained-v1/")) localStorage.removeItem(name);
       }
-      localStorage.setItem(key,JSON.stringify(data));
-    } catch { notify("В этом браузере меню сохранится только до закрытия страницы."); }
+      localStorage.setItem(key,serialized);lastStored=serialized;
+    } catch {
+      if(migration){notify("На устройстве мало места. Можно сохранить копию меню в настройках.");return false;}
+      if(data.savedWeeks){window.alert("Не удалось сохранить изменения. Предыдущее меню осталось на устройстве.");location.reload();throw Error("Menu storage full");}
+      notify("В этом браузере меню сохранится только до закрытия страницы.");
+    }
   }
 }
 function notify(message) {
@@ -229,6 +241,8 @@ function unpackMenuWeek({facts,...week},profile) {
   return {...week,days};
 }
 function retainedWeek(profile,seed,swaps,edits,build,date,record) {
+  const pinned=data.savedWeeks?.[profile.mode+"/"+date];
+  if(pinned)return savedWeek(pinned,profile);
   const restored=data.menuCopies?.[profile.mode];
   const fixed=restored?.plans[date];
   if(fixed && restored.signature===JSON.stringify(profile) && fixed.edits===copyRecordSignature(record)) {
@@ -249,6 +263,16 @@ function retainedWeek(profile,seed,swaps,edits,build,date,record) {
   return week;
 }
 function plan(preview = null, weekOffset = offset) {
+  const date=plannedDate(weekOffset), snap=data.savedWeeks?.[date];
+  if(!preview && weekOffset===offset && data.quizDone)visitedWeeks.add(date);
+  if(snap && !preview){
+    const value=savedWeek(snap,settings());
+    if(weekOffset===offset && lastPlan?.value!==value){
+      const prev=data.savedWeeks[plannedDate(weekOffset-1)];
+      lastPlan={value,previous:prev?savedWeek(prev,settings()).days.slice(-2):[]};
+    }
+    return value;
+  }
   const s = settings(),
     seed = weekSeed(weekOffset);
   const anchor = Number.isInteger(s.tasteAnchor) ? s.tasteAnchor : 0;
@@ -303,16 +327,6 @@ function plan(preview = null, weekOffset = offset) {
     else adjacentPlan = result;
   }
   return value;
-}
-function retainUpcomingMenus() {
-  if(!data.quizDone) return;
-  const keep=()=>{
-    if(!data.quizDone) return;
-    const first=openingWeek(settings());
-    for(let i=0;i<3;i++) plan(null,first+i);
-  };
-  if(window.requestIdleCallback) window.requestIdleCallback(keep);
-  else setTimeout(keep,100);
 }
 function readRoute() {
   const h = location.hash.slice(1);
@@ -421,15 +435,15 @@ function mealCard(meal, slot) {
     kcal = Math.round((r.kcal * f) / servings(settings()));
   return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}"><img src="${photo(r)}" alt="" decoding="async"></button><span class="meal-label">${icon(slotIcons[slot], 15)} ${sweetMealLabel(meal,slot)}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="${slot === 3 ? "dessert-open" : "swap"}" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
 }
-function weekSummary(p) {
+function weekSummary(p,kitchen) {
   const s = settings(),
     n = Object.keys(p.counts).length;
-  return `<aside class="summary"><h3>Неделя в деталях</h3><div class="summary-row">${icon("pot", 21)}<div><b>Дни готовки</b><small>${s.cook.map((i) => DAYS[i]).join(" · ")}</small></div><button type="button" data-action="prep" class="mini-btn" aria-label="Посмотреть план готовки">${icon("right", 17)}</button></div><div class="summary-row">${icon("bag", 21)}<div><b>Продукты на неделю</b><small>${n} ${plural(n, "позиция", "позиции", "позиций")} · докупить ≈ <span data-purchase-total>${money(weeklyQuote(p).cents/100)}</span></small></div></div>${button("Открыть список", "list", "soft", "bag")}${sweetEntry(s,"week",p)}${sweetAgenda(p)}${portionCount(s) ? button(activePortionTargets(s)?"Изменить мои диапазоны КБЖУ":"Настроить порции по КБЖУ","portion-edit","outline") : ""}</aside>`;
+  return `<aside class="summary"><h3>Неделя в деталях</h3><div class="summary-row">${icon("pot", 21)}<div><b>Дни готовки</b><small>${prepLoad(kitchen)}</small></div><button type="button" data-action="prep" class="mini-btn" aria-label="Посмотреть план готовки">${icon("right", 17)}</button></div><div class="summary-row">${icon("bag", 21)}<div><b>Продукты на неделю</b><small>${n} ${plural(n, "позиция", "позиции", "позиций")} · докупить ≈ <span data-purchase-total>${money(weeklyQuote(p).cents/100)}</span></small></div></div>${button("Открыть список", "list", "soft", "bag")}${sweetEntry(s,"week",p)}${sweetAgenda(p)}${portionCount(s) ? button(activePortionTargets(s)?"Изменить мои диапазоны КБЖУ":"Настроить порции по КБЖУ","portion-edit","outline") : ""}</aside>`;
 }
 function weekPage() {
   const p=plan();
   if(!p) return '<div class="wrap page">'+emptyPlan()+'</div>';
-  const kitchen=prepWeek(), s=settings(), meals=p.days[day].meals, q=weeklyQuote(p);
+  const kitchen=prepWeek(), s=spendingProfile(), meals=p.days[day].meals, q=weeklyQuote(p);
   const nutrition=data.mode==="personal" || activePortionTargets(s) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire",16)} ${p.pairMisses[day]>0?"КБЖУ вне диапазона":"КБЖУ дня"}</button>`:"";
   return `<div class="wrap page week-first"><div class="week-title"><h1>Меню недели</h1><span>${household(s)}</span></div>${calendar(p,kitchen)}
     <details class="week-spending"><summary><strong>Корзина ≈ <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-quick-balance>${budgetBalance(s,q)}</span><b data-budget-details>${hasBudget(s)&&q.cents>s.budget*100?"Посмотреть замены":"Подробнее"}</b></summary>
@@ -438,7 +452,7 @@ function weekPage() {
     <div class="meal-grid">${servingSlots(meals).map(slot=>mealCard(meals[slot],slot)).join("")}</div>
     <div class="week-next">${button("Что готовить","prep-day","soft","pot")}${button("Открыть покупки","list","primary","bag")}</div>
     ${meals[3]?"":button("Добавить десерт","dessert-open","outline","plus")}${nutritionSwapCard(p,day)}${weekVariety(p)}
-    ${button("Выбрать ещё блюда","discover","outline","heart")}</section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section></div>`;
+    ${button("Выбрать ещё блюда","discover","outline","heart")}</section>${weekSummary(p,kitchen)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section></div>`;
 }
 function emptyPlan() {
   return `<div class="empty"><h2>Добавьте блюда для чередования</h2><p>Для недельного меню нужны минимум два подходящих завтрака и два основных блюда.</p>${button("Выбрать блюда", "discover", "primary", "heart")}</div>`;
@@ -658,10 +672,8 @@ function cartHas(k,g) {
 }
 function cartFigures(p,q) {
   let picked=0;
-  for(const [k,g] of Object.entries(p.counts)){
-    if(!cartHas(k,g)) continue;
-    const need=remainingGrams(k,g);
-    picked+=(cataloguePurchase(k,need,q.store)||estimatedPurchase(k,need,q.store)).cents;
+  for(const [k,g] of Object.entries(accountedPurchases(weekData(),p.counts))){
+    picked+=(cataloguePurchase(k,g,q.store)||estimatedPurchase(k,g,q.store)).cents;
   }
   return `<strong>В корзине ≈ ${money(picked/100)}</strong><span>Осталось взять ≈ ${money((q.cents-picked)/100)} · Всего ≈ ${money(q.cents/100)}</span>`;
 }
@@ -678,7 +690,30 @@ function shopRows(groups,p,q) {
     }
     return rows.length?`<section class="groceries"><h2>${label}</h2>${rows.join("")}</section>`:"";
   }).join("");
+  for(const [k,g] of Object.entries(weekData().cart||{})){
+    if(g>0 && FOOD[k] && !remainingGrams(k,p.counts[k]||0))picked.push(`<label class="grocery"><input type="checkbox" data-cart="${k}" checked><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}<small>Уже взяли · по меню докупать не нужно</small></span><b>${weeklyNeed(k,g)}</b></label>`);
+  }
   return `<div class="cart-figures" data-cart-total>${cartFigures(p,q)}</div><div class="groups">${sections || "<p>Всё собрано.</p>"}${picked.length?'<section class="groceries"><h2>В корзине</h2>'+picked.join("")+'</section>':""}</div>`;
+}
+function stockUnit(k) {
+  if(k==="egg")return {unit:"шт.",grams:50};
+  if(["oil","milk","kefir","ryazhenka","cream","kvass"].includes(k))
+    return {unit:"мл",grams:k==="oil"?.92:k==="milk"?1.03:1};
+  return {unit:"г",grams:1};
+}
+function stockPanel(k){
+  const unit=stockUnit(k),stock=weekData().pantry[k]||0;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])}</h2><p>На неделю нужно ≈ ${weeklyNeed(k,neededGrams(plan().counts[k]))}. Укажите, сколько уже есть дома.</p>
+    <form id="stock-form" data-key="${k}"><label class="field">Дома, ${unit.unit}<input type="number" inputmode="decimal" name="stock" min="0" max="1000000" step="any" required value="${stock?Number((stock/unit.grams).toFixed(2)):""}"></label>
+    <button type="submit" class="btn primary">Сохранить остаток</button></form></div>`;
+}
+function pantryRow(k,g,store){
+  const stock=weekData().pantry[k]||0,need=remainingGrams(k,g);
+  return `<div class="pantry-row"><label class="grocery"><input type="checkbox" data-pantry="${k}" aria-label="Дома хватает: ${$(FOOD[k][0])}" ${need?"":"checked"}><i>${icon("check",13)}</i>
+    <span>${$(FOOD[k][0])}<small class="recipe-need">На неделю ≈ ${weeklyNeed(k,g)}</small>${stock>0?`<small class="recipe-need">Дома ≈ ${weeklyNeed(k,stock)}${need?" · не хватает ≈ "+weeklyNeed(k,need):""}</small>`:""}
+    <small class="line-price" data-line-price>${need?$(shoppingPriceNote(k,need,store)):""}</small></span>
+    <b>${need?"Купить: "+$(shoppingAmount(k,need,store)):"Есть дома"}</b></label>
+    <button type="button" class="link stock-link" data-action="stock" data-id="${k}">${stock?"Изменить остаток":"Указать остаток"}</button></div>`;
 }
 function groceries() {
   const p = plan();
@@ -688,8 +723,8 @@ function groceries() {
     all = groups.flatMap((x) => x.items),
     todo = all.filter((x) => !checked(x.k, x.g));
   const storeMode=data.shoppingMode==="store";
-  const top=`<div class="wrap inner-page listpage"><div class="view-title"><div><h1>Список продуктов</h1><p>${storeMode?"Отмечайте продукты, когда кладёте их в корзину.":"Отметьте, каких продуктов дома хватает на всю неделю."}</p></div>${weekControls()}</div>
+  const top=`<div class="wrap inner-page listpage"><div class="view-title"><div><h1>Список продуктов</h1><p>${storeMode?"Отмечайте продукты, когда кладёте их в корзину.":"Поставьте галочку, если продукта хватает. Если есть только часть, укажите остаток."}</p></div>${weekControls()}</div>
     <div class="seg shopping-switch">${choiceChip("shopping-mode","home","Проверить дома",!storeMode)}${choiceChip("shopping-mode","store","В магазине",storeMode)}</div>`;
   if(storeMode) return top+shopRows(groups,p,q)+'<details class="week-spending"><summary>Бюджет и цены</summary>'+budgetPanel(p,q)+'<section id="price-area"></section></details></div>';
-  return `${top}${budgetPanel(p,q)}<section id="price-area" class="price-section"></section><div class="list-layout"><div class="groups">${groups.map(({ label, items }) => `<section class="groceries"><h2>${label}</h2>${items.map(({ k, g }) => `<label class="grocery"><input type="checkbox" data-pantry="${k}" aria-label="Дома хватает: ${$(FOOD[k][0])}" ${checked(k, g) ? "checked" : ""}><i>${icon("check", 13)}</i><span>${FOOD[k][0]}<small class="recipe-need">На неделю ≈ ${weeklyNeed(k,g)}</small><small class="line-price" data-line-price>${checked(k,g) ? "" : $(shoppingPriceNote(k,remainingGrams(k,g),store))}</small></span><b>${checked(k,g) ? "Есть дома" : "Купить: "+$(shoppingAmount(k, remainingGrams(k,g),store))}</b></label>`).join("")}</section>`).join("")}</div><aside class="summary list-summary"><h3>Осталось купить</h3><strong class="list-count">${todo.length}<small> из ${all.length}</small></strong><div class="progress-track"><i style="width:${(100 * (all.length - todo.length)) / all.length}%"></i></div><p class="quiet">По отмеченным продуктам список обновляется сразу.</p>${button("Скопировать список", "copy", "primary", "copy", todo.length ? "" : "disabled")}<div id="copy-fallback"></div><p class="fine">Докупить примерно на <strong data-purchase-total>${money(q.cents/100)}</strong></p></aside></div></div>`;
+  return `${top}<div class="list-layout"><div class="groups">${groups.map(({ label, items }) => `<section class="groceries"><h2>${label}</h2>${items.map(({k,g})=>pantryRow(k,g,store)).join("")}</section>`).join("")}</div><aside class="summary list-summary"><h3>Осталось купить</h3><strong class="list-count">${todo.length}<small> из ${all.length}</small></strong><div class="progress-track"><i style="width:${(100 * (all.length - todo.length)) / all.length}%"></i></div><p class="quiet">По отмеченным продуктам список обновляется сразу.</p>${button("Скопировать список", "copy", "primary", "copy", todo.length ? "" : "disabled")}<div id="copy-fallback"></div><p class="fine">Докупить примерно на <strong data-purchase-total>${money(q.cents/100)}</strong></p></aside></div><details class="week-spending"><summary>Бюджет, замены и цены магазинов</summary>${budgetPanel(p,q)}<section id="price-area"></section></details></div>`;
 }

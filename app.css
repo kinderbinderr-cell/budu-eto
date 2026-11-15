@@ -1606,7 +1606,7 @@ button:active:not(:disabled) {
   }
   .list-layout {
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column;
     gap: 18px;
     margin-top: 12px;
   }
@@ -2016,3 +2016,20 @@ button:active:not(:disabled) {
 .menu-copy textarea{display:block;width:100%;min-height:84px;resize:vertical;padding:10px;margin:6px 0;border:1px solid var(--rule);border-radius:8px;font:inherit}
 .copy-feedback:not(:empty){margin-top:12px}.copy-feedback:empty{margin:0}
 .copy-weeks{list-style:none;margin:18px 0;padding:0}.copy-weeks li{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-top:1px solid var(--rule)}.copy-weeks li span{text-align:right}.copy-weeks li small{grid-column:1/-1;color:var(--muted)}
+
+.start-period{border:0;padding:0;margin:0 0 24px;min-width:0}
+.start-period legend{font-weight:700;margin-bottom:10px}
+.offer-choices label{display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:5px 0}
+.offer-choices input{accent-color:var(--ink);height:20px;width:20px;flex:none;margin-top:3px}
+.swap-numbers{margin:12px 0}
+.swap-numbers small{display:block}
+.pantry-row{border-bottom:1px solid var(--rule)}
+.pantry-row .grocery{border-bottom:0;padding-bottom:4px}
+.stock-link{margin:0 12px 8px 42px;font-size:.82rem;min-height:28px}
+#stock-form{display:grid;gap:16px}
+.prep-extra{margin:14px 0 20px}
+.prep-extra .btn{display:block;text-align:left;margin:8px 0}
+
+.prep-extra summary{cursor:pointer;font-weight:600;padding:6px 0}
+.prep-extra p{margin:8px 0}
+.prep-extra h3{margin:18px 0 8px}

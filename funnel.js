@@ -187,17 +187,14 @@ function flowStartDate(f) {
 }
 function startChoiceRow(f) {
   const period=date=>dateText(date,{day:"numeric",month:"short"})+" – "+dateText(plusDays(date,6),{day:"numeric",month:"short"});
-  const label="Меню на 7 дней · "+period(flowStartDate(f));
-  return `<details class="flow-details start-period"><summary>${label}</summary>
-    <div class="chips">${["today","monday"].map(v=>choiceChip("flow-start-date",v,(v==="today"?"С сегодняшнего дня":"С понедельника")+" · "+period(flowStartDate({startChoice:v})),(f.startChoice||"today")===v)).join("")}</div></details>`;
+  return `<fieldset class="start-period"><legend>С какого дня начнём?</legend>
+    <div class="chips">${["today","monday"].map(v=>choiceChip("flow-start-date",v,(v==="today"?"С сегодняшнего дня":"Со следующего понедельника")+" · "+period(flowStartDate({startChoice:v})),(f.startChoice||"today")===v)).join("")}</div></fieldset>`;
 }
 function storeQuestion() {
-  return (
-    budgetFields(flowPortions(flow), flow.budget, "flow") +
+  return startChoiceRow(flow) + budgetFields(flowPortions(flow),flow.budget,"flow") +
     sweetEntry(flowProfile(flow),"flow") +
     '<h2 class="budget-shop-title">Где покупаете продукты?</h2>' + shopPicker(flow.stores, "flow-store") +
-    `<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>` + startChoiceRow(flow)
-  );
+    '<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>';
 }
 function flowProgress(stage, className) {
   return `<div class="${className}" role="progressbar" aria-label="Шаги анкеты" aria-valuenow="${stage + 1}" aria-valuemin="1" aria-valuemax="${flowLabels.length}">${flowLabels.map((_, i) => `<i class="${i <= stage ? "on" : ""}"></i>`).join("")}</div>`;
@@ -374,13 +371,12 @@ function submitFlow() {
   data.quizDone = true;
   offset = 0;
   day = 0;
-  persist();
+  protectMenus();persist();
   flow = null;
   try {
     sessionStorage.removeItem(flowKey);
   } catch {}
   miniStats.built();
   navTo("week");
-  retainUpcomingMenus();
   notify("Ваше меню на семь дней готово");
 }

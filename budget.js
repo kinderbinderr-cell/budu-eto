@@ -83,8 +83,9 @@ function budgetScorer(s, {planning = false} = {}) {
   // Live prices arrive after the menu appears. They update checkout without silently replacing meals.
   const stores = (s.stores || []).filter(store => supportedShop(store) && (!planning || storeShelf(store)));
   const sources = stores.length ? stores : [null], cache = new Map();
-  return (counts, pantry = {}) => {
-    const items = Object.entries(counts).map(([key,g]) => [key,Math.max(0,neededGrams(g) - (pantry[key] || 0))]).filter(([,g]) => g > 0);
+  return (counts, pantry = {}, bought = {}) => {
+    const keys=new Set([...Object.keys(counts),...Object.keys(bought)]);
+    const items=Array.from(keys,key=>[key,Math.max(bought[key]||0,neededGrams(counts[key]||0)-(pantry[key]||0))]).filter(([,g])=>g>0);
     let best = null;
     for (const store of sources) {
       let cents = 0, known = 0, benchmark = 0, city = 0;
@@ -110,8 +111,20 @@ function budgetScorer(s, {planning = false} = {}) {
     return best;
   };
 }
+// Old checkmarks are grams. Anchor their already-accounted amount to the original basket
+// so a proposed replacement cannot promise savings on a pack someone already picked up.
+function accountedPurchases(record,baseCounts) {
+  const bought={};
+  for(const [k,g] of Object.entries(record.cart||{})){
+    const need=Math.max(0,neededGrams(baseCounts[k]||0)-(record.pantry[k]||0));
+    const grams=Math.min(g,Math.max(record.paidStock?.[k]||0,need));
+    if(grams>0)bought[k]=grams;
+  }
+  return bought;
+}
 function weeklyQuote(p) {
-  return budgetScorer(settings())(p.counts,weekData().pantry);
+  const w=weekData(),base=data.savedWeeks?.[plannedDate()]?.counts||p.counts;
+  return budgetScorer(settings())(p.counts,w.pantry,accountedPurchases(w,base));
 }
 function keepsDayTargets(goals,before,after) {
   if(!goals) return true;
@@ -186,8 +199,8 @@ function budgetSource(q) {
 
 }
 function budgetPanel(p, q=weeklyQuote(p)) {
-  const s=settings(), limited=hasBudget(s), edit=button(limited?"Изменить сумму":"Задать бюджет","budget-edit","soft");
-  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет на неделю · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Докупить примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
+  const s=spendingProfile(), limited=hasBudget(s), edit=button(limited?"Изменить сумму":"Задать бюджет","budget-edit","soft");
+  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет этой недели · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Докупить примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
 }
 function budgetBalance(s,q) {
   if(!hasBudget(s)) return "";
@@ -200,18 +213,19 @@ function refreshShoppingEstimate() {
   if(!box) return;
   const p=plan(), q=weeklyQuote(p);
   for(const el of document.querySelectorAll("[data-purchase-total]")) el.textContent=money(q.cents/100);
-  box.querySelector("[data-budget-balance]").textContent=budgetBalance(settings(),q);
+  box.querySelector("[data-budget-balance]").textContent=budgetBalance(spendingProfile(),q);
   box.querySelector("[data-budget-source]").textContent=budgetSource(q);
   const quick=document.querySelector("[data-quick-balance]");
   if(quick){
-    quick.textContent=budgetBalance(settings(),q);
-    document.querySelector("[data-budget-details]").textContent=hasBudget(settings()) && q.cents>settings().budget*100?"Посмотреть замены":"Подробнее";
+    quick.textContent=budgetBalance(spendingProfile(),q);
+    document.querySelector("[data-budget-details]").textContent=hasBudget(spendingProfile()) && q.cents>spendingProfile().budget*100?"Посмотреть замены":"Подробнее";
   }
   const cartTotal=document.querySelector("[data-cart-total]");
   if(cartTotal){
     cartTotal.innerHTML=cartFigures(p,q);
     for(const box of document.querySelectorAll("[data-cart]")){
       const k=box.dataset.cart, need=remainingGrams(k,p.counts[k]), row=box.closest(".grocery");
+      if(!row.querySelector("[data-line-price]"))continue;
       row.querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
       row.querySelector("b").textContent=shoppingAmount(k,need,q.store);
     }
@@ -225,5 +239,5 @@ function refreshShoppingEstimate() {
 }
 
 function budgetDialog(info) {
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Сколько потратим за неделю?</h2><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Применить бюджет</button></form></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Бюджет этой недели</h2><p>Покупки на ${rangeText()}. Блюда и порции сохранятся.</p><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Сохранить лимит</button></form></div>`;
 }

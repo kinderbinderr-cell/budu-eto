@@ -21,7 +21,9 @@ async function capture(page){
       });
     }
     offset=0;
-    return {raw:localStorage.getItem(key),weeks};
+    // The upgrade adds concrete snapshots. Compare every pre-existing storage field verbatim.
+    const {savedWeeks,prepForecasts,...raw}=JSON.parse(localStorage.getItem(key));
+    return {raw, weeks};
   });
 }
 (async()=>{
@@ -99,8 +101,7 @@ async function capture(page){
     assert.deepEqual(await capture(page),previous,'Past week or a future week moved across Monday');
     await page.evaluate(()=>{
       offset=1;
-      weekData().desserts[5]={id:"syrniki",moment:"breakfast"};
-      persist();render();
+      day=5;openSheet({kind:"dessert",moment:"breakfast"});setDayDessert("syrniki");
     });
     assert.equal(await page.evaluate(()=>plan().days[5].meals[3].r.id),'syrniki');
     assert.deepEqual(errors,[]);

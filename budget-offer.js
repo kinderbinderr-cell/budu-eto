@@ -31,15 +31,20 @@ function withBudgetEdits(s,week,edits,prior,previous) {
 }
 
 // Try singles and repeated servings together: changing only one may leave the same pack in the basket.
-function* findBudgetOffer(s,base,pantry,previous) {
-  const recipes=new Map(RECIPES.map(r=>[r.id,r])), goals=activePortionTargets(s);
+function* findBudgetOffer(s,base,pantry,previous,bought={}) {
+  const goals=activePortionTargets(s);
+  const trial=(week,e,r)=>{
+    if(!fitsNutritionSwap(s,week,e.d,e.slot,r,previous))return null;
+    const next=swapOne(s,week,e,r);
+    return next && keepsDayTargets(goals,week.days[e.d].meals,next.days[e.d].meals)?next:null;
+  };
   const pool=RECIPES.filter(r=>eligible(s,r)), score=budgetScorer(s), target=s.budget*100;
-  const before=score(base.counts,pantry), choices=new Map(), edits=[];
+  const before=score(base.counts,pantry,bought), choices=new Map(), edits=[];
   let week=base, after=before;
   while(after.cents>target) {
     let best=null;
     function consider(next,changes) {
-      const quote=score(next.counts,pantry);
+      const quote=score(next.counts,pantry,bought);
       if(quote.cents>=after.cents) return;
       const fits=quote.cents<=target, otherFits=best && best.quote.cents<=target;
       if(!best || (fits && !otherFits) || (fits===otherFits &&
@@ -55,7 +60,7 @@ function* findBudgetOffer(s,base,pantry,previous) {
       groups.get(key).push({d,slot,from:m.r.id});
     }
     for(const [key,cells] of groups) {
-      const {from,slot}=cells[0],source=recipes.get(from);
+      const {from,slot}=cells[0],source=byId(from);
       if(!choices.has(key)) {
         const suitable=pool.filter(r=>r!==source && r.slot===source.slot && (!slot || fitsMainSlot(r,slot)));
         const close=similarOptions(source,suitable,s.votes).slice(0,6).map(x=>x.r);
@@ -66,10 +71,10 @@ function* findBudgetOffer(s,base,pantry,previous) {
         let combined=week;const changes=[];
         for(const cell of cells) {
           const edit={...cell,to:r.id};
-          const single=budgetMealEdit(s,week,edit,previous,recipes,goals);
+          const single=trial(week,edit,r);
           if(!single) continue;
           consider(single,[edit]);
-          const next=changes.length ? budgetMealEdit(s,combined,edit,previous,recipes,goals) : single;
+          const next=changes.length ? trial(combined,edit,r) : single;
           if(next) {combined=next;changes.push(edit);if(changes.length>1) consider(combined,[...changes]);}
         }
         yield;
@@ -83,33 +88,67 @@ function* findBudgetOffer(s,base,pantry,previous) {
 
 let budgetSuggestion=null;
 function budgetOfferKey(p,q) {
-  const s=settings();
-  return JSON.stringify([data.mode,weekKey(),s.budget,s.stores,weekData().pantry,q,
+  const s=spendingProfile();
+  return JSON.stringify([data.mode,weekKey(),s.budget,s.stores,weekData().pantry,weekData().cart,q,
     [...priceBook].filter(([key])=>s.stores?.includes(key.split('/')[0])).map(([key,row])=>[key,row,Boolean(row.snapshot && Date.now()-row.checkedAt>=86400000)])]);
 }
-function budgetOfferHtml(offer) {
+function previewSelection(entry) {
+  const week=entry.p,s=spendingProfile();
+  let next=week;
+  const edits=entry.offer.edits.filter((_,i)=>entry.selected.has(i));
+  const affected=new Set();
+  for(const e of edits){
+    const r=byId(e.to);
+    if(!fitsNutritionSwap(s,next,e.d,e.slot,r,lastPlan?.previous||[]))return null;
+    next=swapOne(s,next,e,r);if(!next)return null;
+    affected.add(e.d);
+  }
+  const goals=activePortionTargets(s);
+  const withinTargets=[...affected].every(d=>keepsDayTargets(goals,week.days[d].meals,next.days[d].meals));
+  return {edits,next,affected,after:weeklyQuote(next),withinTargets};
+}
+function swapNumbers(meals,i){
+  return mealNutrients(meals,meals.map(m=>m.personFactors?.[i]??m.f/servings(settings()))).map(Math.round);
+}
+function macroChanges(before,after,days){
+  const n=portionCount(settings());
+  if(!n || !days.size)return "";
+  const facts=values=>values[0]+" ккал · Б "+values[1]+" · Ж "+values[2]+" · У "+values[3]+" г";
+  return '<details class="swap-numbers"><summary>КБЖУ за день до и после</summary>'+[...days].sort().map(d=>
+    '<h4>'+prepDate(d)+'</h4>'+Array.from({length:n},(_,i)=>'<p><b>'+personTitle(i,n)+'</b><small>Сейчас · '+facts(swapNumbers(before.days[d].meals,i))+'</small><small>После · '+facts(swapNumbers(after.days[d].meals,i))+'</small></p>').join("")).join("")+'</details>';
+}
+function budgetOfferHtml(entry) {
+  const offer=entry.offer;
   if(!offer.edits.length) return '<p>Среди проверенных вариантов дешевле не нашлось. Можно отметить больше блюд или изменить бюджет.</p>';
-  const amounts=[['Сейчас',offer.before],['После замен',offer.after]].map(([label,q])=>'<div><small>'+label+'</small><strong>≈ '+money(q.cents/100)+'</strong>'+(q.store?'<small>'+$(shopName(q.store))+'</small>':'')+'<small>'+q.known+' по магазину'+(q.city?' · '+q.city+' по Москве':'')+((q.count-q.known-(q.city||0))?' · '+(q.count-q.known-(q.city||0))+' по другим оценкам':'')+'</small></div>').join('');
-  const gap=offer.after.cents-offer.limit;
-  const details=offer.edits.slice().sort((a,b)=>a.d-b.d||a.slot-b.slot).map(e=>'<li><small>'+shortDay(e.d)+' · '+slotNames[e.slot]+'</small><span>'+$(byId(e.from).title)+' <span aria-label="заменить на">→</span> <b>'+$(byId(e.to).title)+'</b></span></li>').join('');
-  return '<div class="offer-prices">'+amounts+'</div><p><b>Экономия ≈ '+rubles((offer.before.cents-offer.after.cents)/100)+'</b> · '+(gap>0?'останется сверх бюджета ≈ '+rubles(gap/100):'в пределах вашего бюджета')+'</p><ul>'+details+'</ul><div class="budget-actions">'+button('Применить '+(offer.edits.length===1?'замену':'замены'),'budget-apply','primary')+button('Оставить меню','budget-keep','soft')+'</div>';
+  const preview=previewSelection(entry);
+  const rows=offer.edits.map((e,i)=>({e,i})).sort((a,b)=>a.e.d-b.e.d||a.e.slot-b.e.slot).map(({e,i})=>
+    '<li><label><input type="checkbox" data-offer-index="'+i+'" '+(entry.selected.has(i)?'checked':'')+'><span><small>'+prepDate(e.d)+' · '+slotNames[e.slot]+'</small>'+$(byId(e.from).title)+' → <b>'+$(byId(e.to).title)+'</b></span></label></li>').join('');
+  const table='<ul class="offer-choices">'+rows+'</ul>';
+  if(!preview) return table+'<p>Эти замены вместе нарушают чередование блюд. Измените выбор.</p>';
+  const amounts=[['Сейчас',offer.before],['После выбранных замен',preview.after]].map(([label,q])=>'<div><small>'+label+'</small><strong>≈ '+money(q.cents/100)+'</strong>'+(q.store?'<small>'+$(shopName(q.store))+'</small>':'')+'</div>').join('');
+  const gap=preview.after.cents-offer.limit,n=preview.edits.length;
+  const saving=(offer.before.cents-preview.after.cents)/100;
+  const canApply=n && preview.withinTargets;
+  return table+'<div class="offer-prices">'+amounts+'</div><p aria-live="polite">'+(saving>0?'Экономия ≈ '+money(saving)+'. ':saving<0?'Дороже на ≈ '+money(-saving)+'. ':'')+(gap>0?'Сверх бюджета ≈ '+money(gap/100):'В пределах бюджета')+'.</p>'+
+    macroChanges(entry.p,preview.next,preview.affected)+(!preview.withinTargets?'<p>С таким выбором КБЖУ дальше от цели. Измените сочетание замен.</p>':'')+
+    '<div class="budget-actions">'+button('Применить '+n+' '+plural(n,'замену','замены','замен'),'budget-apply','primary','',canApply?'':'disabled')+button('Оставить меню','budget-keep','soft')+'</div>';
 }
 function mountBudgetOffer() {
   const host=document.querySelector('[data-budget-offer]');
   if(!host) return;
-  const p=plan(),s=settings(),q=weeklyQuote(p);
+  const p=plan(),s=spendingProfile(),q=weeklyQuote(p);
   if(!hasBudget(s) || q.cents<=s.budget*100){budgetSuggestion=null;host.hidden=true;return;}
   host.hidden=false;
   const key=budgetOfferKey(p,q);
   if(!budgetSuggestion || budgetSuggestion.p!==p || budgetSuggestion.key!==key) {
     const entry=budgetSuggestion={p,key,offer:null,kept:false};
-    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[]);
+    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[],accountedPurchases(weekData(),p.counts));
     const advance=()=>{
       if(budgetSuggestion!==entry || !document.querySelector('[data-budget-offer]')) { if(budgetSuggestion===entry) budgetSuggestion=null; return; }
       const start=performance.now();
       do {
         const part=search.next();
-        if(part.done){entry.offer=part.value;mountBudgetOffer();return;}
+        if(part.done){entry.offer=part.value;entry.selected=new Set(entry.offer.edits.map((_,i)=>i));mountBudgetOffer();return;}
       } while(performance.now()-start<12);
       setTimeout(advance,0);
     };
@@ -120,19 +159,26 @@ function mountBudgetOffer() {
   if(host.budgetEntry===entry && host.dataset.state===state) return;
   host.budgetEntry=entry;host.dataset.state=state;
   if(entry.kept){host.innerHTML=button('Посмотреть предложение','budget-review','soft');return;}
-  host.innerHTML='<h3>Как снизить стоимость недели</h3>'+(entry.offer?budgetOfferHtml(entry.offer):'<p role="status">Сравниваем варианты по стоимости всей корзины…</p>');
+  host.innerHTML='<h3>Как снизить стоимость недели</h3>'+(entry.offer?budgetOfferHtml(entry):'<p role="status">Сравниваем варианты по стоимости всей корзины…</p>');
 }
 function applyBudgetOffer() {
   const entry=budgetSuggestion,offer=entry?.offer,p=plan();
   if(!offer?.edits.length || entry.kept || p!==entry.p || entry.key!==budgetOfferKey(p,weeklyQuote(p))) {
     mountBudgetOffer();notify('Цены или меню изменились. Проверьте новое предложение.');return;
   }
-  const updated=withBudgetEdits(settings(),p,offer.edits,null,lastPlan.previous);
-  const q=weeklyQuote(updated);
-  if(!offer.edits.every(e=>updated.days[e.d].meals[e.slot].r.id===e.to) || q.cents!==offer.after.cents || q.store!==offer.after.store) {
-    budgetSuggestion=null;mountBudgetOffer();notify('Обновили расчёт. Проверьте сумму ещё раз.');return;
-  }
+  const preview=previewSelection(entry);
+  if(!preview?.edits.length || !preview.withinTargets)return;
+  protectMenus();
   const record=weekData();
-  record.budgetEdits=[...(record.budgetEdits||[]),...offer.edits];
-  persist();render();notify('Замены применены. Список продуктов обновлён.');
+  record.budgetEdits=[...(record.budgetEdits||[]),...preview.edits];
+  setSavedWeek(preview.next);
+  persist();budgetSuggestion=null;render();notify("Выбранные блюда заменены. Покупки обновлены.");
 }
+document.addEventListener("change",e=>{
+  if(!e.target.matches("[data-offer-index]") || !budgetSuggestion?.offer)return;
+  const i=Number(e.target.dataset.offerIndex);
+  if(e.target.checked)budgetSuggestion.selected.add(i);else budgetSuggestion.selected.delete(i);
+  const host=e.target.closest("[data-budget-offer]");
+  host.budgetEntry=null;mountBudgetOffer();
+  host.querySelector('[data-offer-index="'+i+'"]')?.focus({preventScroll:true});
+});

@@ -53,7 +53,8 @@ function dessertPanel() {
 }
 function setDayDessert(id, timeOnly=false) {
   if (id && !allowsDessert(settings(), byId(id))) return;
-  const week = weekData();
+  protectMenus();
+  const current=plan(),week = weekData();
   week.desserts ??= {};
   if (id) {
     const moment=openInfo?.moment ?? plan()?.days[day].meals[3]?.sweetMoment ?? settings().dessertPrefs?.moment;
@@ -63,6 +64,8 @@ function setDayDessert(id, timeOnly=false) {
   }
   else if (sweetFrequency(settings().dessertPrefs)) week.desserts[day]=null;
   else delete week.desserts[day];
+  const when=sweetMoment(openInfo?.moment??current.days[day].meals[3]?.sweetMoment??settings().dessertPrefs?.moment);
+  setSavedWeek(editDessert(settings(),current,day,id,when));
   persist();
   dismissSheet();
   render();
@@ -148,8 +151,9 @@ function handleSweetAction(action,btn) {
     const frequency=days.length || i.frequency;
     if(frequency&&!i.likes.length) return true;
     const target=i.inFlow?getFlow():settings();
+    if(!i.inFlow)protectMenus();
     target.dessertPrefs={frequency,days:days.slice(),moment:i.moment,likes:i.likes.slice()};
-    if(i.inFlow) rememberFlow(); else persist();
+    if(i.inFlow) rememberFlow(); else {updateSavedDesserts();persist();}
     dismissSheet(); render(); return true;
   }
   if(action==="sweet-count") {i.frequency=Number(btn.dataset.value);i.days=[];}

@@ -36,6 +36,8 @@ const capture=p=>p.evaluate(()=>{
    },legacy);
    await p.locator("#flow-form [type=submit]").click();await p.locator(".meal-card").first().waitFor();
    await p.evaluate(legacy=>{
+     // Construct pre-snapshot fixtures with the archived planner and its original edit records.
+     delete data.savedWeeks;delete data.prepForecasts;lastPlan=null;adjacentPlan=null;
      if(legacy){delete settings().startDate;delete settings().tasteAnchor;}
      else settings().portionTargets=[[[1250,1400],[95,105],[45,55],[100,130]],[[1750,1900],[140,160],[60,75],[140,170]]];
      for(offset=0;offset<3;offset++){
