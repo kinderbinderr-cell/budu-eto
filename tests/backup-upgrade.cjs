@@ -6,7 +6,7 @@ const path=require("node:path");
 const {execFileSync}=require("node:child_process");
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_PATH||"playwright");
 const root=path.resolve(__dirname,".."), origin="https://menu-copy.test";
-const oldRelease="c714452", input=process.env.MENU_COPY;
+const oldRelease="1e7a1fc", input=process.env.MENU_COPY;
 const mime={".js":"application/javascript",".css":"text/css",".html":"text/html",".json":"application/json",".webp":"image/webp",".woff2":"font/woff2"};
 const mini=!!process.env.MINI;
 async function checkCookingContinuity(p,action,original){
@@ -140,6 +140,7 @@ async function main(){
     old=false;
     await p.reload();await p.locator(".meal-card").first().waitFor();
     assert.deepEqual(await capture(),before,"Original three weeks changed on upgrade");
+    const cleanStorage=await p.evaluate(()=>localStorage.getItem(key));
     const kitchen=await p.evaluate(()=>{
       const saved=offset,out=[];
       for(offset=0;offset<3;offset++){
@@ -240,8 +241,13 @@ async function main(){
     });
     assert.deepEqual(edge.actual,edge.expected);assert.ok(edge.remindersCorrect);assert.ok(edge.receiptCorrect);assert.ok(edge.example.sameDish);
     const continuity=await checkCookingContinuity(p,action,original);
+    await p.evaluate(value=>{
+      localStorage.setItem(key,value);history.replaceState(null,"","#week");
+    },cleanStorage);
+    await p.reload();await p.locator(".meal-card").first().waitFor();
+    const four=await require("./stock-and-serving.cjs")(p,action);
     assert.deepEqual(fs.readFileSync(input),original);assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({mini,continuity,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
+    console.log(JSON.stringify({mini,four,continuity,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
   }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

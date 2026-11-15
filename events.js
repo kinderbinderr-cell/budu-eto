@@ -64,7 +64,7 @@ function markFavorite(id) {
   }
   notify(saved ? "Убрано из избранного" : "Сохранено в избранное");
 }
-function replaceMeal(id, d, slot, oneDayAnalog = false) {
+function replaceMeal(id, d, slot, oneDayAnalog = false, preview = null) {
   const recipe = byId(id);
   if (!canPlace(settings(), recipe, slot)) return;
   if (oneDayAnalog ? !dishSimilarity(plan().days[d].meals[slot].r, recipe) : !eligible(settings(), recipe)) return;
@@ -73,7 +73,7 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
   if(!old || old.r.id===id || p.days[d].meals.some((m,i)=>i!==slot && m.r.id===id)) {
     notify("Выберите другое блюдо для этого дня.");return;
   }
-  const updated=swapOne(weekProfile(),p,{d,slot,from:old.r.id},recipe);
+  const updated=preview||swapOne(weekProfile(),p,{d,slot,from:old.r.id},recipe);
   protectMenus();
   setSavedWeek(updated);
   const record=weekData();
@@ -211,7 +211,7 @@ document.addEventListener("click", (e) => {
       const offer=carrySuggestion(id);
       if(!offer)break;
       if(action==="carry-edit")openSheet({kind:"carry",id,offer,date:weekKey()});
-      else if(!offer.unknown && !Object.hasOwn(weekData().pantry,id))acceptCarry(id,weekKey(),offer.date,offer.available);
+      else if(!offer.unknown && (offer.review || !Object.hasOwn(weekData().pantry,id)))acceptCarry(id,weekKey(),offer.date,offer.available,"linked");
       break;
     }
     case "purchase-edit":
@@ -424,11 +424,11 @@ document.addEventListener("click", (e) => {
     case "prep-apply": {
       const i=openInfo;
       if(i?.kind!=="prep-offer" || i.week!==plan() || i.date!==weekKey())break;
-      replaceMeal(i.r.id,i.d,i.slot);break;
-    }
-    case "prep-complete-extra":{
-      if(openInfo?.kind!=="prep-day" || !weekData().prepDone?.[day])return;
-      weekData().prepDone[day]=prepSignature(prepWeek()[day]);persist();render();renderSheet();return;
+      const actual=advanceCookingTime(i.next,i.d,i.slot);
+      if(!actual || actual.cook!==i.timing.cook || actual.storage!==i.timing.storage){
+        openSheet({kind:"prep"});notify("План готовки изменился. Посмотрите доступные даты.");break;
+      }
+      replaceMeal(i.r.id,i.d,i.slot,false,i.next);break;
     }
     case "prep-day":
       openSheet({kind:"prep-day"});
@@ -554,7 +554,7 @@ sheet.addEventListener("change", e=>{
     if (e.target.checked) record.prepDone[day]=prepSignature(tasks);
     else delete record.prepDone[day];
     persist();
-    render();
+    render();renderSheet();
     return;
   }
   if (openInfo?.kind === "taste-cuisines" && e.target.hasAttribute("data-taste-cuisine")) {
@@ -598,6 +598,7 @@ sheet.addEventListener("submit",e=>{
     (w.purchases||={})[k]={grams,weight:byWeight?qty:grams,cents,store,source:old?.source||priceOrigin(row,store,!!own),
       weightSale:byWeight,label:byWeight?qty+" г":weeklyNeed(k,grams)};
     w.cart[k]=grams;(w.paidStock||={})[k]=grams;
+    refreshCarriedStock(k);
     persist();dismissSheet();render();return;
   }
   if(e.target.id==="stock-form"){
@@ -605,7 +606,10 @@ sheet.addEventListener("submit",e=>{
     const k=e.target.dataset.key,value=Number(e.target.elements.stock.value);
     if(!FOOD[k] || !Number.isFinite(value) || value<0 || !e.target.reportValidity())return;
     if(weekData().pantryBeforeCheck)delete weekData().pantryBeforeCheck[k];
-    weekData().pantry[k]=Math.round(value*stockUnit(k).grams*100)/100;
+    const w=weekData(),grams=Math.round(value*stockUnit(k).grams*100)/100;
+    if(w.carryFrom?.[k])setOpeningStock(w,k,w.carryFrom[k],grams,"manual");
+    else w.pantry[k]=grams;
+    refreshCarriedStock(k);
     persist();dismissSheet();render();notify("Остаток сохранён. Список покупок обновлён.");return;
   }
   if(e.target.id!=="budget-form")return;
@@ -660,6 +664,7 @@ main.addEventListener("change", (e) => {
     if(e.target.checked){
       addPurchase(cartKey);
     }else {delete w.cart[cartKey];if(w.prepReceipts)delete w.prepReceipts[cartKey];if(w.purchases)delete w.purchases[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
+    refreshCarriedStock(cartKey);
     persist(); render(); return;
   }
   if (!e.target.dataset.pantry) return;
@@ -673,6 +678,7 @@ main.addEventListener("change", (e) => {
     if(previous==null)delete w.pantry[k];else w.pantry[k]=previous;
     if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
   }
+  refreshCarriedStock(k);
   persist();
   render();
   main.querySelector(`[data-pantry="${k}"]`)?.focus({ preventScroll: true });

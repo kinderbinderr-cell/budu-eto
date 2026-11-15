@@ -68,9 +68,12 @@ function portionReport(meals) {
     }).join("")}</tbody></table>`;
   }).join("");
 }
+function firstPortionPercent(meal){
+  return Math.round(100*meal.personFactors[0]/meal.f);
+}
 function individualFacts(meal) {
   const {r,personFactors:fs}=meal;
-  const firstShare=Math.round(100*fs[0]/meal.f);
+  const firstShare=firstPortionPercent(meal);
   return fs.map((f,i)=>`<p><strong>${personTitle(i,fs.length)}${fs.length===2 ? " · "+(i===0?firstShare:100-firstShare)+"% готового блюда" : ""}</strong><br>${Math.round(r.kcal*f)} ккал · ${r.macros.map((m,j)=>["Б","Ж","У"][j]+" "+Math.round(m*f)+" г").join(" · ")}</p>`).join("");
 }
 sheet.addEventListener("submit",e=>{

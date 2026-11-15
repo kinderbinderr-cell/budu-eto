@@ -80,6 +80,14 @@ function copyWeekRecord(raw) {
     requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(r.pantry,k),v=>typeof v==="string" && !!copyDate(v)));
     r.carryFrom={...raw.carryFrom};
   }
+  if(raw.carryKind!=null){
+    requireCopy(copyMap(raw.carryKind,k=>Object.hasOwn(r.carryFrom||{},k),v=>v==="linked" || v==="manual"));
+    r.carryKind={...raw.carryKind};
+  }
+  if(raw.carryReview!=null){
+    requireCopy(copyMap(raw.carryReview,k=>Object.hasOwn(r.carryFrom||{},k) && !r.carryKind?.[k],v=>copyNumber(v)));
+    r.carryReview={...raw.carryReview};
+  }
   if(raw.earlyPaid!=null){requireCopy(copyGrams(raw.earlyPaid));r.earlyPaid={...raw.earlyPaid};}
   if(raw.prepReceipts!=null){requireCopy(copyGrams(raw.prepReceipts));r.prepReceipts={...raw.prepReceipts};}
   if(raw.paidStock!=null){requireCopy(copyGrams(raw.paidStock));r.paidStock=raw.paidStock;}

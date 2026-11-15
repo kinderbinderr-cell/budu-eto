@@ -443,7 +443,7 @@ function calendar(p, kitchen) {
     (n, i) => {
       const d = dateAt(i),
         isToday = d.toDateString()===today.toDateString();
-      return `<button type="button" class="date ${day === i ? "selected" : ""}" aria-label="${dayName(i)}, ${dateText(d, { day: "numeric", month: "long" })}" aria-pressed="${day === i}" ${isToday ? 'aria-current="date"' : ""} aria-description="${kitchen ? [settings().cook.includes(weekdayIndex(settings(),i)) && "День готовки",prepDone(kitchen[i],i) && "Всё сделано"].filter(Boolean).join(", ") : ""}" data-action="day" data-day="${i}"><small>${shortDay(i)}</small><b>${d.getDate()}</b>${kitchen ? prepFlags(kitchen[i],i) : ""}${isToday ? '<i aria-label="Сегодня"></i>' : ""}</button>`;
+      return `<button type="button" class="date ${day === i ? "selected" : ""}" aria-label="${dayName(i)}, ${dateText(d, { day: "numeric", month: "long" })}" aria-pressed="${day === i}" ${isToday ? 'aria-current="date"' : ""} aria-description="${kitchen ? [settings().cook.includes(weekdayIndex(settings(),i)) && "День готовки",prepDone(kitchen[i],i) && prepCardSummary(kitchen[i],i)].filter(Boolean).join(", ") : ""}" data-action="day" data-day="${i}"><small>${shortDay(i)}</small><b>${d.getDate()}</b>${kitchen ? prepFlags(kitchen[i],i) : ""}${isToday ? '<i aria-label="Сегодня"></i>' : ""}</button>`;
     },
   ).join("")}</div></section>`;
 }
@@ -721,8 +721,12 @@ function shopRows(groups,p,q) {
     const rows=[];
     for(const {k,g} of items){
       const need=outstandingGrams(w,k,g);
-      if(!need)continue;
-      rows.push(`<div class="shop-row"><label class="grocery"><input type="checkbox" data-cart="${k}" aria-label="В корзине: ${$(FOOD[k][0])}"><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}${w.cart?.[k] || w.carryFrom?.[k]?`<small>Не хватает ${stockMeasure(k,need)}</small>`:""}<small data-line-price>${shoppingPriceNote(k,need,q.store)}</small></span><b>${shoppingAmount(k,need,q.store)}</b></label>${carryLine(k,g)}</div>`);
+      if(!need){
+        if(Object.hasOwn(w.carryReview||{},k) && !w.cart?.[k])
+          rows.push('<div class="shop-row"><b>'+$(FOOD[k][0])+'</b>'+carryLine(k,g)+'</div>');
+        continue;
+      }
+      rows.push(`<div class="shop-row"><label class="grocery"><input type="checkbox" data-cart="${k}" aria-label="В корзине: ${$(FOOD[k][0])}"><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}${w.cart?.[k] || w.carryFrom?.[k]?`<small>${w.pantry[k]?"Дома "+stockMeasure(k,w.pantry[k])+" · ":""}Докупить ${stockMeasure(k,need)}</small>`:""}<small data-line-price>${shoppingPriceNote(k,need,q.store)}</small></span><b>${shoppingAmount(k,need,q.store)}</b></label>${carryLine(k,g)}</div>`);
     }
     return rows.length?`<section class="groceries"><h2>${label}</h2>${rows.join("")}</section>`:"";
   }).join("");

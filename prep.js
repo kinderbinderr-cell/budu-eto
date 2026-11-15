@@ -40,9 +40,16 @@ function kitchenWeek(profile,current,next,weekOffset=offset){
   const people=profile.mode==="personal"?1:profile.adults+profile.small;
   const cookDays=kitchenCookDays(profile);
   for(const [d,marked] of history.days)if(days[d])for(const u of marked.cook)addKitchenBatch(days[d],u);
-  const route=u=>{
-    days[u.serve]?.serve.push(u);
-    if(u.storage==="freeze")days[u.serve-1]?.thaw.push(u);
+  const route=(u,meal)=>{
+    // The dated meal owns the plating instructions. A checked batch keeps its
+    // original yield and allocation as a record of what was cooked.
+    const factors=meal.personFactors;
+    const served={...u,servingMeal:meal,personFactors:u.f===meal.f?factors:factors?.map(f=>f*u.f/meal.f)};
+    days[u.serve]?.serve.push(served);
+    if(u.storage==="freeze" && days[u.serve-1]){
+      const thawed=history.days.get(u.serve-1)?.thaw.some(t=>t.r.id===u.r.id && t.slot===u.slot && t.serve===u.serve);
+      days[u.serve-1].thaw.push({...u,servingMeal:meal,thawed});
+    }
   };
   for(const [serve,entry] of [...current.days,...(next?.days||[])].entries()){
     const block=Math.floor(serve/7), d=serve%7;
@@ -62,7 +69,8 @@ function kitchenWeek(profile,current,next,weekOffset=offset){
       const allocate=(u,done)=>{
         const take=Math.min(need,u.f), left=u.f-take;
         if(take>1e-7){
-          route(take===u.f?u:{...u,f:take,personFactors:u.personFactors?.map(g=>g*take/u.f)});
+          u.servingMeal=meal;
+          route(take===u.f?u:{...u,f:take},meal);
           need-=take;
         }
         if(left>1e-7)days[serve]?.changes.push({kind:"left",r:u.r,slot,f:left,storage:u.storage,completed:done});
@@ -94,7 +102,8 @@ function kitchenWeek(profile,current,next,weekOffset=offset){
       if(additional)days[serve]?.changes.push({kind:"extra",r,slot,f:need,available:f-need,completed:cooked.length>0});
       const use={...original,f:need,personFactors:additional?meal.personFactors?.map(g=>g*need/f):meal.personFactors,additional};
       if(days[use.cook])addKitchenBatch(days[use.cook],use);
-      route(use);
+      use.servingMeal=meal;
+      route(use,meal);
     }
   }
   return days;
@@ -186,7 +195,20 @@ function prepFlags(tasks,index) {
 function freezerUses(tasks) {
   return [...tasks.cook.values()].flatMap(t=>t.uses.filter(u=>u.storage==="freeze"));
 }
-function prepCardSummary(tasks) {
+function cookingProgress(tasks){
+  const batches=[...tasks.cook.values()];
+  return {
+    cooked:batches.filter(b=>b.uses.some(u=>u.completed)).length,
+    remaining:batches.filter(b=>b.uses.some(u=>!u.completed)).length,
+    toThaw:tasks.thaw.filter(u=>!u.thawed).length
+  };
+}
+function prepCardSummary(tasks,index) {
+  if(prepDone(tasks,index)){
+    const {cooked,remaining,toThaw}=cookingProgress(tasks);
+    const summary=cooked?"Приготовлено "+cooked+" "+plural(cooked,"блюдо","блюда","блюд"):"День отмечен";
+    return summary+(remaining?" · осталось приготовить "+remaining:"")+(toThaw?" · осталось достать из морозилки":"");
+  }
   if (tasks.cook.size) return "Приготовить "+tasks.cook.size+" "+plural(tasks.cook.size,"блюдо","блюда","блюд");
   return tasks.thaw.length ? "Достать из морозилки" : "Подать заготовки";
 }
@@ -206,24 +228,26 @@ function prepCard(tasks,index) {
   return '<section class="prep-feature"><div><h3>'+title+'</h3><p>'+notes.join(" · ")+'</p></div><button type="button" class="btn primary" data-action="prep-day">План готовки '+icon("right",17)+'</button></section>';
 }
 function prepDivision(use) {
-  if (!use.personFactors || use.personFactors.length<2) return "";
-  const share=Math.round(use.personFactors[0]*100/use.f);
+  const meal=use.servingMeal||use;
+  if(meal.personFactors?.length!==2)return "";
+  const share=firstPortionPercent(meal);
   return " · первому "+share+"%, второму "+(100-share)+"%";
 }
 function prepBatchText(task) {
   return (task.uses.length>1 ? task.uses.length+" "+plural(task.uses.length,"приём","приёма","приёмов")+" · " : "")+household(weekProfile());
 }
 function prepDayPanel(tasks) {
-  const frozen=freezerUses(tasks);
+  const frozen=freezerUses(tasks), marked=prepDone(tasks,day), progress=cookingProgress(tasks);
+  const pending=progress.remaining>0 || progress.toThaw>0;
   const cookRows=[...tasks.cook.values()].map(task=>{
     const lines=task.uses.map(use=>{
       const place={fresh:"к подаче",today:"к столу",overnight:"начать вечером",fridge:"в холодильник",freeze:"в морозилку"}[use.storage];
       if(use.spare)return '<li>'+prepQuantity(use.f)+' · готовый запас</li>';
-      return '<li>'+mealWhen(use)+' · '+(use.additional?'доготовить '+prepQuantity(use.f):household(weekProfile()))+' '+place+prepDivision(use)+'</li>';
+      return '<li>'+(marked?(use.completed?"Готово · ":"Осталось приготовить · "):"")+mealWhen(use)+' · '+(use.additional?'доготовить '+prepQuantity(use.f):household(weekProfile()))+' '+place+prepDivision(use)+'</li>';
     });
     return '<article class="prep-dish"><button type="button" data-action="prep-recipe" data-id="'+$(task.r.id)+'"><img src="'+photo(task.r)+'" alt=""><span><strong>'+$(task.r.title)+'</strong><small>'+prepBatchText(task)+' · '+cookingTime(task.r)+'</small>'+equipmentBadges(task.r)+'</span>'+icon("right",16)+'</button><ul>'+lines.join("")+'</ul></article>';
   }).join("");
-  const transfer=(use)=>'<li><b>'+$(use.r.title)+'</b><span>'+household(weekProfile())+' · '+mealWhen(use)+prepDivision(use)+'</span></li>';
+  const transfer=(use)=>'<li><b>'+$(use.r.title)+'</b><span>'+(marked?(use.thawed?'Уже в холодильнике · ':'Осталось переложить · '):'')+household(weekProfile())+' · '+mealWhen(use)+prepDivision(use)+'</span></li>';
   const riceInFreezer=frozen.some(use=>use.r.items.some(([key])=>key==="rice"));
   const coolingTime=riceInFreezer ? "часа" : "двух часов";
   const leftovers=tasks.serve.filter(u=>u.cook!==day);
@@ -234,13 +258,12 @@ function prepDayPanel(tasks) {
   const family=weekProfile().mode==="personal" ? "На одного" : weekProfile().adults===2&&!weekProfile().small ? "На двоих" : "Семейное меню";
   return '<div class="sheet-body simple prep-sheet"><button class="link" data-action="close" type="button">'+icon("left",15)+' К меню недели</button><h2 id="sheet-title">'+dayName(day)+'</h2><p class="prep-sub">'+dateText(dateAt(day),{day:"numeric",month:"long"})+' · '+family+'</p>'+
     (tasks.changes.length?'<section><h3>Порции после изменения меню</h3><ul>'+tasks.changes.map(c=>'<li>'+prepChangeText(c)+'</li>').join("")+'</ul></section>':'')+
-    (cookRows?'<section><h3>Приготовить</h3>'+cookRows+'</section>':'')+
-    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+(u.spare?prepQuantity(u.f)+' · готовый запас':household(weekProfile())+' · '+mealWhen(u)+prepDivision(u))+'</span><small>'+(u.spare?'Подача отменена.':prepDate(u.serve-1)+' вечером переложить в холодильник.')+'</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
-    (tasks.thaw.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Вечером в холодильник</h3><p>Переложите из морозилки к завтрашней подаче.</p><ul>'+tasks.thaw.map(transfer).join("")+'</ul></section>':'')+
+    (cookRows?'<section><h3>'+(marked?prepCardSummary(tasks,day):'Приготовить')+'</h3>'+cookRows+'</section>':'')+
+    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+(marked?' Заморозка':' Заморозить в этот день')+'</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+(marked?(u.completed?'Заморожено · ':'Осталось заморозить · '):'')+(u.spare?prepQuantity(u.f)+' · готовый запас':household(weekProfile())+' · '+mealWhen(u)+prepDivision(u))+'</span><small>'+(u.spare?'Подача отменена.':prepDate(u.serve-1)+' вечером переложить в холодильник.')+'</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
+    (tasks.thaw.length?'<section class="prep-cold"><h3>'+icon("snow",19)+(marked?' Разморозка':' Вечером в холодильник')+'</h3><p>К завтрашней подаче.</p><ul>'+tasks.thaw.map(transfer).join("")+'</ul></section>':'')+
     (serveRows?'<section class="prep-serve"><h3>Из заготовок к столу</h3><ul>'+serveRows+'</ul></section>':'')+
-    (prepDone(tasks,day) && [...tasks.cook.values()].some(b=>b.uses.some(u=>!u.completed))?
-      button("Отметить дополнительную готовку","prep-complete-extra","outline"):"")+
-    '<label class="day-done"><input type="checkbox" data-prep-done '+(prepDone(tasks,day)?"checked":"")+'>Всё на сегодня сделано</label>'+reminderEntry()+'</div>';
+    '<label class="day-done"><input type="checkbox" data-prep-done '+(marked && !pending?"checked":"")+'>'+
+    (marked && pending?"Отметить оставшееся":"Всё на сегодня сделано")+'</label>'+reminderEntry()+'</div>';
 }
 
 function extraCookDays(kitchen) {
@@ -260,21 +283,34 @@ function prepOfferPanel(info){
     <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${prepComparison(p,next)}${macroChanges(p,next,new Set([d]))}
     <div class="budget-actions">${button("Применить замену","prep-apply","primary")}${button("Оставить меню","close","outline")}</div></div>`;
 }
+function advanceCookingTime(week,d,slot){
+  const kitchen=kitchenWeek(weekProfile(),week,kitchenNextWeek(offset),offset);
+  const uses=kitchen[d].serve.filter(u=>u.slot===slot);
+  const first=uses[0];
+  if(!first || first.cook<0 || first.cook>=d || dateAt(first.cook)<plusDays(today,0) ||
+      prepDone(kitchen[first.cook],first.cook) || !["freeze","fridge"].includes(first.storage) ||
+      !uses.every(u=>u.cook===first.cook && u.storage===first.storage))return null;
+  return {cook:first.cook,storage:first.storage};
+}
 function batchCandidates(p,kitchen) {
   const s=weekProfile(), cook=DAYS.map((_,i)=>i).filter(i=>s.cook.includes(weekdayIndex(s,i)));
   if(s.startDate && offset===0 && !cook.includes(0))cook.push(0);
   const result=[];
   for(const d of extraCookDays(kitchen)){
+    if(dateAt(d)<=plusDays(today,0) || prepDone(kitchen[d],d))continue;
     for(const [slot,m] of p.days[d].meals.slice(0,3).entries()){
       if(m.manual || !kitchen[d].cook.has(m.r.id))continue;
       const pool=RECIPES.filter(r=>eligible(s,r) && canPlace(s,r,slot) && fitsNutritionSwap(s,p,d,slot,r,lastPlan?.previous));
       for(const r of pool.sort((a,b)=>Number(s.votes[b.id]===1)-Number(s.votes[a.id]===1)||a.minutes-b.minutes)){
         const timing=prepTiming(r,d,cook,slot);
         if(timing.cook>=d || timing.cook<0 || !["freeze","fridge"].includes(timing.storage) ||
-           !s.cook.includes(weekdayIndex(s,timing.cook)))continue;
+           !s.cook.includes(weekdayIndex(s,timing.cook)) || prepDone(kitchen[timing.cook],timing.cook) ||
+           dateAt(timing.cook)<plusDays(today,0))continue;
         const next=swapOne(s,p,{d,slot,from:m.r.id},r);
         if(!keepsDayTargets(activePortionTargets(s),p.days[d].meals,next.days[d].meals))continue;
-        result.push({d,slot,r,timing,next,week:p});break;
+        const actual=advanceCookingTime(next,d,slot);
+        if(!actual)continue;
+        result.push({d,slot,r,timing:actual,next,week:p});break;
       }
     }
   }

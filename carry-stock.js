@@ -1,19 +1,63 @@
 // Use committed recipe quantities. A carry is an explicitly confirmed opening stock
 // for one dated week. Later weeks never debit or rewrite earlier shopping records.
+function sourceStock(k,off){
+  const id=plannedDate(off),saved=data.savedWeeks?.[id];
+  if(!saved)return null;
+  const source=data.weeks[id]||{},home=source.pantry?.[k]||0,purchase=source.purchases?.[k];
+  const nextId=plannedDate(off+1),following=data.savedWeeks?.[nextId]||data.prepForecasts?.[nextId];
+  const next=following?savedWeek(following,weekProfile(off+1)):null;
+  const need=neededGrams(shoppingCounts(savedWeek(saved,weekProfile(off)),off,null,next)[k]||0);
+  const bought=purchase?.grams||0, unknown=!!source.cart?.[k] && !purchase;
+  return {off,date:weekKey(off),need,home,bought,unknown,available:Math.max(0,home+bought-need)};
+}
+function setOpeningStock(w,k,source,grams,kind){
+  if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
+  w.pantry[k]=grams;
+  (w.carryFrom||={})[k]=source;
+  (w.carryKind||={})[k]=kind;
+  if(w.carryReview)delete w.carryReview[k];
+}
+// Follow only transfers the household actually accepted. Old transfers did not
+// distinguish a suggestion from a kitchen-scale measurement.
+function refreshCarriedStock(k,off=offset){
+  const date=weekKey(off), prefix=data.mode+"/";
+  const recipients=Object.entries(data.weeks).filter(([id,w])=>id.startsWith(prefix) && w.carryFrom?.[k]===date);
+  if(!recipients.length)return;
+  const stock=sourceStock(k,off);
+  if(!stock || stock.unknown)return;
+  for(const [id,dest] of recipients){
+    const n=copyDistance(startDate(settings()),copyDate(id.slice(prefix.length)))/7;
+    if(!Number.isInteger(n) || n<=off || dest.carryKind?.[k]==="manual")continue;
+    const covered=Object.hasOwn(dest.pantryBeforeCheck||{},k);
+    const original=covered?dest.pantryBeforeCheck[k]:dest.pantry[k];
+    if(dest.carryKind?.[k]!=="linked"){
+      if(stock.available!==original)(dest.carryReview||={})[k]=stock.available;
+      else if(dest.carryReview)delete dest.carryReview[k];
+      continue;
+    }
+    if(original===stock.available)continue;
+    if(covered)dest.pantryBeforeCheck[k]=stock.available;
+    else{
+      dest.pantry[k]=stock.available;
+      refreshCarriedStock(k,n);
+    }
+  }
+}
 function carrySuggestion(k){
   const dest=weekData();
-  if(dest.carryFrom?.[k])return null;
+  if(dest.carryFrom?.[k]){
+    if(!Object.hasOwn(dest.carryReview||{},k))return null;
+    const date=dest.carryFrom[k];
+    return {date,review:true,available:dest.carryReview[k],off:offset-copyDistance(copyDate(date),dateAt(0))/7};
+  }
   for(let off=offset-1;;off--){
     const date=plannedDate(off),saved=data.savedWeeks?.[date];
     if(!saved)return null;
-    const source=data.weeks[date]||{},home=source.pantry?.[k]||0;
-    const need=neededGrams(shoppingCounts(savedWeek(saved,weekProfile(off)),off)[k]||0),purchase=source.purchases?.[k];
-    if(!need && !purchase && !source.cart?.[k] && !Object.hasOwn(source.pantry||{},k))continue;
+    const source=data.weeks[date]||{}, stock=sourceStock(k,off);
+    if(!stock.need && !stock.bought && !source.cart?.[k] && !Object.hasOwn(source.pantry||{},k))continue;
     const sourceDate=weekKey(off);
     if(Object.entries(data.weeks).some(([key,w])=>key.startsWith(data.mode+"/") && w.carryFrom?.[k]===sourceDate))return null;
-    const unknown=!!source.cart?.[k] && !purchase;
-    const bought=purchase?.grams||0, available=Math.max(0,home+bought-need);
-    return unknown || available>0 ? {off,date:sourceDate,need,home,bought,unknown,available} : null;
+    return stock.unknown || stock.available>0 ? stock : null;
   }
 }
 // Only an increased ingredient requirement can draw on a weighed, unspent purchase.
@@ -45,6 +89,8 @@ function carryLine(k,need){
   const offer=carrySuggestion(k);
   if(!offer)return "";
   const w=weekData(),manual=Object.hasOwn(w.pantry,k);
+  if(offer.review)return '<div class="carry-line"><strong>По исправленной покупке выходит '+stockMeasure(k,offer.available)+'</strong>'+
+    '<button type="button" class="link" data-action="carry-use" data-id="'+k+'" data-week="'+weekKey()+'">Учесть</button></div>';
   const details=offer.unknown ? "Покупка отмечена без веса." :
     [offer.home && "дома "+stockMeasure(k,offer.home),offer.bought && "куплено "+stockMeasure(k,offer.bought),
       "по меню "+stockMeasure(k,offer.need)].filter(Boolean).join(" · ")+".";
@@ -70,12 +116,10 @@ function carryAmount(info,qty){
   const fromPack=info.offer.unknown && !Object.hasOwn(weekData().pantry,info.id);
   return Math.max(0,Math.round((fromPack?info.offer.home+g-info.offer.need:g)*100)/100);
 }
-function acceptCarry(k,date,source,g){
+function acceptCarry(k,date,source,g,kind){
   if(date!==weekKey() || !Number.isFinite(g) || g<0 || carrySuggestion(k)?.date!==source)return false;
-  const w=weekData();
-  if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
-  w.pantry[k]=g;
-  (w.carryFrom||={})[k]=source;
+  setOpeningStock(weekData(),k,source,g,kind);
+  refreshCarriedStock(k);
   persist();dismissSheet();render();notify("Остаток учтён на "+rangeText());return true;
 }
 sheet.addEventListener("input",e=>{
@@ -87,5 +131,5 @@ sheet.addEventListener("submit",e=>{
   if(e.target.id!=="carry-form" || openInfo?.kind!=="carry")return;
   e.preventDefault();
   const {id,date,offer}=openInfo;
-  if(e.target.reportValidity())acceptCarry(id,date,offer.date,carryAmount(openInfo,Number(e.target.elements.quantity.value)));
+  if(e.target.reportValidity())acceptCarry(id,date,offer.date,carryAmount(openInfo,Number(e.target.elements.quantity.value)),"manual");
 });

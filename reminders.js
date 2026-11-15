@@ -11,14 +11,13 @@ function reminderPacket(flags) {
     const next=kitchenNextWeek(w);
     if (current) {
       const profile=weekProfile(w),week=kitchenWeek(profile,current,next,w);
-      for (const [i,tasks] of week.entries()) {
-        const marked=!!readCookingMark(data.weeks[plannedDate(w)]?.prepDone?.[i]);
+      for (const tasks of week) {
         const cooking=(flags&1)?[...tasks.cook.values()].flatMap(t=>{
           const pending=t.uses.filter(u=>!u.completed);
           return pending.length?[[index(t.r),pending.reduce((n,u)=>n+u.people,0),
             pending.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]]:[];
         }):[];
-        const thaw=!marked && (flags&2) ? tasks.thaw.map(u=>[index(u.r),u.people,u.slot]) : [];
+        const thaw=(flags&2) ? tasks.thaw.filter(u=>!u.thawed).map(u=>[index(u.r),u.people,u.slot]) : [];
         rows.push([cooking,thaw]);
       }
     } else {for(let i=0;i<7;i++) rows.push([[],[]]);}
@@ -41,7 +40,7 @@ function remindersPanel(info) {
   const choices=[[1,"В день готовки","09:00 · блюда и число порций"],[2,"Достать из морозилки","20:00 · накануне завтрака, обеда или ужина"]];
   return '<div class="sheet-body simple reminders-sheet"><h2 id="sheet-title">Напоминания в Telegram</h2><p class="quiet">Выберите, о чём напомнить. Время московское.</p>'+
     choices.map(([flag,title,hint])=>'<label class="reminder-choice"><input type="checkbox" data-reminder-flag="'+flag+'" '+(flags&flag?'checked':'')+'><span><b>'+title+'</b><small>'+hint+'</small></span></label>').join("")+
-    '<p class="fine">План до '+dateText(plusDays(dateAt(0,openingWeek(settings()))>plusDays(today,1)?today:dateAt(0,openingWeek(settings())),20),{day:"numeric",month:"long"})+' включительно. После замены блюда или выбора новой недели передайте обновлённый план. В дни без задач сообщений не будет.</p>'+
+    '<p class="fine">План до '+dateText(plusDays(dateAt(0,openingWeek(settings()))>plusDays(today,1)?today:dateAt(0,openingWeek(settings())),20),{day:"numeric",month:"long"})+' включительно. После отметки о готовке, замены блюда или выбора новой недели передайте боту обновлённый план. В дни без задач сообщений не будет.</p>'+
     (info.command ? '<p class="quiet">Отправьте подготовленное сообщение боту. Он подтвердит даты. Если черновик не открылся, скопируйте команду.</p><textarea aria-label="Команда для бота" readonly class="reminder-command">'+$(info.command)+'</textarea><button type="button" class="link" data-action="reminder-copy">Скопировать команду</button>' : '')+
     '<button type="button" class="btn primary" data-action="reminder-send" '+(!flags?'disabled':'')+'>Передать план боту</button><a class="link" rel="noreferrer" target="_blank" href="https://t.me/budueto_bot?text=%2Fstopreminders">Отключить в чате</a><p class="fine">Команда для отключения — /stopreminders.</p></div>';
 }

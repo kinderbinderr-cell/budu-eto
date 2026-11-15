@@ -91,7 +91,7 @@ function setSavedWeek(week,off=offset) {
     }
     const carry=replacementCarry(savedWeek(base,weekProfile(off)),week,off);
     for(const [k,g] of Object.entries(carry)){
-      const dest=weekData(off);dest.pantry[k]=g;(dest.carryFrom||={})[k]=weekKey(off-1);
+      setOpeningStock(weekData(off),k,weekKey(off-1),g,"linked");
     }
   }
   if(base && record?.cart){
