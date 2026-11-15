@@ -1213,7 +1213,8 @@ function planWeek(
       }
     }
     const requested = desserts?.[d];
-    const dessert = requested && RECIPES.find(r => r.id === requested && allowsDessert(s,r));
+    const dessertId = typeof requested === "string" ? requested : requested?.id;
+    const dessert = dessertId && RECIPES.find(r => r.id === dessertId && allowsDessert(s,r));
     if (pairSearch) {
       const groups=[pools[0],orderedMains,orderedMains];
       const guardedBoundary=(pairCycleStart && d<2) || (pairCycleEnd && d>=5);
@@ -1239,6 +1240,7 @@ function planWeek(
     }
     if (dessert) {
       meals.push({r:dessert, f:servings(s)*dessertPortion, manual:true, sourceSlot:3,
+        sweetMoment:sweetMoment(requested?.moment ?? s.dessertPrefs?.moment),
         personFactors:goals?.map(() => dessertPortion)});
     }
     if (!pairSearch) applyDailyTargets(s,meals);

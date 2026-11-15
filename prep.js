@@ -34,7 +34,7 @@ function kitchenWeek(profile, current, next) {
     for (const [slot,meal] of entry.meals.entries()) {
       const {r,f,personFactors} = meal;
       const {cook,storage} = prepTiming(r,serve,cookDays,slot);
-      const use = {r,f,personFactors,people,cook,serve,slot,storage};
+      const use = {r,f,personFactors,people,cook,serve,slot,storage,sweetMoment:meal.sweetMoment};
       if (days[serve]) days[serve].serve.push(use);
       if (days[cook]) {
         const tasks = days[cook].cook;
@@ -66,7 +66,7 @@ function prepDate(index) {
   return DAYS[(index+7)%7]+" "+dateText(dateAt(index),{day:"numeric",month:"short"});
 }
 function mealWhen(use) {
-  return prepDate(use.serve)+" · "+slotNames[use.slot].toLowerCase();
+  return prepDate(use.serve)+" · "+sweetMealLabel(use,use.slot).toLowerCase();
 }
 function equipmentBadges(r) {
   const required=r.alsoHob && r.equip==="oven" ? ["hob","oven"] : [r.equip];

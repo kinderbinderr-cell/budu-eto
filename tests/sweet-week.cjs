@@ -24,6 +24,10 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
  assert.ok(ids.length>=3);
  assert.ok(await b('sweet-like').locator('img').evaluateAll(async es=>(await Promise.all(es.map(async e=>{await e.decode();return e.naturalWidth>0}))).every(Boolean)));
  for(const el of [b('sweet-like').first(),b('sweet-like').nth(1)])await el.click();
+ // If the user opens weekdays and leaves them blank, keep the chosen automatic frequency.
+ await p.locator('[data-action=sweet-mode][data-value=days]').click();
+ await b('sweet-weekday').nth(6).click();
+ await b('sweet-weekday').nth(6).click();
  await shot(p.locator('#sheet'),1);
  await b('sweet-save').click();
  await p.reload({waitUntil:'domcontentloaded'});
@@ -106,6 +110,32 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
  assert.equal(await p.evaluate(()=>plan().days[1].meals[3].r.id),ids[2]);
  await b('sweet-open').click();await b('sweet-count').first().click();await b('sweet-save').click();
  assert.equal(await p.evaluate(()=>plan().days.filter(d=>d.meals[3]).length),1);
+ // Start from an existing profile and a legacy manually pinned dessert.
+ await p.evaluate(id=>{weekData().desserts={1:id};persist();render()},ids[2]);
+ assert.equal(await p.evaluate(()=>plan().days[1].meals[3].r.id),ids[2]);
+ await b('sweet-open').click();
+ const mode=value=>p.locator('[data-action=sweet-mode][data-value="'+value+'"]');
+ const moment=value=>p.locator('[data-action=sweet-moment][data-value="'+value+'"]');
+ await mode('days').click();
+ await b('sweet-weekday').nth(5).click();await b('sweet-weekday').nth(6).click();
+ await moment('lunch').click();
+ await b('sweet-save').click();
+ await p.reload({waitUntil:'domcontentloaded'});
+ const slotsInView=()=>p.locator('.meal-card .dish-title').evaluateAll(es=>es.map(e=>Number(e.dataset.slot)));
+ await b('sweet-day').last().click();
+ assert.deepEqual(await slotsInView(),[0,1,3,2]);
+ assert.deepEqual(await p.evaluate(()=>[0,1,2].map(i=>plan(null,i).days.flatMap((d,index)=>d.meals[3]?[index]:[]))),[[1,5,6],[5,6],[5,6]]);
+ assert.match(await p.locator('.meal-card').nth(2).textContent(),/после обеда/);
+ assert.match(await p.evaluate(()=>overviewWeek(plan())),/Десерт · после обеда/);
+ const totals=()=>p.evaluate(()=>[plan().counts,plan().macros,weeklyQuote(plan()).cents]);
+ const before=await totals();
+ await b('dessert-open').click();await moment('breakfast').click();await b('sweet-apply-time').click();
+ assert.deepEqual(await slotsInView(),[0,3,1,2]);assert.deepEqual(await totals(),before);
+ assert.match(await p.evaluate(()=>prepDayPanel(prepWeek()[day])),/после завтрака/);
+ await b('sweet-open').click();await mode('auto').click();await moment('snack').click();await b('sweet-save').click();
+ assert.deepEqual(await p.evaluate(()=>plan().days.flatMap((d,i)=>d.meals[3]?[i]:[])),[1,5]);
+ await b('sweet-day').last().click();
+ assert.match(await p.locator('.meal-card').nth(2).textContent(),/на перекус/);
  assert.deepEqual(errors,[]);
  if(process.env.PREVIEW) {
    const board=await browser.newPage({viewport:{width:1260,height:1100},deviceScaleFactor:1.5});
@@ -113,6 +143,6 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
    await board.evaluate(async()=>Promise.all([...document.images].map(i=>i.decode())));
    await board.locator('main').screenshot({path:process.env.PREVIEW});
  }
- console.log(JSON.stringify(features));console.log('Passed: optional, all 8 frequencies, weekly distribution, exclusions, grocery and macro rollups, budget, edits, reload and 3 weeks');
+ console.log(JSON.stringify(features));console.log('Passed: weekdays, automatic fallback, serving order, per-day timing, legacy overrides, all 8 frequencies, weekly distribution, exclusions, grocery and macro rollups, budget, edits, reload and 3 weeks');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

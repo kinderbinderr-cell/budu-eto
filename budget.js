@@ -128,7 +128,15 @@ function budgetPlan(s,n,replacements,prior,phase,previous,desserts) {
   if(sweets.length){
     const base=planWeek(s,n,{},prior,phase,previous,0,null,{});
     if(!base) return null;
-    desserts={...sweetSchedule(s,n,base,sweets),...desserts};
+    const schedule=sweetSchedule(s,n,base,sweets);
+    for(const [day,edit] of Object.entries(desserts || {})){
+      if(edit?.auto) {
+        if(schedule[day]) schedule[day]={id:schedule[day],moment:edit.moment};
+      } else {
+        schedule[day]=edit;
+      }
+    }
+    desserts=schedule;
   }
   if (!hasBudget(s)) return make(replacements);
   const score=budgetScorer(s,{planning:true}), pantry=s.planningPantry?.[n] || {};
