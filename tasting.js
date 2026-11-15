@@ -40,7 +40,7 @@ function startingDiscovery() {
 }
 function tasteContext() {
   let profile, state;
-  if (route === "start" && getFlow().stage === 1) {
+  if (route === "start" && getFlow().stage === 2) {
     const f = getFlow();
     f.votes ||= {};
     profile = {
@@ -109,32 +109,29 @@ function selectedCounts(pool, votes) {
   return {
     chosen,
     b: chosen.filter((r) => r.slot === "b").length,
-    m: chosen.filter((r) => r.slot === "m").length,
+    m: chosen.filter(r=>servingChoices(r).some(i=>i>0)).length,
   };
 }
 function selectionHint(counts) {
   if (counts.b < 2 && counts.m < 2) return "Для чередования отметьте минимум два завтрака и два основных блюда.";
   if (counts.b < 2) return "Для чередования нужно отметить два разных завтрака.";
   if (counts.m < 2) return "Для чередования нужно отметить два разных основных блюда.";
-  if (!counts.chosen.some(r=>r.slot==="m" && fitsMainSlot(r,2)))
+  if (!counts.chosen.some(r=>fitsMainSlot(r,2)))
     return "Пока выбраны только обеденные блюда. Отметьте блюдо с подписью «На ужин» или «Обед или ужин».";
   return "";
 }
 // Credit single-purpose dishes first so a flexible dish can fill the other meal.
 function tasteCredits(recipes, limits) {
-  const counts = [0, 0, 0];
-  let flexible = 0;
-  for (const recipe of recipes) {
-    const role = mealRole(recipe);
-    if (role === "either") flexible++;
-    else {
-      const slot = role === "breakfast" ? 0 : role === "lunch" ? 1 : 2;
-      counts[slot] = Math.min(limits[slot], counts[slot] + 1);
-    }
+  const counts=[0,0,0], flexible=[];
+  for(const r of recipes){
+    const slots=servingChoices(r);
+    if(slots.length===1) counts[slots[0]]=Math.min(limits[slots[0]],counts[slots[0]]+1);
+    else flexible.push(slots);
   }
-  while (flexible-- > 0 && (counts[1] < limits[1] || counts[2] < limits[2])) {
-    const lunch = counts[1] < limits[1] && (counts[2] >= limits[2] || counts[1] <= counts[2]);
-    counts[lunch ? 1 : 2]++;
+  // Assign each flexible like only once. Fill roles with fewer alternatives first.
+  for(const slots of flexible.sort((a,b)=>a[0]-b[0])){
+    const slot=slots.filter(i=>counts[i]<limits[i]).sort((a,b)=>(a===2)-(b===2))[0];
+    if(slot!==undefined) counts[slot]++;
   }
   return counts;
 }
@@ -177,7 +174,7 @@ function offerMissingMeal(ctx) {
   const slots = [0, 1, 2].filter(i => missing[i] > 0);
   if (slots.length !== 1) return;
   const slot = slots[0];
-  const fits = r => slot === 0 ? r.slot === "b" : r.slot === "m" && fitsMainSlot(r, slot);
+  const fits = r => servingChoices(r).includes(slot);
   const i = deck.index;
   const next = deck.ids.findIndex((id, j) => j >= i && fits(byId(id)));
   if (next >= i) {
@@ -243,7 +240,10 @@ function tasteCuisineSheet(info) {
 }
 function tastingPanel() {
   const ctx = tasteContext();
-  return tasteCuisineEntry(ctx.profile.cuisines || []) + tastingCards(ctx);
+  const possible=selectedCounts(ctx.pool,Object.fromEntries(ctx.pool.map(r=>[r.id,1])));
+  const limited=selectionHint(possible) || (!ctx.pool.some(r=>fitsMainSlot(r,1)) ? "Для обеда не нашлось блюд." : "");
+  const help=route==="start" && limited ? `<aside class="flow-details"><strong>${limited}</strong><div class="chips">${button("Добавить кухню","taste-cuisines","soft")}${button("Изменить время","flow-back","outline")}</div></aside>`:"";
+  return tasteCuisineEntry(ctx.profile.cuisines || []) + help + tastingCards(ctx);
 }
 function tastingCards({ pool, votes, deck, profile }) {
   const counts = selectedCounts(pool, votes);
@@ -277,7 +277,7 @@ function tastingCards({ pool, votes, deck, profile }) {
     }
     <div class="taste-end-actions">${left ? button("Посмотреть ещё " + Math.min(left, tastingSize), "taste-more", "soft", "plus") : ""}${counts.chosen.length ? deckLink("Изменить понравившиеся", "taste-picked") : ""}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   const title = $(r.title),
-    type = r.slot === "b" ? "Завтрак" : mealRole(r) === "lunch" ? "На обед" : mealRole(r) === "dinner" ? "На ужин" : "Обед или ужин",
+    type = breakfastDinner.has(r.id) ? "Завтрак или ужин" : r.slot === "b" ? "Завтрак" : mealRole(r) === "lunch" ? "На обед" : mealRole(r) === "dinner" ? "На ужин" : "Обед или ужин",
     traditions = profile.cuisines?.length ? r.cuisines.filter(key => profile.cuisines.includes(key)) : r.cuisines,
     number = deck.index + 1;
   return `<section class="reaction-card" aria-label="Выбор блюда">

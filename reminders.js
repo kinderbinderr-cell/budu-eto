@@ -5,14 +5,15 @@ function reminderPacket(flags) {
     if (!indexes.has(r.id)) { indexes.set(r.id,ids.length); ids.push(r.id); }
     return indexes.get(r.id);
   };
-  let current=plan(null,0);
-  for(let w=0;w<3;w++) {
+  const first=openingWeek(settings());
+  let current=plan(null,first);
+  for(let w=first;w<first+3;w++) {
     const next=plan(null,w+1);
     if (current) {
-      const week=kitchenWeek(settings(),current,next);
+      const week=kitchenWeek(settings(),current,next,w);
       for (const [i,tasks] of week.entries()) {
         const marked=data.weeks[data.mode+"/"+weekKey(w)]?.prepDone?.[i]===prepSignature(tasks);
-        const cooking=!marked && (flags&1) && (!settings().cook.length || settings().cook.includes(i))
+        const cooking=!marked && (flags&1) && (!settings().cook.length || settings().cook.includes(weekdayIndex(settings(),i)))
           ? [...tasks.cook.values()].map(t=>[index(t.r),t.portions,t.uses.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]) : [];
         const thaw=!marked && (flags&2) ? tasks.thaw.map(u=>[index(u.r),u.people,u.slot]) : [];
         rows.push([cooking,thaw]);
@@ -20,7 +21,13 @@ function reminderPacket(flags) {
     } else {for(let i=0;i<7;i++) rows.push([[],[]]);}
     current=next;
   }
-  const d=dateAt(0,0);
+  let d=dateAt(0,first);
+  // The bot accepts an anchor from the last six days through tomorrow.
+  // Pad the beginning when a new menu starts further in the future.
+  if(d>plusDays(today,1)){
+    const gap=Math.round((d-plusDays(today,0))/86400000);
+    rows.unshift(...Array.from({length:gap},()=>[[],[]])); rows.length=21; d=plusDays(today,0);
+  }
   return [1,[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"),flags,ids,rows];
 }
 function reminderEntry() {
@@ -31,7 +38,7 @@ function remindersPanel(info) {
   const choices=[[1,"В день готовки","09:00 · блюда и число порций"],[2,"Достать из морозилки","20:00 · накануне завтрака, обеда или ужина"]];
   return '<div class="sheet-body simple reminders-sheet"><h2 id="sheet-title">Напоминания в Telegram</h2><p class="quiet">Выберите, о чём напомнить. Время московское.</p>'+
     choices.map(([flag,title,hint])=>'<label class="reminder-choice"><input type="checkbox" data-reminder-flag="'+flag+'" '+(flags&flag?'checked':'')+'><span><b>'+title+'</b><small>'+hint+'</small></span></label>').join("")+
-    '<p class="fine">План до '+dateText(dateAt(6,2),{day:"numeric",month:"long"})+' включительно. После замены блюда или выбора новой недели передайте обновлённый план. В дни без задач сообщений не будет.</p>'+
+    '<p class="fine">План до '+dateText(plusDays(dateAt(0,openingWeek(settings()))>plusDays(today,1)?today:dateAt(0,openingWeek(settings())),20),{day:"numeric",month:"long"})+' включительно. После замены блюда или выбора новой недели передайте обновлённый план. В дни без задач сообщений не будет.</p>'+
     (info.command ? '<p class="quiet">Отправьте подготовленное сообщение боту. Он подтвердит даты. Если черновик не открылся, скопируйте команду.</p><textarea aria-label="Команда для бота" readonly class="reminder-command">'+$(info.command)+'</textarea><button type="button" class="link" data-action="reminder-copy">Скопировать команду</button>' : '')+
     '<button type="button" class="btn primary" data-action="reminder-send" '+(!flags?'disabled':'')+'>Передать план боту</button><a class="link" rel="noreferrer" target="_blank" href="https://t.me/budueto_bot?text=%2Fstopreminders">Отключить в чате</a><p class="fine">Команда для отключения — /stopreminders.</p></div>';
 }

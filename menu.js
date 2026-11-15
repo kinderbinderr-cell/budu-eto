@@ -748,13 +748,13 @@ function pairDayMeals(search,meals,options,priority) {
   const distinct=choices[1].some(lunch=>choices[2].some(dinner=>lunch.r!==dinner.r));
   const permitted=(lunch,dinner)=>!distinct || lunch!==dinner;
   const pairVariety=(l,u)=>Number(sameDishStyle(l,u))*5+Number(mainFamily(l)===mainFamily(u))*3;
-  const baselineAllowed=base.every((r,i)=>options[i].includes(r)) && permitted(base[1],base[2]);
+  const baselineAllowed=base.every((r,i)=>options[i].includes(r)) && permitted(base[1],base[2]) && base[0]!==base[2];
   let best=baselineAllowed ? search.assess(base) : {worst:Infinity,sum:Infinity};
   let selected=base;
   let bestPriority=baselineAllowed ? base.reduce((sum,r,i)=>sum+priority(r,i),0)+pairVariety(base[1],base[2]) : Infinity;
   const queue=[];
   for(const breakfast of choices[0]) for(const lunch of choices[1]) for(const dinner of choices[2]) {
-    if(!permitted(lunch.r,dinner.r)) continue;
+    if(!permitted(lunch.r,dinner.r) || breakfast.r===dinner.r) continue;
     const bound=search.lowerBound(breakfast.vector,lunch.vector,dinner.vector,best.worst);
     if(bound>best.worst+1e-10) continue;
     const order=breakfast.priority+lunch.priority+dinner.priority+pairVariety(lunch.r,dinner.r);
@@ -772,6 +772,7 @@ function pairDayMeals(search,meals,options,priority) {
       best=fit; selected=recipes; bestPriority=order;
     }
   }
+  if(!best.portions) best=search.assess(selected);
   meals.forEach((m,i)=>{
     m.r=selected[i];
     m.personFactors=best.portions.map(row=>row[i]);
@@ -797,12 +798,12 @@ const sequence = [
 ];
 function groupStart(s, day) {
   let first = day;
-  while (first > 0 && !s.cook.includes(first)) first--;
+  while (first > 0 && !s.cook.includes(weekdayIndex(s,first))) first--;
   return first;
 }
 function batchDays(s, day) {
   const start = groupStart(s, day);
-  const next = Math.min(7, ...s.cook.filter(d => d > start));
+  const next = Math.min(7, ...DAYS.map((_,i)=>i).filter(i=>i>start && s.cook.includes(weekdayIndex(s,i))));
   return Array.from({ length: next - start }, (_, i) => start + i);
 }
 function fitsCuisines(profile, recipe) {
@@ -815,11 +816,11 @@ function eligible(s, r) {
   );
 }
 function manualCandidate(s, r, slot) {
-  return Boolean(r && r.slot === (slot === 0 ? "b" : "m") && fitsCuisines(s,r) && allowed(s,r) && s.votes[r.id] !== -1);
+  return Boolean(r && servingChoices(r).includes(slot) && fitsCuisines(s,r) && allowed(s,r) && s.votes[r.id] !== -1);
 }
 function candidates(s, slot) {
   return RECIPES.filter(
-    (r) => r.slot === (slot === 0 ? "b" : "m") && eligible(s, r),
+    (r) => (slot===0 ? servingChoices(r).includes(0) : servingChoices(r).some(i=>i>0)) && eligible(s, r),
   );
 }
 const familyCache = new WeakMap();
@@ -896,9 +897,14 @@ function mealRole(r) {
   if (["tray","fish","mustardChicken","lemonPollock","herbChickenRolls","pollockCakes","pumpkinSalmon"].includes(r.id)) return "dinner";
   return "either";
 }
-function fitsMainSlot(r,slot) {
+const breakfastDinner=new Set(["herbOmelet","shakshuka","rb039","rb040","rb048","rb049","wemenemen","wmTortilla","nekuku","rqKaygana"]);
+function servingChoices(r) {
+  if(r.slot==="b") return breakfastDinner.has(r.id)?[0,2]:[0];
   const role=mealRole(r);
-  return role==="either" || role===(slot===1?"lunch":"dinner");
+  return role==="lunch"?[1]:role==="dinner"?[2]:[1,2];
+}
+function fitsMainSlot(r,slot) {
+  return servingChoices(r).includes(slot);
 }
 function slotPool(pool,slot) {
   if (!slot) return pool;
@@ -1050,7 +1056,7 @@ function planWeek(
     [...pools[0]].sort((a,b)=>b.macros[0]/b.kcal-a.macros[0]/a.kcal)
       .forEach((r,index)=>boundarySide.set(r,index%2));
     let index=0;
-    for(const role of ["lunch","dinner","either"]) {
+    for(const role of ["lunch","dinner","either","breakfast"]) {
       orderedMains.filter(r=>mealRole(r)===role).sort((a,b)=>b.macros[0]/b.kcal-a.macros[0]/a.kcal)
         .forEach(r=>boundarySide.set(r,index++%2));
     }
@@ -1212,9 +1218,24 @@ function planWeek(
         meals[slot]={...meals[slot],r,f:factor(s,r,slot)};
       }
     }
+    const needsNight=r=>r.id==="oatjar" || r.id==="rcOatKissel";
+    const firstMorning=s.startDate && weekOffset===s.tasteAnchor && d===0;
+    if(firstMorning && needsNight(meals[0].r)){
+      const r=pools[0].find(x=>!needsNight(x) && !meals.slice(1).some(m=>m.r===x));
+      if(r) meals[0]={...meals[0],r,f:factor(s,r,0)};
+    }
     const requested = desserts?.[d];
     const dessertId = typeof requested === "string" ? requested : requested?.id;
     const dessert = dessertId && RECIPES.find(r => r.id === dessertId && allowsDessert(s,r));
+    // Keep the approved serving roles even when a parity window has no suitable recipe.
+    for(const slot of [1,2]){
+      if(fitsMainSlot(meals[slot].r,slot) && meals.filter(m=>m.r===meals[slot].r).length===1) continue;
+      const alternatives=orderedMains.filter(r=>fitsMainSlot(r,slot) && !repeated.has(r.id) && !meals.some((m,i)=>i!==slot && m.r===r));
+      if(!meals[slot].manual && alternatives.length){
+        const r=alternatives.reduce((a,b)=>(timesServed.get(a)||0)<=(timesServed.get(b)||0)?a:b);
+        meals[slot]={...meals[slot],r,f:factor(s,r,slot)};
+      }
+    }
     if (pairSearch) {
       const groups=[pools[0],orderedMains,orderedMains];
       const guardedBoundary=(pairCycleStart && d<2) || (pairCycleEnd && d>=5);
@@ -1226,7 +1247,8 @@ function planWeek(
         const available=group.filter(r=>!repeated.has(r.id));
         const restricted=guardedBoundary ? available.filter(r=>boundarySide.get(r)===boundaryParity) : available;
         const pool=restricted.length?restricted:available;
-        return i===0 ? pool : slotPool(pool,i);
+        const suitable=i===0 ? pool.filter(r=>!firstMorning || !needsNight(r)) : pool.filter(r=>fitsMainSlot(r,i));
+        return suitable.length ? suitable : [meals[i].r];
       });
       const leftovers=!pickDay && days.at(-1)?.meals;
       const priority=(r,slot)=>{
@@ -1258,8 +1280,8 @@ function planWeek(
       meals,
       start,
       pickDay,
-      freshly: s.cook.includes(d),
-      prep: d === 0 && !s.cook.includes(0),
+      freshly: s.cook.includes(weekdayIndex(s,d)),
+      prep: d === 0 && !s.cook.includes(weekdayIndex(s,0)),
     });
     macros.push(daily);
   }

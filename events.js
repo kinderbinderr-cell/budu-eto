@@ -40,8 +40,8 @@ function restartMenu() {
   location.reload();
 }
 function changeWeek(delta) {
-  offset += delta;
-  day = offset === 0 ? todayIndex : 0;
+  offset = settings().startDate ? Math.max(0,offset+delta) : offset+delta;
+  day = currentDay(offset);
   render();
 }
 function markFavorite(id) {
@@ -62,10 +62,10 @@ function markFavorite(id) {
 }
 function replaceMeal(id, d, slot, oneDayAnalog = false) {
   const recipe = byId(id);
-  if (!manualCandidate(settings(), recipe, slot)) return;
+  if (!canPlace(settings(), recipe, slot)) return;
   if (oneDayAnalog ? !dishSimilarity(plan().days[d].meals[slot].r, recipe) : !eligible(settings(), recipe)) return;
   const key="day:"+d+"-"+slot;
-  if (!plan({[key]:id})) {
+  if (plan({[key]:id})?.days[d].meals[slot]?.r.id!==id) {
     notify("Эта замена не оставляет блюда для чередования. Выберите другое блюдо или добавьте ещё одно в «Что хочется съесть?».");
     return;
   }
@@ -183,6 +183,8 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "shopping-mode":
+      data.shoppingMode=value; persist(); render(); break;
     case "dessert-open":
       openSheet({kind:"dessert"}); break;
     case "dessert-pick":
@@ -243,6 +245,7 @@ document.addEventListener("click", (e) => {
       break;
     case "jump-week":
       changeWeek(Number(value) - offset);
+      if(openInfo?.kind==="all-week") renderSheet();
       break;
     case "settings":
       if (sheet.open) {
@@ -268,7 +271,7 @@ document.addEventListener("click", (e) => {
       changeWeek(1);
       break;
     case "thisweek":
-      changeWeek(-offset);
+      changeWeek(openingWeek(settings())-offset);
       break;
     case "recipe":
       openSheet({
@@ -292,7 +295,7 @@ document.addEventListener("click", (e) => {
         kind: "place",
         id,
         day,
-        slot: byId(id).slot === "b" ? 0 : 1,
+        slot: placementSlots(byId(id))[0],
       });
       break;
     case "place-day":
@@ -566,8 +569,16 @@ main.addEventListener("change", (e) => {
     main.querySelector("[data-goal-ranges]").focus({preventScroll:true});
     return;
   }
+  const cartKey=e.target.dataset.cart;
+  if(cartKey){
+    const w=weekData(); w.cart ||= {};
+    if(e.target.checked) w.cart[cartKey]=remainingGrams(cartKey,plan().counts[cartKey]);
+    else delete w.cart[cartKey];
+    persist(); render(); return;
+  }
   if (!e.target.dataset.pantry) return;
   const k = e.target.dataset.pantry;
+  if(weekData().cart) delete weekData().cart[k];
   weekData().pantry[k] = e.target.checked ? neededGrams(plan().counts[k]) : 0;
   persist();
   render();
@@ -592,6 +603,7 @@ sheet.addEventListener("click", (e) => {
 addEventListener("storage", event => {
   if (event.key !== key || !event.newValue) return;
   const latest = loadData();
+  if (latest.quizDone && !data.quizDone) { location.reload(); return; }
   if (budgetSuggestion && latest.quizRun===data.quizRun) {
     Object.assign(data,latest); budgetSuggestion=null; render(); return;
   }
@@ -602,7 +614,7 @@ addEventListener("storage", event => {
 });
 addEventListener("popstate", () => {
   if (sheet.open && !history.state?.mealSheet) dismissSheet(false);
-  if (history.state?.foodQuiz && history.state.snapshot && history.state.snapshot.run === data.quizRun) {
+  if (!data.quizDone && history.state?.foodQuiz && history.state.snapshot && history.state.snapshot.run === data.quizRun) {
     if (route === "start" && flow?.stage === history.state.snapshot.stage) {
       // Returning from the cuisine picker keeps the same card, keyboard focus and scroll.
       rememberFlow();
@@ -680,5 +692,6 @@ if (legacy) {
   }
 }
 render();
+retainUpcomingMenus();
 bindTelegram();
 if(data.quizDone && new URLSearchParams(location.search).get("section")==="reminders" && plan()) openSheet({kind:"reminders",flags:0});

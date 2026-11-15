@@ -1,15 +1,16 @@
 /* Four short questions share the same recipe and portion rules as the weekly planner. */
 const flowTitles = [
   "Для кого готовим?",
-  "Что хочется съесть?",
   "Сколько времени на блюдо?",
+  "Что хочется съесть?",
   "Сколько потратим за неделю?",
 ];
-const flowLabels = ["За столом", "Ваши вкусы", "Время готовки", "Бюджет и магазины"];
+const flowLabels = ["За столом", "Время готовки", "Ваши вкусы", "Бюджет и магазины"];
 const flowKey = "zastol-onboarding-v3";
 let flow = null;
 function firstFlow() {
   return {
+    orderVersion: 2,
     stage: 0,
     run: data.quizRun,
     who: "",
@@ -31,7 +32,8 @@ function firstFlow() {
 function restoreFlow(saved) {
   const fresh = { ...firstFlow(), ...saved };
   if (saved.cuisines === undefined && (saved.deck || Object.keys(saved.votes || {}).length)) fresh.cuisines = [];
-  if (!saved.votes && fresh.stage > 1) fresh.stage = 1;
+  if(!saved.orderVersion && fresh.stage>0 && fresh.stage<3) fresh.stage=fresh.minutes==null?1:2;
+  if (!saved.votes && fresh.stage > 2) fresh.stage = 2;
   return fresh;
 }
 function getFlow() {
@@ -150,7 +152,7 @@ function choiceChip(action, k, t, active) {
 }
 function flavorQuestion() {
   return (
-    tastingPanel() +
+    `<button class="link" data-action="flow-back" type="button">${flow.minutes?"До "+flow.minutes+" минут":"Без ограничения по времени"} · Изменить</button>` + tastingPanel() +
     `<details class="flow-details"${flow.diet !== "all" || flow.exclude.length ? " open" : ""}><summary>Тип питания и исключения</summary><div class="chips">${Object.entries(
       diets,
     )
@@ -180,12 +182,21 @@ function timeQuestion() {
   );
 }
 function flowPortions(f) { return f.who==="self"?1:f.who==="two"?2:f.adults+f.small*0.5; }
+function flowStartDate(f) {
+  return plusDays(today,f.startChoice==="monday" ? (7-todayIndex) : 0);
+}
+function startChoiceRow(f) {
+  const period=date=>dateText(date,{day:"numeric",month:"short"})+" – "+dateText(plusDays(date,6),{day:"numeric",month:"short"});
+  const label="Меню на 7 дней · "+period(flowStartDate(f));
+  return `<details class="flow-details start-period"><summary>${label}</summary>
+    <div class="chips">${["today","monday"].map(v=>choiceChip("flow-start-date",v,(v==="today"?"С сегодняшнего дня":"С понедельника")+" · "+period(flowStartDate({startChoice:v})),(f.startChoice||"today")===v)).join("")}</div></details>`;
+}
 function storeQuestion() {
   return (
     budgetFields(flowPortions(flow), flow.budget, "flow") +
     sweetEntry(flowProfile(flow),"flow") +
     '<h2 class="budget-shop-title">Где покупаете продукты?</h2>' + shopPicker(flow.stores, "flow-store") +
-    `<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>`
+    `<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>` + startChoiceRow(flow)
   );
 }
 function flowProgress(stage, className) {
@@ -210,18 +221,18 @@ function funnelPage() {
   const first = s === 0;
   const subtitles = [
     null,
-    "Смахните вправо, если хочется попробовать, или нажмите «Хочу в меню».",
     "Время на одну-две порции, включая плиту и духовку. Для большой партии понадобится дольше.",
+    "Смахните вправо, если хочется попробовать, или нажмите «Хочу в меню».",
     "Один бюджет на всю неделю. Ниже можно добавить десерты и выбрать магазин.",
   ];
   const pictures = [null, ["syrniki", "Сырники с малиной"], ["chickenOrzo", "Орзо с курицей"], ["mushroomBuck", "Гречка с шампиньонами"]];
   const visual = first ? sampleDay() : `<div class="flow-visual panel-${s}"><img src="assets/${pictures[s][0]}.webp" alt="" fetchpriority="high"><div class="flow-visual-copy"><span>Ваше меню</span><em>на неделю</em></div><small>${pictures[s][1]}</small></div>`;
   const progress = first ? "" : `<div class="flow-progress"><span>Шаг ${s + 1} из 4</span><b>${flowLabels[s]}</b>${flowProgress(s, "flow-segments")}</div>`;
   const heading = first ? `<h2>${flowTitles[s]}</h2>` : `<h1>${flowTitles[s]}</h1><p class="flow-intro">${subtitles[s]}</p>`;
-  const taste = s === 1 ? tasteReadiness(tasteContext()) : null;
-  const submit = ["К выбору блюд", "Дальше", "Дальше", "Собрать моё меню"][s];
-  return `<div class="flow-shell ${first ? "welcome-step" : s === 1 ? "tasting-step" : ""}">${visual}<section class="flow-form">${progress}
-    <form id="flow-form">${heading}<div class="flow-options">${[peopleQuestion, flavorQuestion, timeQuestion, storeQuestion][s]()}</div>
+  const taste = s === 2 ? tasteReadiness(tasteContext()) : null;
+  const submit = ["Дальше", "К выбору блюд", "Дальше", "Собрать моё меню"][s];
+  return `<div class="flow-shell ${first ? "welcome-step" : s === 2 ? "tasting-step" : ""}">${visual}<section class="flow-form">${progress}
+    <form id="flow-form">${heading}<div class="flow-options">${[peopleQuestion, timeQuestion, flavorQuestion, storeQuestion][s]()}</div>
     <p id="flow-error" role="alert"></p>${taste ? tasteProgressDetails(taste) : ""}<div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste && !taste.complete ? 'disabled aria-describedby="taste-progress"' : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
   </section></div>`;
 }
@@ -229,6 +240,7 @@ function flowProfile(f) {
   const mode = f.who === "self" ? "personal" : "family";
   const s = {
     ...initial(mode),
+    startDate: localDayKey(flowStartDate(f)),
     dessertPrefs: f.dessertPrefs && structuredClone(f.dessertPrefs),
     diet: f.diet,
     exclude: [...f.exclude],
@@ -281,6 +293,7 @@ function handleFlowAction(action, value, el) {
   }
   const wasOpen = el.closest("details")?.open;
   changeFlow((f) => {
+    if (action === "flow-start-date") f.startChoice=value;
     if (action === "flow-who") f.who = value;
     if (action === "flow-diet") f.diet = value;
     if (action === "flow-exclude") f.exclude = toggleValue(f.exclude, value);
@@ -306,6 +319,12 @@ function handleFlowAction(action, value, el) {
   return true;
 }
 function submitFlow() {
+  // A stale questionnaire (browser Back or another tab) must not overwrite a finished menu.
+  const stored=loadData();
+  if(data.quizDone || stored.quizDone || stored.quizRun!==data.quizRun){
+    location.reload();
+    return;
+  }
   const f = getFlow(),
     error = document.querySelector("#flow-error");
   if (f.stage === 0 && !f.who) {
@@ -326,23 +345,17 @@ function submitFlow() {
       }
     }
   }
-  if (f.stage === 1) {
+  if (f.stage === 2) {
     const taste = tasteReadiness(tasteContext());
     if (!taste.complete) {
       error.textContent = taste.hint;
       return;
     }
   }
-  if (f.stage === 2) {
+  if (f.stage === 1) {
     if (f.minutes === null || !f.cook.length) {
       error.textContent =
         "Выберите время на блюдо и хотя бы один день готовки.";
-      return;
-    }
-    const trial = flowProfile(f);
-    const hint = selectionHint(selectedCounts(tastePool(trial),trial.votes));
-    if (hint) {
-      error.textContent = hint+" С выбранным лимитом времени можно вернуться к блюдам или увеличить лимит.";
       return;
     }
   }
@@ -355,17 +368,11 @@ function submitFlow() {
   if (sweetFrequency(s.dessertPrefs) && !sweetLikes(s).length) { error.textContent="Для новых настроек выберите десерт ещё раз или укажите 0 дней."; return; }
   data.mode = s.mode;
   data[s.mode] = s;
+  s.tasteAnchor=weekSeed(0);
   clearDiscovery(s.mode);
   data.quizDone = true;
-  for (const [wk, record] of Object.entries(data.weeks))
-    if (wk.startsWith(s.mode + "/")) {
-      record.replacements = {};
-      delete record.nutritionSwaps;
-      delete record.budgetEdits;
-      delete record.desserts;
-    }
   offset = 0;
-  day = todayIndex;
+  day = 0;
   persist();
   flow = null;
   try {
@@ -373,5 +380,6 @@ function submitFlow() {
   } catch {}
   miniStats.built();
   navTo("week");
+  retainUpcomingMenus();
   notify("Ваше меню на семь дней готово");
 }

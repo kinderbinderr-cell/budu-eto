@@ -1,6 +1,7 @@
 // These photographed recipes also work as a small sweet course or snack.
 const dessertIds = new Set([
   "rb063", "rb082", "rb058", "rb067", "rb059", "rb065", "rb068", "rb094",
+  "syrniki","rb024","rb064","rb079","rb080","rb097","rwPapanasi","ncPannukakku",
   "rb098", "rb062", "carrotYogurt", "rwWahe", "reBchak", "ncKutia",
 ]);
 const dessertPortion = 0.5;
@@ -44,7 +45,7 @@ function dessertPanel() {
     <img src="${photo(r)}" alt=""><span><b>${$(r.title)}</b><small>${cookingTime(r)} · ${Math.round(r.kcal * dessertPortion)} ккал на порцию</small></span>
     ${icon(current === r.id ? "check" : "plus", 17)}</button>`).join("");
   return `<div class="sheet-body simple"><h2 id="sheet-title">Выберите десерт</h2>
-    <p class="quiet">${dayNames[day]} · ингредиенты войдут в покупки на неделю.</p>
+    <p class="quiet">${dayName(day)} · ингредиенты войдут в покупки на неделю.</p>
     ${momentPicker(timing)}
     ${current && timing!==meal.sweetMoment ? button("Сохранить время подачи","sweet-apply-time","primary") : ""}
     <div class="options-list">${rows || "<p>Подходящих десертов пока нет. Можно расширить выбор кухонь или время готовки.</p>"}</div>
@@ -85,7 +86,7 @@ function sweetTimes(n) {
 }
 function sweetEntry(profile, scope, p) {
   const f=sweetFrequency(profile.dessertPrefs);
-  const days=p ? p.days.flatMap((d,i)=>d.meals[3] ? [DAYS[i]] : []) : chosenWeekdays(profile.dessertPrefs).map(i=>DAYS[i]);
+  const days=p ? p.days.flatMap((d,i)=>d.meals[3] ? [shortDay(i)] : []) : chosenWeekdays(profile.dessertPrefs).map(i=>DAYS[i]);
   const caption=days.length ? days.join(" · ") : p && f ? "На этой неделе нет десертов" : f ? sweetTimes(f) : "По желанию";
   const first=sweetLikes(profile)[0] || sweetOptions(profile)[0];
   return '<button type="button" class="sweet-entry" data-action="sweet-open" data-scope="'+scope+'">'+
@@ -96,7 +97,7 @@ function sweetAgenda(p) {
   const days=p.days.flatMap((d,i)=>d.meals[3]?[{r:d.meals[3].r,i}]:[]);
   if(!days.length) return "";
   return '<div class="sweet-agenda" aria-label="Дни с десертом">'+days.map(({r,i})=>
-    `<button type="button" data-action="sweet-day" data-day="${i}"><img src="${photo(r)}" alt=""><span><small>${dayNames[i]} · ${sweetMoments[p.days[i].meals[3].sweetMoment].toLowerCase()}</small><strong>${$(r.title)}</strong></span>${icon("right",15)}</button>`).join("")+'</div>';
+    `<button type="button" data-action="sweet-day" data-day="${i}"><img src="${photo(r)}" alt=""><span><small>${dayName(i)} · ${sweetMoments[p.days[i].meals[3].sweetMoment].toLowerCase()}</small><strong>${$(r.title)}</strong></span>${icon("right",15)}</button>`).join("")+'</div>';
 }
 function sweetEditor(info) {
   const options=sweetOptions(info.profile);
@@ -167,7 +168,7 @@ function sweetSchedule(s,n,base,options) {
   const out={}, usage=new Map();
   let counts=base.counts;
   const selected=chosenWeekdays(s.dessertPrefs);
-  const days=selected.length ? selected : Array.from({length:count},(_,j)=>Math.floor((j+.5)*7/count));
+  const days=selected.length ? DAYS.map((_,i)=>i).filter(i=>selected.includes(weekdayIndex(s,i))) : Array.from({length:count},(_,j)=>Math.floor((j+.5)*7/count));
   for(const [j,d] of days.entries()){
     const original=base.days[d].meals.slice(0,3);
     const trials=options.map((r,k)=>{

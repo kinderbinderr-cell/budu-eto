@@ -105,7 +105,7 @@ function nutritionSwapPreview(offer) {
     const from=weeklyQuote(current).cents, to=weeklyQuote(adjusted).cents;
     if(Math.round(from/100)!==Math.round(to/100)) budgetNote=" Закупка на неделю: примерно "+money(from/100)+" сейчас и "+money(to/100)+" после.";
   }
-  return `<div class="sheet-body simple swap-preview"><p class="quiet">${dayNames[offer.d]} · ${slotNames[offer.slot].toLowerCase()}</p><h2 id="sheet-title">Что изменится за день</h2><div class="swap-recipe"><img src="${photo(offer.r)}" alt=""><div><strong>${$(offer.r.title)}</strong><small>Вместо «${$(offer.old.title)}»</small></div></div><p>${status}</p>${table}<p class="quiet">${offer.liked?"Из понравившихся блюд.":"Новое для вашего меню."} Замена только на этот день. Список покупок обновится.${budgetNote}</p><div class="swap-preview-actions">${button("Применить замену","nutrition-swap-apply","primary")}${button("Оставить как есть","close","outline")}</div></div>`;
+  return `<div class="sheet-body simple swap-preview"><p class="quiet">${dayName(offer.d)} · ${slotNames[offer.slot].toLowerCase()}</p><h2 id="sheet-title">Что изменится за день</h2><div class="swap-recipe"><img src="${photo(offer.r)}" alt=""><div><strong>${$(offer.r.title)}</strong><small>Вместо «${$(offer.old.title)}»</small></div></div><p>${status}</p>${table}<p class="quiet">${offer.liked?"Из понравившихся блюд.":"Новое для вашего меню."} Замена только на этот день. Список покупок обновится.${budgetNote}</p><div class="swap-preview-actions">${button("Применить замену","nutrition-swap-apply","primary")}${button("Оставить как есть","close","outline")}</div></div>`;
 }
 function confirmNutritionSwap() {
   const info=openInfo;

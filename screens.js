@@ -219,12 +219,12 @@ function recipeDetail(info) {
   const one = isPlanned ? p.days[day].meals[info.slot].f : 1;
   let batchFactor=one, mealCount=1;
   if (isPlanned) {
-    const timing=prepTiming(r,day,settings().cook,info.slot);
-    const cook=timing.cook;
+    const timing=prepTiming(r,day,DAYS.map((_,i)=>i).filter(i=>settings().cook.includes(weekdayIndex(settings(),i))),info.slot);
+    const cook=settings().startDate && offset===0 ? Math.max(0,timing.cook) : timing.cook;
     // A serving early in the week may belong to the previous week's last cooking day.
     const weekOfCook = offset + (cook<0 ? -1 : 0);
     const current=plan(null,weekOfCook), next=plan(null,weekOfCook+1);
-    const task=current && kitchenWeek(settings(),current,next)[(cook+7)%7].cook.get(r.id);
+    const task=current && kitchenWeek(settings(),current,next,weekOfCook)[(cook+7)%7].cook.get(r.id);
     if(task) { batchFactor=task.factor; mealCount=task.uses.length; }
   }
   const mult=prepTask ? prepTask.factor : info.batch ? batchFactor : one;
@@ -255,7 +255,7 @@ function recipeDetail(info) {
   const photoCredit=credit ? `<p class="photo-credit">${credit.illustrative ? "Фото: пример подачи" : "Фото"} · <a href="${$(credit.source)}" target="_blank" rel="noopener noreferrer">${$(credit.author)}</a> · <a href="${$(credit.licenseUrl)}" target="_blank" rel="noopener noreferrer">${$(credit.license)}</a> · уменьшено для экрана, возможно кадрирование</p>` : "";
   const perPortion = value => isPlanned ? Math.round(value * (one / servings(settings()))) : bookNumber.format(value);
   const kcal = perPortion(r.kcal);
-  return `<div class="detail-cover"><img src="${photo(r)}" alt="${$(r.title)}"></div><div class="sheet-body"><div class="detail-meta">${icon("clock", 16)} ${cookingTime(r)} <i></i> ${equipmentBadges(r)}</div><h2 id="sheet-title">${r.title}</h2>${cuisineLine}${isPlanned && p.days[day].meals[info.slot].personFactors ? individualFacts(p.days[day].meals[info.slot]) : `<div class="detail-facts"><span><b>${kcal}</b> ккал</span>${r.macros.map((m, i) => `<span><b>${perPortion(m)}</b> ${["Б", "Ж", "У"][i]}, г</span>`).join("")}</div><p class="fine">На ${isPlanned && data.mode === "personal" ? "вашу" : "одну полную"} порцию · ориентировочно</p>`}<div class="sheet-section"><h3>Ингредиенты</h3>${isPlanned && mealCount > 1 ? `<div class="seg small"><button type="button" data-action="batch" data-value="one" aria-pressed="${!info.batch}">На один приём</button><button type="button" data-action="batch" data-value="all" aria-pressed="${!!info.batch}">На ${mealCount} ${plural(mealCount, "приём", "приёма", "приёмов")}</button></div>` : ""}<p class="quiet">${prepTask ? portions(prepTask.portions)+" по плану готовки" : isPlanned ? `${data.mode === "family" ? portions(servings(settings())) : "1 личная порция"}${info.batch ? " на каждый приём, продукты на весь период готовки" : " на этот приём пищи"}` : "На одну порцию"}</p>${r.items.map(([k, g]) => `<div class="ingredient"><span>${FOOD[k][0]}</span><i></i><b>${kitchenAmount(k, g * mult)}</b></div>`).join("")}</div><div class="sheet-section"><h3>Как приготовить</h3>${(isPlanned || prepTask) && (r.homeCooking || r.photoCredit) && Math.abs(mult-1)>0.01 ? `<p class="fine">В шагах количество воды указано на одну порцию; для вашей готовки умножьте его на ${Number(mult.toFixed(2)).toLocaleString("ru-RU")}.</p>` : ""}<ol class="directions">${stepList.map((x) => `<li>${$(x.trim())}</li>`).join("")}</ol>${[
+  return `<div class="detail-cover"><img src="${photo(r)}" alt="${$(r.title)}"></div><div class="sheet-body"><div class="detail-meta">${icon("clock", 16)} ${cookingTime(r)} <i></i> ${equipmentBadges(r)}</div><h2 id="sheet-title">${r.title}</h2>${cuisineLine}${isPlanned && p.days[day].meals[info.slot].personFactors ? individualFacts(p.days[day].meals[info.slot]) : `<div class="detail-facts"><span><b>${kcal}</b> ккал</span>${r.macros.map((m, i) => `<span><b>${perPortion(m)}</b> ${["Б", "Ж", "У"][i]}, г</span>`).join("")}</div><p class="fine">На ${isPlanned && data.mode === "personal" ? "вашу" : "одну полную"} порцию · ориентировочно</p>`}<div class="sheet-section"><h3>Ингредиенты</h3>${isPlanned && mealCount > 1 ? `<div class="seg small"><button type="button" data-action="batch" data-value="one" aria-pressed="${!info.batch}">На один приём</button><button type="button" data-action="batch" data-value="all" aria-pressed="${!!info.batch}">На ${mealCount} ${plural(mealCount, "приём", "приёма", "приёмов")}</button></div>` : ""}<p class="quiet">${prepTask ? prepBatchText(prepTask)+" по плану готовки" : isPlanned ? `${data.mode === "family" ? household(settings()) : "1 личная порция"}${info.batch ? " на каждый приём, продукты на весь период готовки" : " на этот приём пищи"}` : "На одну порцию"}</p>${r.items.map(([k, g]) => `<div class="ingredient"><span>${FOOD[k][0]}</span><i></i><b>${kitchenAmount(k, g * mult)}</b></div>`).join("")}</div><div class="sheet-section"><h3>Как приготовить</h3>${(isPlanned || prepTask) && (r.homeCooking || r.photoCredit) && Math.abs(mult-1)>0.01 ? `<p class="fine">В шагах количество воды указано на одну порцию; для вашей готовки умножьте его на ${Number(mult.toFixed(2)).toLocaleString("ru-RU")}.</p>` : ""}<ol class="directions">${stepList.map((x) => `<li>${$(x.trim())}</li>`).join("")}</ol>${[
 
     panNote,
   ]
@@ -267,14 +267,14 @@ function recipeDetail(info) {
 }
 function blockText(d) {
   const b = batchDays(settings(), d);
-  return b.length === 1 ? DAYS[d] : DAYS[b[0]] + " – " + DAYS[b[b.length - 1]];
+  return b.length === 1 ? shortDay(d) : shortDay(b[0]) + " – " + shortDay(b[b.length - 1]);
 }
 function swapPanel(info) {
   const p = plan(),
     r = p.days[day].meals[info.slot].r;
   const s = settings(), other = p.days[day].meals.filter((_,i)=>i!==info.slot).map(m=>m.r.id);
-  const choices = similarOptions(r, RECIPES.filter(x=>manualCandidate(s,x,info.slot)), s.votes, other).slice(0,8);
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Чем заменить ${["завтрак","обед","ужин"][info.slot]}?</h2><p class="quiet">${$(r.title)} · ${DAYS[day]}. Выберите похожее блюдо на этот день. Список покупок обновится.</p><div class="options-list">${choices.map(({r:x,match}) => `<button type="button" data-action="choose-swap" data-id="${x.id}" data-slot="${info.slot}"><img src="${photo(x)}" alt=""><span><b>${$(x.title)}</b><small>${$(match.reason)} · ${cookingTime(x)}</small><small>${s.votes[x.id]===1 ? "Уже нравится" : "Только на этот день"}</small></span>${icon("right", 18)}</button>`).join("") || "<p>Среди подходящих рецептов не нашлось аналога. Можно выбрать другое блюдо в книге рецептов.</p>"}</div></div>`;
+  const choices = similarOptions(r, RECIPES.filter(x=>canPlace(s,x,info.slot)), s.votes, other).slice(0,8);
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Чем заменить ${["завтрак","обед","ужин"][info.slot]}?</h2><p class="quiet">${$(r.title)} · ${shortDay(day)}. Выберите похожее блюдо на этот день. Список покупок обновится.</p><div class="options-list">${choices.map(({r:x,match}) => `<button type="button" data-action="choose-swap" data-id="${x.id}" data-slot="${info.slot}"><img src="${photo(x)}" alt=""><span><b>${$(x.title)}</b><small>${$(match.reason)} · ${cookingTime(x)}</small><small>${s.votes[x.id]===1 ? "Уже нравится" : "Только на этот день"}</small></span>${icon("right", 18)}</button>`).join("") || "<p>Среди подходящих рецептов не нашлось аналога. Можно выбрать другое блюдо в книге рецептов.</p>"}</div></div>`;
 
 }
 function placePanel(info) {
@@ -283,15 +283,15 @@ function placePanel(info) {
     return `<div class="sheet-body simple"><h2 id="sheet-title">Сначала настройте меню</h2>${button("Настроить меню", "settings")}</div>`;
   const r = byId(info.id),
     d = info.day ?? day,
-    slot = info.slot ?? (r.slot === "b" ? 0 : 1),
+    slot = info.slot ?? placementSlots(r)[0],
     old = p.days[d].meals[slot].r;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Поставить в меню</h2><p class="quiet">${r.title} · ${rangeText()}</p>${section("Выберите день", `<div class="chips">${DAYS.map((n, i) => `<button type="button" class="chip" data-action="place-day" data-day="${i}" aria-pressed="${i === d}">${n}</button>`).join("")}</div>`)}${section("Приём пищи", `<div class="chips">${(r.slot === "b" ? [0] : [1, 2]).map((i) => `<button type="button" class="chip" data-action="place-slot" data-slot="${i}" aria-pressed="${slot === i}">${slotNames[i]}</button>`).join("")}</div>`)}<p class="quiet">Заменит «${old.title}» в меню на ${DAYS[d]}.</p>${button("Поставить в меню", "confirm-place", "primary", "check")}</div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Поставить в меню</h2><p class="quiet">${r.title} · ${rangeText()}</p>${section("Выберите день", `<div class="chips">${DAYS.map((n, i) => `<button type="button" class="chip" data-action="place-day" data-day="${i}" aria-pressed="${i === d}">${shortDay(i)}</button>`).join("")}</div>`)}${section("Приём пищи", `<div class="chips">${placementSlots(r).map((i) => `<button type="button" class="chip" data-action="place-slot" data-slot="${i}" aria-pressed="${slot === i}">${slotNames[i]}</button>`).join("")}</div>`)}<p class="quiet">Заменит «${old.title}» в меню на ${shortDay(d)}.</p>${button("Поставить в меню", "confirm-place", "primary", "check")}</div>`;
 }
 function prepPanel() {
   const p = plan();
   if (!p) return emptyPlan();
   const kitchen=prepWeek();
-  const rows=kitchen.map((tasks,i)=>`<button type="button" class="prep-overview" data-action="prep-open-date" data-day="${i}"><span><b>${dayNames[i]}</b><small>${prepDate(i)} · ${prepCardSummary(tasks)}</small></span>${prepFlags(tasks,i)}${icon("right",16)}</button>`).join("");
+  const rows=kitchen.map((tasks,i)=>`<button type="button" class="prep-overview" data-action="prep-open-date" data-day="${i}"><span><b>${dayName(i)}</b><small>${prepDate(i)} · ${prepCardSummary(tasks)}</small></span>${prepFlags(tasks,i)}${icon("right",16)}</button>`).join("");
   return `<div class="sheet-body simple"><h2 id="sheet-title">План готовки</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${rows}${reminderEntry()}</div>`;
 
 }
@@ -299,8 +299,8 @@ function nutritionPanel() {
   const p = plan(),
     m = p.macros[day],
     g = macroGoal(settings());
-  if(activePortionTargets(settings()))return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayNames[day]} · по ингредиентам блюд дня, приблизительно</p>${p.pairMisses[day]>0 ? '<p>На этот день часть показателей выходит за ваш диапазон. Ниже видно, у кого и насколько.</p>' : ""}${portionReport(p.days[day].meals)}${button("Изменить цели","portion-edit","outline")}</div>`;
+  if(activePortionTargets(settings()))return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayName(day)} · по ингредиентам блюд дня, приблизительно</p>${p.pairMisses[day]>0 ? '<p>На этот день часть показателей выходит за ваш диапазон. Ниже видно, у кого и насколько.</p>' : ""}${portionReport(p.days[day].meals)}${button("Изменить цели","portion-edit","outline")}</div>`;
   if (settings().plainPortion)
-    return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayNames[day]} · по всем блюдам дня</p><p>${Math.round(m[0] * 4 + m[1] * 9 + m[2] * 4)} ккал · Б ${Math.round(m[0])} г · Ж ${Math.round(m[1])} г · У ${Math.round(m[2])} г</p></div>`;
-  return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p class="quiet">${dayNames[day]}, ${dateText(dateAt(day), { day: "numeric", month: "long" })}. По всем запланированным блюдам.</p><table class="nutritable"><thead><tr><th>Показатель</th><th>В меню</th><th>Ориентир</th></tr></thead><tbody>${[["Калории, ккал", m[0] * 4 + m[1] * 9 + m[2] * 4, energy(settings())], ...m.map((v, i) => [["Белки, г", "Жиры, г", "Углеводы, г"][i], v, g[i]])].map(([n, v, x]) => `<tr><th>${n}</th><td>${Math.round(v)}</td><td>${Math.round(x)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p>${dayName(day)} · по всем блюдам дня</p><p>${Math.round(m[0] * 4 + m[1] * 9 + m[2] * 4)} ккал · Б ${Math.round(m[0])} г · Ж ${Math.round(m[1])} г · У ${Math.round(m[2])} г</p></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">КБЖУ дня</h2><p class="quiet">${dayName(day)}, ${dateText(dateAt(day), { day: "numeric", month: "long" })}. По всем запланированным блюдам.</p><table class="nutritable"><thead><tr><th>Показатель</th><th>В меню</th><th>Ориентир</th></tr></thead><tbody>${[["Калории, ккал", m[0] * 4 + m[1] * 9 + m[2] * 4, energy(settings())], ...m.map((v, i) => [["Белки, г", "Жиры, г", "Углеводы, г"][i], v, g[i]])].map(([n, v, x]) => `<tr><th>${n}</th><td>${Math.round(v)}</td><td>${Math.round(x)}</td></tr>`).join("")}</tbody></table></div>`;
 }

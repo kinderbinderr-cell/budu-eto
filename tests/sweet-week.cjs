@@ -13,7 +13,7 @@ const url=process.argv[2] || require('node:url').pathToFileURL(path.resolve('ind
  const b=(a)=>p.locator('[data-action="'+a+'"]');
  const shot=async(el,i)=>{if(process.env.PREVIEW){await p.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.querySelectorAll('dialog img,.meal-card img')].map(i=>i.decode()))}); images[i]=await el.screenshot();}};
  await p.evaluate(()=>{
-   const f=getFlow();Object.assign(f,{stage:3,who:'two',minutes:0,budget:12000,cuisines:[]});
+   const f=getFlow();Object.assign(f,{stage:3,startChoice:'monday',who:'two',minutes:0,budget:12000,cuisines:[]});
    for(const type of ['breakfast','lunch','dinner','either']) for(const r of RECIPES.filter(r=>mealRole(r)===type&&!dessertIds.has(r.id)).slice(0,6)) f.votes[r.id]=1;
    rememberFlow();render();
  });

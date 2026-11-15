@@ -202,8 +202,22 @@ function refreshShoppingEstimate() {
   for(const el of document.querySelectorAll("[data-purchase-total]")) el.textContent=money(q.cents/100);
   box.querySelector("[data-budget-balance]").textContent=budgetBalance(settings(),q);
   box.querySelector("[data-budget-source]").textContent=budgetSource(q);
+  const quick=document.querySelector("[data-quick-balance]");
+  if(quick){
+    quick.textContent=budgetBalance(settings(),q);
+    document.querySelector("[data-budget-details]").textContent=hasBudget(settings()) && q.cents>settings().budget*100?"Посмотреть замены":"Подробнее";
+  }
+  const cartTotal=document.querySelector("[data-cart-total]");
+  if(cartTotal){
+    cartTotal.innerHTML=cartFigures(p,q);
+    for(const box of document.querySelectorAll("[data-cart]")){
+      const k=box.dataset.cart, need=remainingGrams(k,p.counts[k]), row=box.closest(".grocery");
+      row.querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
+      row.querySelector("b").textContent=shoppingAmount(k,need,q.store);
+    }
+  }
   mountBudgetOffer();
-  for(const label of document.querySelectorAll(".grocery input:not(:checked)")) {
+  for(const label of document.querySelectorAll(".grocery input[data-pantry]:not(:checked)")) {
     const k=label.dataset.pantry;
     label.closest(".grocery").querySelector("[data-line-price]").textContent=shoppingPriceNote(k,remainingGrams(k,p.counts[k]),q.store);
     label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,remainingGrams(k,p.counts[k]),q.store);

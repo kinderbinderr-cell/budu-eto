@@ -91,7 +91,7 @@ function budgetOfferHtml(offer) {
   if(!offer.edits.length) return '<p>Среди проверенных вариантов дешевле не нашлось. Можно отметить больше блюд или изменить бюджет.</p>';
   const amounts=[['Сейчас',offer.before],['После замен',offer.after]].map(([label,q])=>'<div><small>'+label+'</small><strong>≈ '+money(q.cents/100)+'</strong>'+(q.store?'<small>'+$(shopName(q.store))+'</small>':'')+'<small>'+q.known+' по магазину'+(q.city?' · '+q.city+' по Москве':'')+((q.count-q.known-(q.city||0))?' · '+(q.count-q.known-(q.city||0))+' по другим оценкам':'')+'</small></div>').join('');
   const gap=offer.after.cents-offer.limit;
-  const details=offer.edits.slice().sort((a,b)=>a.d-b.d||a.slot-b.slot).map(e=>'<li><small>'+DAYS[e.d]+' · '+slotNames[e.slot]+'</small><span>'+$(byId(e.from).title)+' <span aria-label="заменить на">→</span> <b>'+$(byId(e.to).title)+'</b></span></li>').join('');
+  const details=offer.edits.slice().sort((a,b)=>a.d-b.d||a.slot-b.slot).map(e=>'<li><small>'+shortDay(e.d)+' · '+slotNames[e.slot]+'</small><span>'+$(byId(e.from).title)+' <span aria-label="заменить на">→</span> <b>'+$(byId(e.to).title)+'</b></span></li>').join('');
   return '<div class="offer-prices">'+amounts+'</div><p><b>Экономия ≈ '+rubles((offer.before.cents-offer.after.cents)/100)+'</b> · '+(gap>0?'останется сверх бюджета ≈ '+rubles(gap/100):'в пределах вашего бюджета')+'</p><ul>'+details+'</ul><div class="budget-actions">'+button('Применить '+(offer.edits.length===1?'замену':'замены'),'budget-apply','primary')+button('Оставить меню','budget-keep','soft')+'</div>';
 }
 function mountBudgetOffer() {

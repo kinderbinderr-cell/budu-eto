@@ -484,3 +484,15 @@ for (const row of [
   } else recipe.mealRole=recipe.id.startsWith("rd") ? "dinner" : "breakfast";
   recipe.alsoHob = homeBothAppliances.has(recipe.id);
 }
+
+const reviewedMains = {
+  rb073:"lunch", rb075:"lunch", rb077:"either", rb078:"either", rb089:"either",
+  rb092:"either", rb095:"either", rb029:"either", rb066:"either", rb088:"either",
+};
+for(const recipe of RECIPES){
+  if(reviewedMains[recipe.id]){
+    recipe.slot="m";
+    recipe.mealRole=reviewedMains[recipe.id];
+    if(recipe.id==="rb073") recipe.kind="суп";
+  }
+}
