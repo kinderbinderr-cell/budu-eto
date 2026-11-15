@@ -1,0 +1,27 @@
+name: Configure Mini App verification
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install derived Mini App verification key
+        working-directory: .github/reminders
+        env:
+          BUDU_BOT_TOKEN: ${{ secrets.BUDU_BOT_TOKEN }}
+          BUDU_DISPATCH_KEY: ${{ secrets.BUDU_DISPATCH_KEY }}
+        run: |
+          python3 - <<'PY'
+          import hmac, os
+          from deliver import dispatch, request
+          token = os.environ['BUDU_BOT_TOKEN']
+          identity = request('https://api.telegram.org/bot' + token + '/getMe', {})
+          assert identity['result']['username'].lower() == 'budueto_bot'
+          key = hmac.digest(b'WebAppData', token.encode(), 'sha256')
+          assert dispatch('mini-verifier', key=key.hex()).get('ok')
+          PY
