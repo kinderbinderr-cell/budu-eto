@@ -19,3 +19,7 @@
 .coupon-intro h3{margin:0;font-size:21px}.coupon-feature{padding:14px 0;width:100%;text-align:left;border:0;border-bottom:1px solid var(--rule);background:transparent;font:inherit;color:inherit;cursor:pointer;overflow-wrap:anywhere}
 .coupon-feature strong{padding:6px 10px;background:#e5efdb;color:#253e25;border-radius:8px;font-size:21px}.coupon-feature small,.coupon-feature b{display:block}.coupon-feature svg{margin-left:auto;flex-shrink:0}
 .coupon-detail .link{display:block;margin:15px 0}.coupon-detail p{white-space:pre-line;overflow-wrap:anywhere}.coupon-code{font-weight:700;letter-spacing:.05em}#coupon-form .field{margin:12px 0}#coupon-form textarea{min-height:80px}
+
+.gift-recipe{display:flex;align-items:center;gap:12px;width:100%;padding:10px 0;border:0;border-bottom:1px solid var(--rule);background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.gift-recipe img{width:62px;height:54px;object-fit:cover;border-radius:9px;flex:none}.gift-recipe span{flex:1}.gift-recipe small{display:block;color:var(--muted);margin-top:3px}.gift-recipe svg{flex:none}
+.gift-list{margin-top:20px}.gift-list summary{cursor:pointer;font-weight:700;padding:10px 0}.gift-list li{margin-bottom:4px}.gift-list textarea{width:100%;min-height:100px}
