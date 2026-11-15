@@ -49,7 +49,7 @@ const miniStats = (() => {
       if (!launch || desired === 2) return;
       const week = plan();
       if (week?.days.length !== 7 || !week.days.every(day =>
-        day.meals.length === 3 && day.meals.every(meal => meal.r?.id))) return;
+        day.meals.length >= 3 && day.meals.every(meal => meal.r?.id))) return;
       pending(true);
       desired = 2;
       void flush();

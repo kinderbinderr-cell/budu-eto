@@ -1,8 +1,8 @@
 "use strict";
 const main = document.getElementById("content"),
   sheet = document.getElementById("sheet");
-const slotNames = ["Завтрак", "Обед", "Ужин"],
-  slotIcons = ["sun", "cloud", "moon"];
+const slotNames = ["Завтрак", "Обед", "Ужин", "Десерт"],
+  slotIcons = ["sun", "cloud", "moon", "heart"];
 const dayNames = [
   "Понедельник",
   "Вторник",
@@ -194,10 +194,11 @@ function plan(preview = null, weekOffset = offset) {
   }
   const weeks=Array.from({length:seed-first+1},(_,i)=>data.weeks[data.mode+"/"+weekKey(weekOffset-(seed-first)+i)]);
   const records=weeks.map(w=>w?.replacements || {});
+  const desserts=weeks.map(w=>w?.desserts);
   const nutrition=weeks.map(w=>w?.nutritionSwaps);
   const budgetEdits=weeks.map(w=>w?.budgetEdits);
   if(preview) records[records.length-1] = {...records[records.length-1],...preview};
-  const signature = JSON.stringify([seed,s,records,nutrition,budgetEdits]);
+  const signature = JSON.stringify([seed,s,records,nutrition,budgetEdits,desserts]);
   const cached = weekOffset === offset ? lastPlan : adjacentPlan;
   if (cached?.signature === signature) return cached.value;
   const prior = new Map();
@@ -206,7 +207,7 @@ function plan(preview = null, weekOffset = offset) {
   for (let n = first; n <= seed; n++) {
     const phase = phaseOf(n);
     if (!phase) prior.clear();
-    value = budgetPlan(s,n,records[n-first],prior,phase,previous);
+    value = budgetPlan(s,n,records[n-first],prior,phase,previous,desserts[n-first]);
     value=withNutritionSwaps(s,value,nutrition[n-first],prior,previous);
     if(budgetEdits[n-first]?.length) value=withBudgetEdits(s,value,budgetEdits[n-first],prior,previous);
     if (n === seed) break;
@@ -330,7 +331,7 @@ function heart(r) {
 function mealCard(meal, slot) {
   const { r, f } = meal,
     kcal = Math.round((r.kcal * f) / servings(settings()));
-  return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}"><img src="${photo(r)}" alt="" decoding="async"></button><span class="meal-label">${icon(slotIcons[slot], 15)} ${slotNames[slot]}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="swap" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
+  return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}"><img src="${photo(r)}" alt="" decoding="async"></button><span class="meal-label">${icon(slotIcons[slot], 15)} ${slotNames[slot]}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="${slot === 3 ? "dessert-open" : "swap"}" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
 }
 function weekSummary(p) {
   const s = settings(),
@@ -339,7 +340,7 @@ function weekSummary(p) {
 }
 function weekPage() {
   const p = plan(), kitchen = p && prepWeek();
-  return `<div class="wrap page">${hero(p)}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p,kitchen)}${kitchen ? prepCard(kitchen[day],day) : ""}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} ${p.pairMisses[day]>0 ? "КБЖУ вне диапазона" : "КБЖУ дня"}</button>` : ""}</div>${nutritionSwapCard(p,day)}<div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div></section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
+  return `<div class="wrap page">${hero(p)}${p ? budgetPanel(p) : ""}${p && settings().stores?.length ? '<section class="week-prices" id="price-area"></section>' : ""}${calendar(p,kitchen)}${kitchen ? prepCard(kitchen[day],day) : ""}${p ? `<div class="week-body"><section class="mealsection"><div class="menu-heading"><div><h2>${dayNames[day]}<span class="day-suffix">, ${dateText(dateAt(day), { day: "numeric", month: "long" })}</span></h2></div>${data.mode === "personal" || activePortionTargets(settings()) ? `<button class="macro-link" type="button" data-action="nutrition">${icon("fire", 16)} ${p.pairMisses[day]>0 ? "КБЖУ вне диапазона" : "КБЖУ дня"}</button>` : ""}</div>${nutritionSwapCard(p,day)}<div class="meal-grid">${p.days[day].meals.map(mealCard).join("")}</div>${p.days[day].meals.length === 3 ? button("Добавить десерт", "dessert-open", "outline", "plus") : ""}</section>${weekSummary(p)}</div><section id="week-coupons" aria-label="Купоны магазинов"></section>` : emptyPlan()}</div>`;
 }
 function emptyPlan() {
   return `<div class="empty"><h2>Добавьте блюда для чередования</h2><p>Для недельного меню нужны минимум два подходящих завтрака и два основных блюда.</p>${button("Выбрать блюда", "discover", "primary", "heart")}</div>`;

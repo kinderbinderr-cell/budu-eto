@@ -4,7 +4,8 @@
 // in the fridge; use the freezer for suitable dishes served later. For next-day
 // rice we instead cook on the serving day so a late meal cannot exceed 24 hours.
 const freezerKinds = new Set(["суп","котлеты","вареники и пельмени","сырники","выпечка","запеканка","фаршированное блюдо","плов","рагу и жаркое","блины и оладьи"]);
-function prepTiming(recipe, serve, cookDays) {
+function prepTiming(recipe, serve, cookDays, slot) {
+  if (slot === 3) return {cook: serve, storage: "fresh"};
   if (["oatjar","rcOatKissel"].includes(recipe.id)) return { cook: serve-1, storage: "overnight" };
   const kind = dishKind(recipe);
   const fresh = recipe.equip === "cold" || ["салат","яичное блюдо","бутерброд"].includes(kind) ||
@@ -32,7 +33,7 @@ function kitchenWeek(profile, current, next) {
   for (const [serve,entry] of menuDays.entries()) {
     for (const [slot,meal] of entry.meals.entries()) {
       const {r,f,personFactors} = meal;
-      const {cook,storage} = prepTiming(r,serve,cookDays);
+      const {cook,storage} = prepTiming(r,serve,cookDays,slot);
       const use = {r,f,personFactors,people,cook,serve,slot,storage};
       if (days[serve]) days[serve].serve.push(use);
       if (days[cook]) {

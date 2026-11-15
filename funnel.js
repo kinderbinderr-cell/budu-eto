@@ -218,11 +218,10 @@ function funnelPage() {
   const progress = first ? "" : `<div class="flow-progress"><span>Шаг ${s + 1} из 4</span><b>${flowLabels[s]}</b>${flowProgress(s, "flow-segments")}</div>`;
   const heading = first ? `<h2>${flowTitles[s]}</h2>` : `<h1>${flowTitles[s]}</h1><p class="flow-intro">${subtitles[s]}</p>`;
   const taste = s === 1 ? tasteReadiness(tasteContext()) : null;
-  const tasteLabel = taste?.canFinish && !taste.complete ? "Продолжить с выбранным" : "Дальше";
-  const submit = ["К выбору блюд", tasteLabel, "Дальше", "Собрать моё меню"][s];
+  const submit = ["К выбору блюд", "Дальше", "Дальше", "Собрать моё меню"][s];
   return `<div class="flow-shell ${first ? "welcome-step" : s === 1 ? "tasting-step" : ""}">${visual}<section class="flow-form">${progress}
     <form id="flow-form">${heading}<div class="flow-options">${[peopleQuestion, flavorQuestion, timeQuestion, storeQuestion][s]()}</div>
-    <p id="flow-error" role="alert"></p>${taste ? tasteProgressDetails(taste) : ""}<div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste && !taste.complete && !taste.canFinish ? 'disabled aria-describedby="taste-progress"' : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
+    <p id="flow-error" role="alert"></p>${taste ? tasteProgressDetails(taste) : ""}<div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste && !taste.complete ? 'disabled aria-describedby="taste-progress"' : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
   </section></div>`;
 }
 function flowProfile(f) {
@@ -327,7 +326,7 @@ function submitFlow() {
   }
   if (f.stage === 1) {
     const taste = tasteReadiness(tasteContext());
-    if (!taste.complete && !taste.canFinish) {
+    if (!taste.complete) {
       error.textContent = taste.hint;
       return;
     }

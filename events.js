@@ -182,6 +182,12 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "dessert-open":
+      openSheet({kind:"dessert"}); break;
+    case "dessert-pick":
+      setDayDessert(id); break;
+    case "dessert-remove":
+      setDayDessert(null); break;
     case "nutrition-swap-preview": {
       const p=plan(), offer=dayNutritionOffer(p,day);
       if(offer) openSheet({kind:"nutrition-swap",offer,plan:p,week:weekKey()});

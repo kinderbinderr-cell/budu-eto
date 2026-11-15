@@ -1982,3 +1982,5 @@ button:active:not(:disabled) {
 .offer-prices strong {font-size:1.25rem;}
 .budget-offer[hidden] {display:none;}
 @media(max-width:670px){.budget-heading {align-items:flex-start;flex-direction:column;}.budget-offer .btn {min-height:44px;}}
+
+.mealsection > [data-action="dessert-open"] { margin-top: 18px; }

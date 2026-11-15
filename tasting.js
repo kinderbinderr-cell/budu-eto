@@ -14,7 +14,7 @@ function newTasting(pool, votes, scope = "new", cuisines = []) {
         : votes[r.id] !== 1 && votes[r.id] !== -1,
   );
   const ids = scope === "new" ? sampleTasting(available, tastingSize, recentDishes(), Math.random, cuisines) :
-    available.slice(0, scope === "picked" ? available.length : tastingSize).map(r => r.id);
+    available.map(r => r.id);
   if (scope === "new") recordDishes(ids);
   return {
     ids, passed: [],
@@ -83,7 +83,16 @@ function tasteContext() {
     if(fill.length) recordDishes(fill);
     persistTasting();
   }
-  return { state, profile, pool, votes, deck: state.deck, signature };
+  const ctx = { state, profile, pool, votes, deck: state.deck, signature };
+  const deck = ctx.deck;
+  if (route === "start" && deck.scope === "new" && deck.index >= deck.ids.length &&
+      pool.some(r => votes[r.id] == null) && !tasteReadiness(ctx).complete) {
+    const more = newTasting(pool, votes, "new", cuisines);
+    deck.ids.push(...more.ids);
+    offerMissingMeal(ctx);
+    persistTasting();
+  }
+  return ctx;
 }
 function persistTasting() {
   if (route === "start") rememberFlow();
@@ -140,18 +149,15 @@ function tasteReadiness({pool, votes}) {
   const selected = selectedCounts(pool, votes);
   const counts = tasteCredits(selected.chosen, targets);
   const missing = targets.map((target, i) => target - counts[i]);
-  const reviewed = pool.filter(r => votes[r.id] === 1 || votes[r.id] === -1).length;
   const minimumHint = selectionHint(selected);
   const complete = !minimumHint && missing.every(n => n === 0);
-  const canFinish = !minimumHint && reviewed >= Math.min(pool.length, tastingSize);
   const shortfall = missing.flatMap((n, i) => n ? [n + " " + plural(n, ...tasteNouns[i])] : []);
   let hint = "Выберите ещё " + new Intl.ListFormat("ru").format(shortfall) + ".";
   if (targets[0] < 2 || targets[1] + targets[2] < 2 || !pool.some(r => r.slot === "m" && fitsMainSlot(r, 2))) {
     hint = "Добавьте кухню или измените ограничения, чтобы собрать неделю.";
   } else if (!shortfall.length && minimumHint) hint = minimumHint;
   else if (!selected.chosen.length) hint = "Выберите блюда на завтрак, обед и ужин.";
-  if (canFinish && !complete) hint = "Уже можно продолжить. Для разнообразия добавьте " + new Intl.ListFormat("ru").format(shortfall) + ".";
-  return {targets, counts, missing, hint, complete, canFinish};
+  return {targets, counts, missing, hint, complete};
 }
 
 function tasteProgressDetails(progress) {
@@ -254,6 +260,9 @@ function tastingCards({ pool, votes, deck, profile }) {
   }
   const liked = RECIPES.filter(r=>votes[r.id]===1).length;
   const summary = `<div class="taste-counter"><span>${icon("heart", 15)} Выбрано <b>${liked}</b>${liked>counts.chosen.length ? ` · подходят ${counts.chosen.length}` : ""}</span>${deck.trail.length ? deckLink(icon("undo", 14) + " Отменить", "taste-undo") : ""}</div>`;
+  if (!r && route === "start" && !left && !tasteReadiness({pool, votes}).complete)
+    return `<section class="taste-end">${summary}<h2>Вы посмотрели все подходящие блюда</h2><p>Добавьте ещё кухню или пересмотрите пропущенные блюда.</p>
+      <div class="taste-end-actions">${button("Выбрать кухни", "taste-cuisines", "soft", "sliders")}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   if (!r)
     return `<section class="taste-end">${summary}<h2>${pool.length ? (counts.chosen.length ? "Вот что вам по вкусу" : "Поищем другие блюда?") : "Пока нет подходящих блюд"}</h2><p>${selectionHint(counts) || "Недельный план будет собран только из вашего выбора."}${profile.cuisines?.length && !left && selectionHint(counts) ? " Чтобы увидеть больше блюд, добавьте кухню выше." : ""}</p>
     ${

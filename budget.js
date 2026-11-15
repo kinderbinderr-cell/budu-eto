@@ -122,8 +122,8 @@ function keepsDayTargets(goals,before,after) {
   const oldGaps=gaps(before);
   return gaps(after).every((row,i)=>row.every((gap,k)=>gap<=oldGaps[i][k]+1e-8));
 }
-function budgetPlan(s,n,replacements,prior,phase,previous) {
-  const make=(swaps,strength=0,checkout=null)=>planWeek(s,n,swaps,prior,phase,previous,strength,checkout);
+function budgetPlan(s,n,replacements,prior,phase,previous,desserts) {
+  const make=(swaps,strength=0,checkout=null)=>planWeek(s,n,swaps,prior,phase,previous,strength,checkout,desserts);
   if (!hasBudget(s)) return make(replacements);
   const score=budgetScorer(s,{planning:true}), pantry=s.planningPantry?.[n] || {};
   // Choose the underlying week independently of one-day edits. A manual swap never triggers a new cost tier.

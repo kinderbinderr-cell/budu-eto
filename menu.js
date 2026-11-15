@@ -609,6 +609,10 @@ function feasiblePortions(vectors,target,base) {
   return closest.map((v,h)=>v+Math.max(0,t)*(base[h]-v));
 }
 function fitDailyPortions(meals,target) {
+  if (meals[3]) {
+    const row = remainingDessertTargets(target, meals[3].r);
+    return [...fitDailyPortions(meals.slice(0,3), row), dessertPortion];
+  }
   if(!target.some(Boolean)) return meals.map(()=>1);
   const vectors=meals.map(({r})=>[r.kcal,...r.macros]);
   const mid=target.map(pair=>pair ? (pair[0]+pair[1])/2 : null);
@@ -648,7 +652,14 @@ function fitDailyPortions(meals,target) {
 }
 function applyDailyTargets(s,meals) {
   const targets=activePortionTargets(s);
-  if(!targets) return;
+  if (!targets) {
+    if (meals[3] && s.mode === "personal" && !s.plainPortion) {
+      const daily = energy(s);
+      const remaining = Math.max(0, daily - meals[3].r.kcal * meals[3].f) / daily;
+      meals.slice(0, 3).forEach((m, slot) => { m.f = factor(s, m.r, slot) * remaining; });
+    }
+    return;
+  }
   const portionsByPerson=targets.map(t=>fitDailyPortions(meals,t));
   meals.forEach((meal,i)=>{
     meal.personFactors=portionsByPerson.map(person=>person[i]);
@@ -1007,6 +1018,7 @@ function planWeek(
   precedingDays = [],
   economize = 0,
   checkoutCost = null,
+  desserts = {},
 ) {
   const pools = [candidates(s, 0), candidates(s, 1)];
   if (pools.some(pool => pool.length < 2)) return null;
@@ -1051,7 +1063,7 @@ function planWeek(
     macros = [];
   const seenIngredients = new Set(),
     dinnerUses = new Map();
-  const recent = precedingDays.slice(-2).map(day => new Set(day.meals.map(m => m.r.id)));
+  const recent = precedingDays.slice(-2).map(day => new Set(day.meals.slice(0,3).map(m => m.r.id)));
   let lastPicks = [];
   let cost = 0,
     picks = null;
@@ -1200,6 +1212,8 @@ function planWeek(
         meals[slot]={...meals[slot],r,f:factor(s,r,slot)};
       }
     }
+    const requested = desserts?.[d];
+    const dessert = requested && RECIPES.find(r => r.id === requested && allowsDessert(s,r));
     if (pairSearch) {
       const groups=[pools[0],orderedMains,orderedMains];
       const guardedBoundary=(pairCycleStart && d<2) || (pairCycleEnd && d>=5);
@@ -1220,8 +1234,15 @@ function planWeek(
         return use*6 + match + (economize ? Math.min(12,economize)*r.cost/30 : 0)
           + ((RECIPES.indexOf(r)*17+(absoluteDay+300)*31+slot*7)%43)/43;
       };
-      pairMisses.push(pairDayMeals(pairSearch,meals,options,priority));
-    } else applyDailyTargets(s,meals);
+      const search = dessert ? pairPortionSearch(goals.map(row => remainingDessertTargets(row,dessert))) : pairSearch;
+      pairMisses.push(pairDayMeals(search,meals,options,priority));
+    }
+    if (dessert) {
+      meals.push({r:dessert, f:servings(s)*dessertPortion, manual:true, sourceSlot:3,
+        personFactors:goals?.map(() => dessertPortion)});
+    }
+    if (!pairSearch) applyDailyTargets(s,meals);
+    else if (dessert) pairMisses[d] = Math.max(...swapDayScore(swapDayTotals(meals,goals),goals).map(p=>p.worst));
     for (const {r,f} of meals) {
       timesServed.set(r,(timesServed.get(r)||0)+1);
       for (const [key, g] of r.items) counts[key] = (counts[key] || 0) + g * f;
@@ -1229,7 +1250,7 @@ function planWeek(
       cost += r.cost * f;
 
     }
-    recent.push(new Set(meals.map(m => m.r.id)));
+    recent.push(new Set(meals.slice(0,3).map(m => m.r.id)));
     if (recent.length > 2) recent.shift();
     days.push({
       meals,
