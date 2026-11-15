@@ -183,6 +183,7 @@ function persist({migration=false}={}) {
   if(readStoredPlanner()!==lastStored){
     location.reload();throw Error("Меню изменилось в другом окне. Откройте действие ещё раз.");
   }
+  kitchenEpoch++;
   const serialized=JSON.stringify(data);
   try {
     localStorage.setItem(key, serialized);lastStored=serialized;
@@ -744,7 +745,7 @@ function stockUnit(k) {
   return {unit:"г",grams:1};
 }
 function stockPanel(k){
-  const unit=stockUnit(k),stock=weekData().pantry[k]||0;
+  const unit=stockUnit(k),w=weekData(),stock=Object.hasOwn(w.pantryBeforeCheck||{},k)?w.pantryBeforeCheck[k]:w.pantry[k];
   return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])}</h2><p>На неделю нужно ≈ ${weeklyNeed(k,neededGrams(shoppingCounts(plan())[k]||0))}. Укажите, сколько уже есть дома.</p>
     <form id="stock-form" data-key="${k}"><label class="field">Дома, ${unit.unit}<input type="number" inputmode="decimal" name="stock" min="0" max="1000000" step="any" required value="${stock?Number((stock/unit.grams).toFixed(2)):""}"></label>
     <button type="submit" class="btn primary">Сохранить остаток</button></form></div>`;

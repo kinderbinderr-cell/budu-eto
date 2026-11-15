@@ -12,9 +12,12 @@ function reminderPacket(flags) {
     if (current) {
       const profile=weekProfile(w),week=kitchenWeek(profile,current,next,w);
       for (const [i,tasks] of week.entries()) {
-        const marked=data.weeks[data.mode+"/"+weekKey(w)]?.prepDone?.[i]===prepSignatureFor(tasks,profile);
-        const cooking=!marked && (flags&1)
-          ? [...tasks.cook.values()].map(t=>[index(t.r),t.portions,t.uses.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]) : [];
+        const marked=!!readCookingMark(data.weeks[plannedDate(w)]?.prepDone?.[i]);
+        const cooking=(flags&1)?[...tasks.cook.values()].flatMap(t=>{
+          const pending=t.uses.filter(u=>!u.completed);
+          return pending.length?[[index(t.r),pending.reduce((n,u)=>n+u.people,0),
+            pending.reduce((n,u)=>n+(u.storage==="freeze"?u.people:0),0)]]:[];
+        }):[];
         const thaw=!marked && (flags&2) ? tasks.thaw.map(u=>[index(u.r),u.people,u.slot]) : [];
         rows.push([cooking,thaw]);
       }

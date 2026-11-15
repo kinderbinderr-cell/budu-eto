@@ -63,12 +63,24 @@ function copyWeekRecord(raw) {
   const r={replacements:raw.replacements||{},pantry:raw.pantry||{}};
   const exchange=v=>copyObject(v)&&copyRecipe(v.from)&&copyRecipe(v.to);
   requireCopy(copyMap(r.replacements,k=>/^(day:)?[0-6]-[0-2]$/.test(k),copyRecipe) && copyGrams(r.pantry));
+  if(raw.pantryBeforeCheck!=null){
+    requireCopy(copyMap(raw.pantryBeforeCheck,k=>Object.hasOwn(FOOD,k),v=>v===null || copyNumber(v)));
+    r.pantryBeforeCheck={...raw.pantryBeforeCheck};
+  }
+  if(raw.prepSlots!=null){
+    requireCopy(copyMap(raw.prepSlots,k=>/^[0-6]-[0-3]$/.test(k),v=>v===false ||
+      copyObject(v) && copyRecipe(v.id) && copyNumber(v.f,0.001,100) && Number.isInteger(v.cook) &&
+      v.cook>=-7 && v.cook<0 && ["fridge","freeze","overnight"].includes(v.storage) &&
+      (v.personFactors==null || validCopyList(v.personFactors,f=>copyNumber(f,0.001,100),2))));
+    r.prepSlots=structuredClone(raw.prepSlots);
+  }
   if(raw.dessertPrefs!=null)r.dessertPrefs=copyDessertPrefs(raw.dessertPrefs);
   if(raw.budgetLimit!=null){requireCopy(budgetRange(raw.budgetLimit));r.budgetLimit=raw.budgetLimit;}
   if(raw.carryFrom!=null){
     requireCopy(copyMap(raw.carryFrom,k=>Object.hasOwn(r.pantry,k),v=>typeof v==="string" && !!copyDate(v)));
     r.carryFrom={...raw.carryFrom};
   }
+  if(raw.earlyPaid!=null){requireCopy(copyGrams(raw.earlyPaid));r.earlyPaid={...raw.earlyPaid};}
   if(raw.prepReceipts!=null){requireCopy(copyGrams(raw.prepReceipts));r.prepReceipts={...raw.prepReceipts};}
   if(raw.paidStock!=null){requireCopy(copyGrams(raw.paidStock));r.paidStock=raw.paidStock;}
   if(raw.cart!=null){requireCopy(copyGrams(raw.cart));r.cart=raw.cart;}
@@ -83,6 +95,11 @@ function copyWeekRecord(raw) {
     requireCopy(copyMap(raw.incomingPrep,k=>/^[0-6]-[0-3]$/.test(k),m=>copyObject(m) && copyRecipe(m.id) &&
       copyNumber(m.f,0.001,100) && (m.personFactors==null || validCopyList(m.personFactors,f=>copyNumber(f,0.001,100),2))));
     r.incomingPrep=raw.incomingPrep;
+  }
+  if(raw.preparedFacts!=null)r.preparedFacts=copyMealFacts(raw.preparedFacts);
+  if(raw.openingCooked!=null){
+    requireCopy(copyMap(raw.openingCooked,k=>/^[0-6]$/.test(k),v=>typeof v==="string" && v.length<=65536 && !!readCookingMark(v)));
+    r.openingCooked={...raw.openingCooked};
   }
   if(raw.prepDone!=null){
     requireCopy(copyMap(raw.prepDone,k=>/^[0-6]$/.test(k),v=>typeof v==="string" && v.length<=65536));r.prepDone=raw.prepDone;
@@ -105,15 +122,18 @@ function copyWeekRecord(raw) {
 function recipeCopyFacts({items,kcal,macros,cost}) {
   return {items,kcal,macros,cost};
 }
+function copyMealFacts(raw){
+  requireCopy(copyMap(raw,copyRecipe,f=>copyObject(f) && copyNumber(f.kcal) && copyNumber(f.cost) &&
+    validCopyList(f.macros,x=>copyNumber(x),3) && f.macros.length===3 && validCopyList(f.items,
+      item=>Array.isArray(item) && item.length===2 && typeof item[0]==="string" && Object.hasOwn(FOOD,item[0]) && copyNumber(item[1]))));
+  return Object.fromEntries(Object.entries(raw).map(([id,f])=>[id,recipeCopyFacts(f)]));
+}
 function copySnapshot(raw) {
   requireCopy(copyObject(raw) && raw.days?.length===7 && raw.macros?.length===7 && copyGrams(raw.counts) &&
     copyNumber(raw.cost) && copyNumber(raw.newCount,0,28) && [0,1,2].includes(raw.phase) &&
     validCopyList(raw.pairMisses,v=>v===null || copyNumber(v),7));
   // Compare against the ingredient quantities in the file, even if a catalogue recipe has since been revised.
-  requireCopy(copyMap(raw.facts,copyRecipe,f=>copyObject(f) && copyNumber(f.kcal) && copyNumber(f.cost) &&
-    validCopyList(f.macros,x=>copyNumber(x),3) && f.macros.length===3 && validCopyList(f.items,
-      item=>Array.isArray(item) && item.length===2 && typeof item[0]==="string" && Object.hasOwn(FOOD,item[0]) && copyNumber(item[1]))));
-  const facts=Object.fromEntries(Object.entries(raw.facts).map(([id,f])=>[id,recipeCopyFacts(f)]));
+  const facts=copyMealFacts(raw.facts);
   const counts={};
   const days=raw.days.map((d,i)=>{
     requireCopy(copyObject(d) && copyDay(d.start) && [d.pickDay,d.prep,d.freshly].every(v=>typeof v==="boolean") &&
@@ -150,7 +170,13 @@ function buildMenuCopy() {
     if(!p) throw Error("Для этой недели пока нет готового меню.");
     const record=data.weeks[profile.mode+"/"+date]||{};
     const policy=data.portionPolicies?.[plannedDate(n)];
-    return {date,record:copyWeekRecord(record),plan:fullWeekSnapshot(p),...(policy && {policy})};
+    const exported=copyWeekRecord(record);
+    if(i===0){
+      const previous=data.weeks[plannedDate(n-1)]?.prepDone;
+      const marks=Object.entries(previous||{}).filter(([,raw])=>readCookingMark(raw)?.[2].some(row=>row[2]>=7));
+      if(marks.length)exported.openingCooked=Object.fromEntries(marks);
+    }
+    return {date,record:exported,plan:fullWeekSnapshot(p),...(policy && {policy})};
   });
   const next=first+3,stored=data.savedWeeks?.[plannedDate(next)] || data.prepForecasts?.[plannedDate(next)];
   const forecast=stored || (plan(null,next) && fullWeekSnapshot(plan(null,next)));

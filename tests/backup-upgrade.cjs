@@ -6,9 +6,96 @@ const path=require("node:path");
 const {execFileSync}=require("node:child_process");
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_PATH||"playwright");
 const root=path.resolve(__dirname,".."), origin="https://menu-copy.test";
-const oldRelease="fdd9df0", input=process.env.MENU_COPY;
+const oldRelease="c714452", input=process.env.MENU_COPY;
 const mime={".js":"application/javascript",".css":"text/css",".html":"text/html",".json":"application/json",".webp":"image/webp",".woff2":"font/woff2"};
 const mini=!!process.env.MINI;
+async function checkCookingContinuity(p,action,original){
+  const revision=await p.evaluate(()=>data.quizRun);
+  await p.evaluate(raw=>applyMenuCopy({previous:localStorage.getItem(key),copy:parseMenuCopy(raw)}),original.toString());
+  await p.waitForFunction(old=>typeof data!=="undefined" && data.quizRun!==old && document.querySelector(".meal-card"),revision);
+  const visit=async n=>{
+    while(await p.evaluate(()=>offset)<n)await action("next").click();
+    while(await p.evaluate(()=>offset)>n)await action("prev").click();
+  };
+  const selectDay=d=>p.locator('[data-action="day"][data-day="'+d+'"]:visible').first().click();
+  const selected=await p.evaluate(()=>{
+    for(const schedule of [[2,5],[5],[3],[2],[0]]){
+      settings().cook=schedule;
+      for(let off=0;off<2;off++){
+        const kitchen=kitchenWeek(weekProfile(off),plan(null,off),kitchenNextWeek(off),off);
+        for(const [d,t] of kitchen.entries())for(const batch of t.cook.values())for(const u of batch.uses){
+          if(u.slot!==2 || u.storage!=="freeze" || u.serve<7)continue;
+          persist();render();
+          return {off,d,serve:u.serve-7,slot:u.slot,id:u.r.id,title:u.r.title,f:u.f,k:u.r.items[0][0]};
+        }
+      }
+    }
+    throw Error("No actual dinner crosses the boundary on the test schedules");
+  });
+  await visit(selected.off);await selectDay(selected.d);
+  await p.evaluate(k=>{addPurchase(k);persist();},selected.k);
+  await action("prep-day").click();await p.locator("[data-prep-done]").check();await action("close").click();
+  const source=()=>p.evaluate(s=>{
+    const w=weekData(s.off),m=plan(null,s.off);
+    const task=kitchenWeek(weekProfile(s.off),m,kitchenNextWeek(s.off),s.off)[s.d];
+    return {cart:w.cart,purchases:w.purchases,check:w.prepDone,pantry:w.pantry,
+      batch:task.cook.get(s.id)?.uses.map(prepUseKey),grams:Object.fromEntries(Object.entries(shoppingCounts(m,s.off)).map(([k,g])=>[k,Math.round(g*1000)]))};
+  },selected);
+  const before=await source();assert.ok(before.purchases[selected.k].cents>0);
+  await visit(selected.off+1);await selectDay(selected.serve);
+  const sizes=await p.evaluate(({serve:d,slot})=>{
+    const base=plan(),meals=base.days[d].meals.slice(),old=meals[slot];
+    meals[slot]={...old,f:old.f+.75,personFactors:old.personFactors?.map(g=>g*(old.f+.75)/old.f)};
+    const changed=changeDayMeals(weekProfile(),base,d,meals);
+    const t=kitchenWeek(weekProfile(),changed,kitchenNextWeek(offset),offset)[d];
+    const extra=t.changes.find(c=>c.kind==="extra" && c.slot===slot);
+    const k=old.r.items[0][0],added=shoppingCounts(changed)[k]-(shoppingCounts(base)[k]||0);
+    return {ready:extra?.available,extra:extra?.f,added,expected:old.r.items.filter(i=>i[0]===k).reduce((n,i)=>n+i[1]*.75,0),
+      cooked:t.cook.get(old.r.id)?.uses.filter(u=>u.serve===d && u.slot===slot).reduce((n,u)=>n+u.f,0)};
+  },selected);
+  assert.ok(Math.abs(sizes.ready-selected.f)<1e-6 && Math.abs(sizes.extra-.75)<1e-6 && Math.abs(sizes.cooked-.75)<1e-6);
+  assert.ok(Math.abs(sizes.added-sizes.expected)<1e-6);
+  const oldMeals=await p.evaluate(()=>[0,1,2].map(n=>fullWeekSnapshot(plan(null,n)).days));
+  await p.locator('[data-action="swap"][data-slot="2"]').click();
+  await action("choose-swap").click();assert.match(await p.locator("#sheet").innerText(),/морозилке/);
+  assert.deepEqual(await source(),before);
+  await action("manual-apply").click();assert.deepEqual(await source(),before);
+  const differences=await p.evaluate(old=>old.flatMap((days,w)=>days.flatMap((d,i)=>d.meals.flatMap((m,j)=>
+    JSON.stringify(m)!==JSON.stringify(fullWeekSnapshot(plan(null,w)).days[i].meals[j])?[[w,i,j]]:[]))),oldMeals);
+  assert.deepEqual(differences,[[selected.off+1,selected.serve,2]]);
+  await action("prep-day").click();assert.match(await p.locator("#sheet").innerText(),/останется в морозилке/);await action("close").click();
+  await visit(2);
+  const outgoing=()=>p.evaluate(()=>{
+    const t=prepWeek();return t.flatMap((x,d)=>[...x.cook.values()].flatMap(b=>b.uses.filter(u=>u.serve>=7)
+      .map(u=>({d,id:u.r.id,serve:u.serve-7,slot:u.slot,f:u.f}))));
+  });
+  const forecast=await outgoing();assert.ok(forecast.length);
+  await selectDay(forecast[0].d);await action("prep-day").click();await p.locator("[data-prep-done]").check();await action("close").click();
+  const locked=()=>p.evaluate(()=>[0,1,2].map(n=>{
+    const record=data.weeks[plannedDate(n)],week=plan(null,n);
+    return {menu:fullWeekSnapshot(week),receipt:record?.purchases,cart:record?.cart,pantry:record?.pantry,
+      marks:record?.prepDone,grams:Object.fromEntries(Object.entries(shoppingCounts(week,n)).map(([k,g])=>[k,Math.round(g*1000)]))};
+  }));
+  const three=await locked();
+  await action("discover").click();for(let i=0;i<8;i++)await action("taste-yes").click();
+  await action("save-tastes").click();
+  await visit(3);
+  const incoming=await p.evaluate(rows=>rows.map(u=>{const m=plan().days[u.serve].meals[u.slot];return [m.r.id,m.f];}),forecast);
+  assert.deepEqual(incoming,forecast.map(u=>[u.id,u.f]));
+  await p.reload();await p.locator(".meal-card").first().waitFor();
+  assert.deepEqual(await locked(),three);assert.deepEqual(await source(),before);
+  await visit(2);await selectDay(forecast[0].d);await action("prep-day").click();
+  assert.equal(await p.locator("[data-prep-done]").isChecked(),true);await action("close").click();
+  const homeKey=await p.evaluate(()=>Object.entries(shoppingCounts(plan())).find(([k,g])=>g>600 && stockUnit(k).unit==="г")[0]);
+  await p.locator('nav:visible a[href="#list"]').click();await action("shopping-mode","home").click();
+  await p.locator('[data-action="stock"][data-id="'+homeKey+'"]').click();
+  await p.locator("#stock-form input").fill("600");await p.locator("#stock-form [type=submit]").click();
+  const tick=p.locator('[data-pantry="'+homeKey+'"]');
+  await tick.check();await p.reload();await tick.uncheck();await p.reload();
+  await tick.waitFor();
+  assert.equal(await p.evaluate(k=>weekData().pantry[k],homeKey),600);
+  return {dinner:selected.title,servings:selected.f,preservedWeekFourSlots:forecast.length,addedServing:sizes.extra};
+}
 async function main(){
   assert.ok(input,"Specify a local MENU_COPY file");
   const original=fs.readFileSync(input), backup=JSON.parse(original);
@@ -139,7 +226,7 @@ async function main(){
         return JSON.stringify(expectedCook)===JSON.stringify(cook.map(([id,...rest])=>[packet[3][id],...rest])) &&
           JSON.stringify(t.thaw.map(use=>[use.r.id,use.people,use.slot]))===JSON.stringify(thaw.map(([id,...rest])=>[packet[3][id],...rest]));
       });
-      const need=earlyPrep(plan(null,1),1,true),serveWeek=plan(null,1),buyWeek=plan(null,0);
+      const need=kitchenShopping(plan(null,1),1,kitchenNextWeek(1)).incoming,serveWeek=plan(null,1),buyWeek=plan(null,0);
       const product=Object.keys(need).find(k=>need[k]>0 && serveWeek.counts[k]<=2000);
       if(!product)throw Error("No ingredient fits a 2 kg test pack");
       const rec=weekData(1),before=shoppingCounts(buyWeek,0)[product];
@@ -152,8 +239,9 @@ async function main(){
       return {expected,actual,remindersCorrect,receiptCorrect,example:{dish:u.r.title,cook:localDayKey(dateAt(d,0)),serve:localDayKey(dateAt(u.serve,0)),sameDish:next.r.id===u.r.id}};
     });
     assert.deepEqual(edge.actual,edge.expected);assert.ok(edge.remindersCorrect);assert.ok(edge.receiptCorrect);assert.ok(edge.example.sameDish);
+    const continuity=await checkCookingContinuity(p,action,original);
     assert.deepEqual(fs.readFileSync(input),original);assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({mini,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
+    console.log(JSON.stringify({mini,continuity,dates:before.weeks.map(w=>w.date),meals:before.weeks.flatMap(w=>w.plan.days.flatMap(d=>d.meals)).length,pantry:before.weeks.map(w=>Object.keys(w.record.pantry).length),dessertDays:[5,6],originalFreezerHandoffs:kitchen.flatMap(w=>w.crossings).length,testHandoff:edge.example,upgradeAndReload:true}));
   }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

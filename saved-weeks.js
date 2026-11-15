@@ -10,6 +10,45 @@ function savedWeek(snapshot,s) {
   if(!decodedWeeks.has(snapshot)) decodedWeeks.set(snapshot,unpackMenuWeek(snapshot,s));
   return decodedWeeks.get(snapshot);
 }
+function openForecastWeek(off,week,snapshot){
+  const profile=weekProfile(off), forecast=savedWeek(snapshot,profile);
+  if(!week)return forecast;
+  const cookDays=kitchenCookDays(weekProfile(off-1)), goals=activePortionTargets(profile);
+  const marks=data.weeks[plannedDate(off-1)]?.prepDone||{};
+  const done=new Set(Object.values(marks).flatMap(raw=>(readCookingMark(raw)?.[2]||[])
+    .filter(row=>row[2]>=7).map(row=>(row[2]-7)+"-"+row[3])));
+  const slots={...data.weeks[plannedDate(off)]?.prepSlots};
+  for(const [d,original] of forecast.days.entries()){
+    const meals=week.days[d].meals.slice(), locked=new Set();
+    const adapt=m=>{
+      if(!goals || m.personFactors?.length===goals.length)return m;
+      return {...m,personFactors:goals.map(()=>m.f/goals.length)};
+    };
+    for(const [i,m] of original.meals.entries()){
+      const key=d+"-"+i, when=prepTiming(m.r,d+7,cookDays,i);
+      if(when.cook>=7 && !done.has(key))continue;
+      meals[i]=adapt(m);locked.add(i);
+      if(when.cook<7)slots[key]={id:m.r.id,f:m.f,cook:when.cook-7,storage:when.storage,
+        ...(m.personFactors && {personFactors:m.personFactors})};
+    }
+    // Keep the planned slot first. A collision in the same day can use the original free slot.
+    const taken=new Set([...locked].map(i=>meals[i].r.id));
+    for(const [i,m] of meals.entries())if(!locked.has(i)){
+      if(taken.has(m.r.id) && original.meals[i])meals[i]=adapt(original.meals[i]);
+      taken.add(meals[i].r.id);
+      if(prepTiming(meals[i].r,d+7,cookDays,i).cook<7)slots[d+"-"+i]=false;
+    }
+    if(new Set(meals.map(m=>m.r.id)).size<meals.length){
+      for(let i=0;i<Math.min(3,meals.length);i++)if(!locked.has(i)){
+        meals[i]=adapt(original.meals[i]);
+        if(prepTiming(meals[i].r,d+7,cookDays,i).cook<7)slots[d+"-"+i]=false;
+      }
+    }
+    if(meals.some((m,i)=>m!==week.days[d].meals[i]))week=changeDayMeals(profile,week,d,meals);
+  }
+  if(Object.keys(slots).length)weekData(off).prepSlots=slots;
+  return week;
+}
 function protectMenus() {
   if(!data.quizDone) return;
   const s=settings(), prefix=data.mode+"/", offsets=new Set();
@@ -25,7 +64,8 @@ function protectMenus() {
   for(const n of [...offsets].sort((a,b)=>a-b)){
     const id=plannedDate(n);
     if(saved[id])continue;
-    const week=plan(null,n);
+    const generated=plan(null,n), forecast=data.prepForecasts?.[id];
+    const week=forecast?openForecastWeek(n,generated,forecast):generated;
     if(week) additions[id]=fullWeekSnapshot(week);
   }
   if(!s.startDate && !Number.isInteger(s.tasteAnchor))s.backupAnchor??=localDayKey(startDate(s));
@@ -43,9 +83,28 @@ function protectMenus() {
 }
 function setSavedWeek(week,off=offset) {
   const record=data.weeks[plannedDate(off)],base=data.savedWeeks[plannedDate(off)];
+  if(base){
+    const old=savedWeek(base,weekProfile(off)), cooked=kitchenHistory(off,old,null).cells;
+    for(const [d,day] of old.days.entries())for(const [slot,m] of day.meals.entries()){
+      if(week.days[d].meals[slot]?.r.id===m.r.id || !cooked.get(d+"/"+slot)?.some(u=>u.r.id===m.r.id))continue;
+      (weekData(off).preparedFacts||={})[m.r.id]=recipeCopyFacts(m.r);
+    }
+    const carry=replacementCarry(savedWeek(base,weekProfile(off)),week,off);
+    for(const [k,g] of Object.entries(carry)){
+      const dest=weekData(off);dest.pantry[k]=g;(dest.carryFrom||={})[k]=weekKey(off-1);
+    }
+  }
   if(base && record?.cart){
+    const serving=savedWeek(base,weekProfile(off));
+    if(!record.earlyPaid && Object.keys(record.prepReceipts??record.cart).length){
+      record.earlyPaid=earlyPurchaseCredit(kitchenShopping(serving,off,kitchenNextWeek(off)).incoming,serving,record);
+    }
     const bought=accountedPurchases(record,shoppingCounts(savedWeek(base,weekProfile(off)),off));
     if(Object.keys(bought).length)record.paidStock=bought;
+  }
+  if(base && data.savedWeeks[plannedDate(off-1)]){
+    const slots=kitchenBoundary(off,savedWeek(base,weekProfile(off)),week);
+    if(Object.keys(slots).length)weekData(off).prepSlots=slots;
   }
   const prior=new Set();
   for(let i=1;i<=week.phase;i++){
@@ -57,7 +116,7 @@ function setSavedWeek(week,off=offset) {
   const snap=fullWeekSnapshot(week);
   data.savedWeeks[plannedDate(off)]=snap;
   decodedWeeks.set(snap,week);
-  lastPlan=null;adjacentPlan=null;
+  kitchenEpoch++;lastPlan=null;adjacentPlan=null;
 }
 const portionFieldsToSave=["adults","small","targetMode","target","plainPortion","weight","height","age","sex","activity","ratio","portionTargets"];
 function portionPolicy(s){

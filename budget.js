@@ -133,7 +133,8 @@ function accountedPurchases(record,baseCounts) {
 function weeklyQuote(p) {
   const w=weekData(),counts=shoppingCounts(p),saved=data.savedWeeks?.[plannedDate()];
   const base=saved?shoppingCounts(savedWeek(saved,weekProfile())):counts;
-  return budgetScorer(settings())(counts,w.pantry,accountedPurchases(w,base),w.purchases);
+  const carry=saved?replacementCarry(savedWeek(saved,weekProfile()),p,offset):{};
+  return budgetScorer(settings())(counts,{...w.pantry,...carry},accountedPurchases(w,base),w.purchases);
 }
 function keepsDayTargets(goals,before,after) {
   if(!goals) return true;

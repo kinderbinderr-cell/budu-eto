@@ -16,6 +16,26 @@ function carrySuggestion(k){
     return unknown || available>0 ? {off,date:sourceDate,need,home,bought,unknown,available} : null;
   }
 }
+// Only an increased ingredient requirement can draw on a weighed, unspent purchase.
+function replacementCarry(base,next,off){
+  if(base===next || !base || !next)return {};
+  const sourceDate=plannedDate(off-1),snapshot=data.savedWeeks?.[sourceDate],source=data.weeks[sourceDate];
+  if(!snapshot || !source?.purchases)return {};
+  const dest=data.weeks[plannedDate(off)]||{},previous=savedWeek(snapshot,weekProfile(off-1));
+  const out={}, changed=new Set(next.days.flatMap((d,i)=>d.meals.flatMap((m,j)=>
+    m.r.id!==base.days[i].meals[j]?.r.id?m.r.items.map(([k])=>k):[])));
+  const candidates=[...changed].filter(k=>source.purchases[k] && !Object.hasOwn(dest.pantry||{},k));
+  if(!candidates.length)return out;
+  const before=shoppingCounts(base,off),after=shoppingCounts(next,off),used=shoppingCounts(previous,off-1,null,next);
+  const date=weekKey(off-1);
+  for(const k of candidates){
+    if((after[k]||0)<=(before[k]||0) || Object.entries(data.weeks).some(([key,w])=>
+      key.startsWith(data.mode+"/") && w.carryFrom?.[k]===date))continue;
+    const grams=Math.max(0,(source.pantry?.[k]||0)+source.purchases[k].grams-neededGrams(used[k]||0));
+    if(grams>0)out[k]=grams;
+  }
+  return out;
+}
 function stockMeasure(k,g){
   const unit=stockUnit(k);
   if(g>=1000 && g%1000===0 && unit.unit==="г")return (g/1000).toLocaleString("ru-RU")+" кг";
@@ -53,6 +73,7 @@ function carryAmount(info,qty){
 function acceptCarry(k,date,source,g){
   if(date!==weekKey() || !Number.isFinite(g) || g<0 || carrySuggestion(k)?.date!==source)return false;
   const w=weekData();
+  if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
   w.pantry[k]=g;
   (w.carryFrom||={})[k]=source;
   persist();dismissSheet();render();notify("Остаток учтён на "+rangeText());return true;

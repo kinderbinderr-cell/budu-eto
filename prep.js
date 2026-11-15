@@ -28,42 +28,73 @@ function prepTiming(recipe, serve, cookDays, slot) {
 function kitchenCookDays(profile) {
   return DAYS.map((_,i)=>i).filter(i=>!profile.cook.length || profile.cook.includes(weekdayIndex(profile,i)));
 }
-// A later change to serving sizes must keep an earlier shopping and cooking day intact.
-function protectEarlierPrep(off,base){
-  if(!data.savedWeeks[plannedDate(off-1)])return;
-  const s=weekProfile(off-1),days=kitchenCookDays(s);
-  const record=weekData(off);
-  for(const [d,day] of base.days.entries())for(const [slot,m] of day.meals.entries()){
-    const timing=prepTiming(m.r,d+7,days,slot);
-    if(timing.cook>=7 && !(timing.storage==="freeze" && d===0))continue;
-    const previous=(record.incomingPrep||={}),key=d+"-"+slot;
-    if(previous[key]?.id!==m.r.id)previous[key]={id:m.r.id,f:m.f,...(m.personFactors && {personFactors:m.personFactors})};
-  }
-}
-function kitchenWeek(profile, current, next, weekOffset=offset) {
-  const days = Array.from({length:7},()=>({cook:new Map(),thaw:[],serve:[]}));
-  const people = profile.mode === "personal" ? 1 : profile.adults + profile.small;
-  const cookDays = kitchenCookDays(profile);
-  const menuDays = [...current.days, ...(next?.days || [])];
-  for (const [serve,entry] of menuDays.entries()) {
-    for (const [slot,meal] of entry.meals.entries()) {
-      const r=meal.r, saved=serve>=7 && data.weeks[plannedDate(weekOffset+1)]?.incomingPrep?.[(serve-7)+"-"+slot];
-      const {f,personFactors}=saved?.id===r.id?saved:meal;
-      const effectiveDays=profile.startDate && weekOffset===0 && serve<7 ? [...cookDays,0] : cookDays;
-      const timing=prepTiming(r,serve,effectiveDays,slot);
-      const firstWeek=profile.startDate && weekOffset===0;
-      const {cook,storage}=firstWeek && timing.cook<0 ? {cook:0,storage:"fresh"} : timing;
-      const use = {r,f,personFactors,people,cook,serve,slot,storage,sweetMoment:meal.sweetMoment};
-      if (days[serve]) days[serve].serve.push(use);
-      if (days[cook]) {
-        const tasks = days[cook].cook;
-        if (!tasks.has(r.id)) tasks.set(r.id,{r,uses:[],factor:0,portions:0});
-        const task = tasks.get(r.id);
-        task.uses.push(use);
-        task.factor += f;
-        task.portions += people;
+function kitchenWeek(profile,current,next,weekOffset=offset){
+  const days=Array.from({length:7},()=>({cook:new Map(),thaw:[],serve:[],changes:[]}));
+  const history=kitchenHistory(weekOffset,current,next);
+  const records=[0,1].map(n=>data.weeks[plannedDate(weekOffset+n)]||{});
+  const saved=data.savedWeeks?.[plannedDate(weekOffset)];
+  const previous=data.savedWeeks?.[plannedDate(weekOffset-1)];
+  const following=data.savedWeeks?.[plannedDate(weekOffset+1)];
+  const boundaries=[previous && saved?kitchenBoundary(weekOffset,savedWeek(saved,profile),current):records[0].prepSlots,
+    next && following?kitchenBoundary(weekOffset+1,savedWeek(following,weekProfile(weekOffset+1)),next):records[1].prepSlots];
+  const people=profile.mode==="personal"?1:profile.adults+profile.small;
+  const cookDays=kitchenCookDays(profile);
+  for(const [d,marked] of history.days)if(days[d])for(const u of marked.cook)addKitchenBatch(days[d],u);
+  const route=u=>{
+    days[u.serve]?.serve.push(u);
+    if(u.storage==="freeze")days[u.serve-1]?.thaw.push(u);
+  };
+  for(const [serve,entry] of [...current.days,...(next?.days||[])].entries()){
+    const block=Math.floor(serve/7), d=serve%7;
+    for(const [slot,meal] of entry.meals.entries()){
+      const {r,f}=meal,key=d+"-"+slot;
+      const first=profile.startDate && weekOffset===0;
+      const schedule=block===0 && previous && !first?kitchenCookDays(weekProfile(weekOffset-1)):cookDays;
+      let timing=prepTiming(r,serve,first && !block?[...cookDays,0]:cookDays,slot);
+      if(!block && previous && !first){
+        const prior=prepTiming(r,serve+7,schedule,slot);
+        if(prior.cook<7)timing={cook:prior.cook-7,storage:prior.storage};
+        else if(timing.cook<0)timing={cook:serve,storage:"fresh"};
       }
-      if (storage === "freeze" && days[serve-1]) days[serve-1].thaw.push(use);
+      if(first && timing.cook<0)timing={cook:0,storage:"fresh"};
+      const original={r,f,personFactors:meal.personFactors,people,serve,slot,...timing,sweetMoment:meal.sweetMoment};
+      let need=f;
+      const allocate=(u,done)=>{
+        const take=Math.min(need,u.f), left=u.f-take;
+        if(take>1e-7){
+          route(take===u.f?u:{...u,f:take,personFactors:u.personFactors?.map(g=>g*take/u.f)});
+          need-=take;
+        }
+        if(left>1e-7)days[serve]?.changes.push({kind:"left",r:u.r,slot,f:left,storage:u.storage,completed:done});
+      };
+      const cooked=history.cells.get(serve+"/"+slot)||[];
+      for(const u of cooked){
+        if(u.r.id===r.id)allocate(u,true);
+        else{
+          u.spare=true;
+          const thawed=history.days.get(serve-1)?.thaw.some(t=>t.r.id===u.r.id && t.slot===slot && t.serve===serve);
+          days[serve]?.changes.push({kind:"left",r:u.r,slot,f:u.f,storage:thawed?"fridge":u.storage,completed:true});
+        }
+      }
+      const anchor=boundaries[block]?.[key], legacy=records[block].incomingPrep?.[key];
+      const fixed=anchor===undefined && timing.cook<7*block?legacy:anchor;
+      if(fixed && fixed.id===r.id){
+        const u={...original,f:fixed.f,personFactors:fixed.personFactors,
+          ...(anchor && {cook:anchor.cook+7*block,storage:anchor.storage})};
+        if(!history.days.has(u.cook)){
+          if(days[u.cook])addKitchenBatch(days[u.cook],u);
+          allocate(u,false);
+        }
+      }
+      if(need<1e-7)continue;
+      if(anchor!==undefined || fixed || cooked.length || history.days.has(timing.cook)){
+        original.cook=serve;original.storage="fresh";
+      }
+      const additional=f-need>1e-7;
+      if(additional)days[serve]?.changes.push({kind:"extra",r,slot,f:need,available:f-need,completed:cooked.length>0});
+      const use={...original,f:need,personFactors:additional?meal.personFactors?.map(g=>g*need/f):meal.personFactors,additional};
+      if(days[use.cook])addKitchenBatch(days[use.cook],use);
+      route(use);
     }
   }
   return days;
@@ -78,47 +109,51 @@ function prepWeek() {
 }
 // Move only ingredients that cross a shopping week. The saved meals and their
 // portion totals keep describing the week when people actually eat them.
-const earlyPrepCache=new WeakMap();
-function earlyPrep(week,off,receiving,baseline) {
-  if(!week)return {};
-  const previous=weekProfile(off-1), record=data.weeks[plannedDate(off)];
-  const weekdays=kitchenCookDays(previous);
-  const signature=JSON.stringify([weekdays,record?.incomingPrep,receiving]);
-  const cached=earlyPrepCache.get(week);
-  if(cached?.signature===signature && cached.baseline===baseline)return cached.counts;
-  const counts={};
-  for(const [d,day] of week.days.entries())for(const [slot,m] of day.meals.entries()){
-    if(prepTiming(m.r,d+7,weekdays,slot).cook>=7)continue;
-    const committed=baseline?.days[d].meals[slot];
-    const fixed=record?.incomingPrep?.[d+"-"+slot];
-    const prepared=fixed?.id===m.r.id?fixed.f:committed?.r.id===m.r.id?committed.f:m.f;
-    const f=receiving?Math.min(m.f,prepared):prepared;
-    for(const [k,g] of m.r.items)counts[k]=(counts[k]||0)+g*f;
+const cookingCountsCache=new WeakMap();
+let kitchenEpoch=0;
+function kitchenShopping(week,off,next){
+  const profile=weekProfile(off), before=data.weeks[plannedDate(off-1)], here=data.weeks[plannedDate(off)], after=data.weeks[plannedDate(off+1)];
+  const parts=[off,kitchenEpoch,profile.cook.join(),next,data.savedWeeks?.[plannedDate(off)],
+    before?.prepDone,here?.prepDone,after?.prepDone,here?.prepSlots,after?.prepSlots,here?.incomingPrep,after?.incomingPrep];
+  const cached=cookingCountsCache.get(week);
+  if(cached && parts.every((p,i)=>p===cached.parts[i]))return cached;
+  const physical={},incoming={},outgoing={};
+  const add=(list,u)=>{for(const [k,g] of u.r.items)list[k]=(list[k]||0)+g*u.f;};
+  const previous=data.savedWeeks?.[plannedDate(off-1)];
+  for(const day of kitchenWeek(profile,week,next,off)){
+    for(const batch of day.cook.values())for(const u of batch.uses){
+      add(physical,u);if(u.serve>=7)add(outgoing,u);
+    }
+    for(const u of day.serve)if(u.cook<0){
+      add(incoming,u);
+      if(!previous && !u.completed)add(physical,u);
+    }
   }
-  earlyPrepCache.set(week,{signature,baseline,counts});return counts;
+  const value={physical,incoming,outgoing,parts};
+  cookingCountsCache.set(week,value);return value;
 }
-function shoppingTransfer(week,off,receiving=false,baseline=null) {
-  const early=earlyPrep(week,off,receiving,baseline), record=data.weeks[plannedDate(off)];
-  if(!record?.cart)return early;
-  // Older shopping lists could already have a pack against the serving week.
-  // Keep that receipt there, allowing only its unused grams to cover early prep.
-  const moved={...early}, legacy=record.prepReceipts??record.cart;
+function earlyPurchaseCredit(early,serving,record){
+  const credit={},legacy=record.prepReceipts??record.cart;
   for(const [k,g] of Object.entries(early)){
-    const paid=Math.min(legacy[k]||0,record.cart[k]||0);
-    if(paid<=0)continue;
-    const remaining=Math.max(0,(week.counts[k]||0)-g);
-    moved[k]=Math.max(0,g-Math.max(0,paid-remaining));
+    const bought=Math.min(legacy[k]||0,record.cart[k]||0);
+    const available=record.earlyPaid?Math.min(record.earlyPaid[k]||0,bought):
+      Math.max(0,bought-Math.max(0,(serving.counts[k]||0)-g));
+    if(available>0)credit[k]=Math.min(g,available);
   }
-  return moved;
+  return credit;
 }
-function shoppingCounts(week,off=offset,baseline=null) {
+function shoppingCounts(week,off=offset,baseline=null,next){
   if(!week || !data.quizDone)return week?.counts||{};
-  const counts={...week.counts}, previous=data.savedWeeks?.[plannedDate(off-1)];
-  if(previous)for(const [k,g] of Object.entries(shoppingTransfer(week,off,true,baseline)))
-    counts[k]=Math.max(0,(counts[k]||0)-g);
-  const next=kitchenNextWeek(off);
-  if(next)for(const [k,g] of Object.entries(shoppingTransfer(next,off+1)))
-    counts[k]=(counts[k]||0)+g;
+  if(next===undefined)next=kitchenNextWeek(off);
+  const {physical,incoming,outgoing}=kitchenShopping(week,off,next), counts={...physical};
+  // Legacy checkmarks may have paid for an early batch in its serving week.
+  const credit=(early,serving,n,sign)=>{
+    const record=data.weeks[plannedDate(n)];
+    if(!record?.cart || !serving)return;
+    for(const [k,g] of Object.entries(earlyPurchaseCredit(early,serving,record)))counts[k]=(counts[k]||0)+sign*g;
+  };
+  if(data.savedWeeks?.[plannedDate(off-1)])credit(incoming,baseline||week,off,1);
+  credit(outgoing,next,off+1,-1);
   for(const k of Object.keys(counts))if(counts[k]<1e-7)delete counts[k];
   return counts;
 }
@@ -130,7 +165,7 @@ function prepSignatureFor(tasks,s) {
     tasks.thaw.map(prepUseKey),tasks.serve.map(prepUseKey)]);
 }
 function prepDone(tasks,index) {
-  return weekData().prepDone?.[index] === prepSignature(tasks);
+  return !!readCookingMark(weekData().prepDone?.[index]);
 }
 function prepDate(index) {
   return shortDay(index)+" "+dateText(dateAt(index),{day:"numeric",month:"short"});
@@ -183,7 +218,8 @@ function prepDayPanel(tasks) {
   const cookRows=[...tasks.cook.values()].map(task=>{
     const lines=task.uses.map(use=>{
       const place={fresh:"к подаче",today:"к столу",overnight:"начать вечером",fridge:"в холодильник",freeze:"в морозилку"}[use.storage];
-      return '<li>'+mealWhen(use)+' · '+household(weekProfile())+' '+place+prepDivision(use)+'</li>';
+      if(use.spare)return '<li>'+prepQuantity(use.f)+' · готовый запас</li>';
+      return '<li>'+mealWhen(use)+' · '+(use.additional?'доготовить '+prepQuantity(use.f):household(weekProfile()))+' '+place+prepDivision(use)+'</li>';
     });
     return '<article class="prep-dish"><button type="button" data-action="prep-recipe" data-id="'+$(task.r.id)+'"><img src="'+photo(task.r)+'" alt=""><span><strong>'+$(task.r.title)+'</strong><small>'+prepBatchText(task)+' · '+cookingTime(task.r)+'</small>'+equipmentBadges(task.r)+'</span>'+icon("right",16)+'</button><ul>'+lines.join("")+'</ul></article>';
   }).join("");
@@ -197,10 +233,13 @@ function prepDayPanel(tasks) {
   }).join("");
   const family=weekProfile().mode==="personal" ? "На одного" : weekProfile().adults===2&&!weekProfile().small ? "На двоих" : "Семейное меню";
   return '<div class="sheet-body simple prep-sheet"><button class="link" data-action="close" type="button">'+icon("left",15)+' К меню недели</button><h2 id="sheet-title">'+dayName(day)+'</h2><p class="prep-sub">'+dateText(dateAt(day),{day:"numeric",month:"long"})+' · '+family+'</p>'+
+    (tasks.changes.length?'<section><h3>Порции после изменения меню</h3><ul>'+tasks.changes.map(c=>'<li>'+prepChangeText(c)+'</li>').join("")+'</ul></section>':'')+
     (cookRows?'<section><h3>Приготовить</h3>'+cookRows+'</section>':'')+
-    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+household(weekProfile())+' · '+mealWhen(u)+prepDivision(u)+'</span><small>'+prepDate(u.serve-1)+' вечером переложить в холодильник.</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
+    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+(u.spare?prepQuantity(u.f)+' · готовый запас':household(weekProfile())+' · '+mealWhen(u)+prepDivision(u))+'</span><small>'+(u.spare?'Подача отменена.':prepDate(u.serve-1)+' вечером переложить в холодильник.')+'</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
     (tasks.thaw.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Вечером в холодильник</h3><p>Переложите из морозилки к завтрашней подаче.</p><ul>'+tasks.thaw.map(transfer).join("")+'</ul></section>':'')+
     (serveRows?'<section class="prep-serve"><h3>Из заготовок к столу</h3><ul>'+serveRows+'</ul></section>':'')+
+    (prepDone(tasks,day) && [...tasks.cook.values()].some(b=>b.uses.some(u=>!u.completed))?
+      button("Отметить дополнительную готовку","prep-complete-extra","outline"):"")+
     '<label class="day-done"><input type="checkbox" data-prep-done '+(prepDone(tasks,day)?"checked":"")+'>Всё на сегодня сделано</label>'+reminderEntry()+'</div>';
 }
 
@@ -218,7 +257,7 @@ function prepOfferPanel(info){
   const old=p.days[d].meals[slot].r, next=info.next;
   return `<div class="sheet-body simple"><h2 id="sheet-title">Приготовить заранее</h2><p>${prepDate(d)} · ${slotNames[slot]}</p>
     <p>${$(old.title)} → <strong>${$(r.title)}</strong></p><p>Приготовить ${prepDate(info.timing.cook)} · ${info.timing.storage==="freeze"?"заморозить порции":"оставить в холодильнике"}.</p>
-    <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${macroChanges(p,next,new Set([d]))}
+    <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${prepComparison(p,next)}${macroChanges(p,next,new Set([d]))}
     <div class="budget-actions">${button("Применить замену","prep-apply","primary")}${button("Оставить меню","close","outline")}</div></div>`;
 }
 function batchCandidates(p,kitchen) {

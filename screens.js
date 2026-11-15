@@ -284,7 +284,7 @@ function manualPreview(info){
   const {p,next,day:d,slot}=info;
   return `<div class="sheet-body simple"><h2 id="sheet-title">Заменить блюдо?</h2><p>${prepDate(d)} · ${slotNames[slot]}</p>
     <p>${$(p.days[d].meals[slot].r.title)} → <strong>${$(next.days[d].meals[slot].r.title)}</strong></p>
-    <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${macroChanges(p,next,new Set([d]))}
+    <p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(next).cents/100)}</p>${prepComparison(p,next)}${macroChanges(p,next,new Set([d]))}
     <div class="budget-actions">${button("Применить замену","manual-apply","primary")}${button("Оставить меню","close","outline")}</div></div>`;
 }
 function placePanel(info) {
@@ -297,7 +297,7 @@ function placePanel(info) {
     old = p.days[d].meals[slot].r;
   const same=p.days[d].meals.some(m=>m.r.id===r.id);
   const preview=same?null:swapOne(weekProfile(),p,{d,slot,from:old.id},r);
-  const compare=preview?`<p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(preview).cents/100)}</p>${macroChanges(p,preview,new Set([d]))}`:"<p>Это блюдо уже есть в этом дне.</p>";
+  const compare=preview?`<p>Корзина ≈ ${money(weeklyQuote(p).cents/100)} → ${money(weeklyQuote(preview).cents/100)}</p>${prepComparison(p,preview)}${macroChanges(p,preview,new Set([d]))}`:"<p>Это блюдо уже есть в этом дне.</p>";
   return `<div class="sheet-body simple"><h2 id="sheet-title">Поставить в меню</h2><p class="quiet">${r.title} · ${rangeText()}</p>${section("Выберите день", `<div class="chips">${DAYS.map((n, i) => `<button type="button" class="chip" data-action="place-day" data-day="${i}" aria-pressed="${i === d}">${shortDay(i)}</button>`).join("")}</div>`)}${section("Приём пищи", `<div class="chips">${placementSlots(r).map((i) => `<button type="button" class="chip" data-action="place-slot" data-slot="${i}" aria-pressed="${slot === i}">${slotNames[i]}</button>`).join("")}</div>`)}<p class="quiet">Заменит «${old.title}» в меню на ${prepDate(d)}.</p>${compare}${button("Поставить в меню", "confirm-place", "primary", "check",same?"disabled":"")}</div>`;
 }
 function prepPanel() {

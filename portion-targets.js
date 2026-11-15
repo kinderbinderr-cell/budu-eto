@@ -108,7 +108,7 @@ function portionPreview({off,base,next,profile}){
     const old=outstandingGrams(w,k,beforeCounts[k]||0),need=outstandingGrams(w,k,g);
     if(need>old)extra.push('<li>'+$(FOOD[k][0])+' · '+(old?weeklyNeed(k,old):"0")+' → '+weeklyNeed(k,need)+'</li>');
   }
-  return '<div class="sheet-body simple portion-comparison"><h2 id="sheet-title">Порции на '+rangeText(off)+'</h2><p>Те же блюда, новые порции. Сравните КБЖУ каждого за день.</p>'+days+
+  return '<div class="sheet-body simple portion-comparison"><h2 id="sheet-title">Порции на '+rangeText(off)+'</h2><p>Те же блюда, новые порции. Сравните КБЖУ каждого за день.</p>'+days+prepComparison(base,next,off)+
     '<h3>Корзина ≈ '+money(first.cents/100)+' → ≈ '+money(last.cents/100)+'</h3><p>Учтены остатки дома и покупки.</p>'+
     (extra.length?'<details><summary>Понадобится докупить больше · '+extra.length+'</summary><ul>'+extra.join("")+'</ul></details>':'<p>Дополнительных продуктов не потребуется.</p>')+
     button("Обновить порции на "+rangeText(off),"portion-apply","primary")+button("Оставить как есть","close","outline")+'</div>';
@@ -117,7 +117,6 @@ function confirmWeekPortions(){
   const info=openInfo;
   if(info?.kind!=="portion-preview" || info.date!==plannedDate(info.off) || plan(null,info.off)!==info.base)return;
   (data.portionPolicies||={})[info.date]=portionPolicy(info.profile);
-  protectEarlierPrep(info.off,info.base);
   setSavedWeek(info.next,info.off);
   persist();dismissSheet();render();notify("Порции обновлены на "+rangeText(info.off));
 }

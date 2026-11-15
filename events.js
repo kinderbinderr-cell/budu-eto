@@ -426,6 +426,10 @@ document.addEventListener("click", (e) => {
       if(i?.kind!=="prep-offer" || i.week!==plan() || i.date!==weekKey())break;
       replaceMeal(i.r.id,i.d,i.slot);break;
     }
+    case "prep-complete-extra":{
+      if(openInfo?.kind!=="prep-day" || !weekData().prepDone?.[day])return;
+      weekData().prepDone[day]=prepSignature(prepWeek()[day]);persist();render();renderSheet();return;
+    }
     case "prep-day":
       openSheet({kind:"prep-day"});
       break;
@@ -600,6 +604,7 @@ sheet.addEventListener("submit",e=>{
     e.preventDefault();
     const k=e.target.dataset.key,value=Number(e.target.elements.stock.value);
     if(!FOOD[k] || !Number.isFinite(value) || value<0 || !e.target.reportValidity())return;
+    if(weekData().pantryBeforeCheck)delete weekData().pantryBeforeCheck[k];
     weekData().pantry[k]=Math.round(value*stockUnit(k).grams*100)/100;
     persist();dismissSheet();render();notify("Остаток сохранён. Список покупок обновлён.");return;
   }
@@ -659,7 +664,15 @@ main.addEventListener("change", (e) => {
   }
   if (!e.target.dataset.pantry) return;
   const k = e.target.dataset.pantry;
-  weekData().pantry[k] = e.target.checked ? neededGrams(shoppingCounts(plan())[k]||0) : 0;
+  const w=weekData();
+  if(e.target.checked){
+    (w.pantryBeforeCheck||={})[k]=w.pantry[k]??null;
+    w.pantry[k]=neededGrams(shoppingCounts(plan())[k]||0);
+  }else{
+    const previous=w.pantryBeforeCheck?.[k];
+    if(previous==null)delete w.pantry[k];else w.pantry[k]=previous;
+    if(w.pantryBeforeCheck)delete w.pantryBeforeCheck[k];
+  }
   persist();
   render();
   main.querySelector(`[data-pantry="${k}"]`)?.focus({ preventScroll: true });
