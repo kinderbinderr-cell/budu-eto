@@ -73,9 +73,16 @@ const mime={".js":"application/javascript",".css":"text/css",".html":"text/html"
       let changed=[];
       if(!pair){
         const n=await choices.count();assert.ok(n>=3,"expected a multi-item offer");
+        assert.ok(await p.locator(".offer-prices").evaluate(el=>Boolean(el.compareDocumentPosition(el.parentNode.querySelector(".offer-choices"))&Node.DOCUMENT_POSITION_FOLLOWING)));
         for(let i=2;i<n;i++)await choices.nth(i).uncheck();
         const confirmed=await p.evaluate(()=>{const v=previewSelection(budgetSuggestion);return {edits:v.edits,price:v.after.cents};});
         assert.equal(confirmed.edits.length,2);
+        const summary=await p.evaluate(()=>{const entry=budgetSuggestion,selected=previewSelection(entry);return {
+          after:document.querySelector(".offer-prices > div:last-child strong").textContent,
+          expected:"≈ "+money(selected.after.cents/100),status:document.querySelector(".budget-offer [aria-live]").textContent,
+          gap:Math.max(0,selected.after.cents-entry.offer.limit)};});
+        assert.equal(summary.after,summary.expected);
+        assert.match(summary.status,summary.gap?/Сверх бюджета/:/В пределах бюджета/);
         assert.deepEqual(await capture(p),baseline,"preview modified the menu");
         await btn("budget-apply").click();await p.reload({waitUntil:"domcontentloaded"});
         const after=await capture(p);

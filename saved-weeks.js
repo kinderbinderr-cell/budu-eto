@@ -59,9 +59,23 @@ function setSavedWeek(week,off=offset) {
   decodedWeeks.set(snap,week);
   lastPlan=null;adjacentPlan=null;
 }
+const portionFieldsToSave=["adults","small","targetMode","target","plainPortion","weight","height","age","sex","activity","ratio","portionTargets"];
+function portionPolicy(s){
+  return Object.fromEntries(portionFieldsToSave.map(k=>[k,structuredClone(s[k]??null)]));
+}
+function weekProfile(off=offset){
+  return {...settings(),...data.portionPolicies?.[plannedDate(off)]};
+}
+function protectPortionPolicies(){
+  protectMenus();
+  const policy=portionPolicy(settings()), policies=data.portionPolicies||={};
+  for(const key of Object.keys(data.savedWeeks||{}))
+    if(key.startsWith(data.mode+"/"))policies[key]??=policy;
+}
 function spendingProfile(){
   const limit=weekData().budgetLimit;
-  return budgetRange(limit)?{...settings(),budget:limit,budgetChosen:true}:settings();
+  const s=weekProfile();
+  return budgetRange(limit)?{...s,budget:limit,budgetChosen:true}:s;
 }
 // Only the selected meal may change portion size. Solve each person's one free
 // portion against the rest of their already fixed day.
@@ -125,9 +139,7 @@ function visitSavedWeeks(fn) {
     if(next!==week)setSavedWeek(next,n);
   }
 }
-function updateSavedPortions() {
-  const s=settings();
-  visitSavedWeeks(week=>{
+function resizedWeek(week,s) {
     let result=week;
     for(const [d,day] of week.days.entries()){
       const meals=day.meals.map(({personFactors,...m},slot)=>({...m,f:slot===3?servings(s)*dessertPortion:factor(s,m.r,slot)}));
@@ -136,7 +148,6 @@ function updateSavedPortions() {
     }
     if(activePortionTargets(s)?.length!==2)result.pairMisses=[];
     return result;
-  });
 }
 function editDessert(s,p,d,id,moment){
   const old=p.days[d].meals[3];
@@ -147,8 +158,9 @@ function editDessert(s,p,d,id,moment){
   return changeDayMeals(s,p,d,meals);
 }
 function updateSavedDesserts(){
-  const s=settings(), choices=sweetLikes(s);
+  const choices=sweetLikes(settings());
   visitSavedWeeks((week,n)=>{
+    const s=weekProfile(n);
     let next=week,base=week;
     for(let d=0;d<7;d++)base=editDessert(s,base,d,null);
     const schedule=sweetFrequency(s.dessertPrefs) && choices.length?sweetSchedule(s,weekSeed(n),base,choices):{};

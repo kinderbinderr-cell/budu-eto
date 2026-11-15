@@ -139,7 +139,7 @@ function requiredItems() {
   return Object.entries(p.counts)
     .map(([key, n]) => ({
       key,
-      g: remainingGrams(key, n),
+      g: outstandingGrams(weekData(),key,n),
     }))
     .filter((x) => x.g > 0)
     .sort((a, b) => FOOD[a.key][0].localeCompare(FOOD[b.key][0], "ru"));
@@ -180,6 +180,8 @@ function priceLine(item, store, entry = priceBook.get(store + "/" + item.key)) {
     o,
     units,
     orderGrams,
+    edibleGrams: o.unit==="kg" ? orderGrams*purchaseYield(item.key,o.edibleFraction) : units*o.packGrams,
+    weightSale:o.unit==="kg",
     pieces,
     quantity: units === null ? null : weight
       ? (orderGrams === weight.weight ? weight.label : "около " + grams(orderGrams))

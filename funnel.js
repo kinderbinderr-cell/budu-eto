@@ -246,7 +246,7 @@ function flowProfile(f) {
     likes: [],
     votes: { ...f.votes },
     strictTaste: true,
-    tasteAnchor: weekSeed(0),
+    tasteAnchor: Math.round(copyDistance(new Date(2026,10,9,12),flowStartDate(f))/7),
     maxMinutes: f.minutes || 0,
     cook: [...f.cook].sort((a, b) => a - b),
     stores: [...f.stores],
@@ -316,6 +316,23 @@ function handleFlowAction(action, value, el) {
     ?.focus({ preventScroll: true });
   return true;
 }
+// Reuse the complete cycle checked at the taste step when the final settings match.
+const menuCycleCache=new Map();
+function firstMenuCycle(s){
+  const key=JSON.stringify(s);
+  if(menuCycleCache.has(key))return menuCycleCache.get(key);
+  const weeks=[],prior=new Map();
+  for(let i=0;i<3;i++){
+    const previous=weeks.at(-1)?.days.slice(-2)||[];
+    const week=budgetPlan(s,s.tasteAnchor+i,{},prior,i,previous);
+    if(!week)break;
+    weeks.push(week);rememberWeek(prior,week);
+  }
+  if(menuCycleCache.size>=4)menuCycleCache.delete(menuCycleCache.keys().next().value);
+  const result=weeks.length===3?weeks:null;
+  menuCycleCache.set(key,result);
+  return result;
+}
 function submitFlow() {
   // A stale questionnaire (browser Back or another tab) must not overwrite a finished menu.
   const stored=loadData();
@@ -364,9 +381,16 @@ function submitFlow() {
   if (!budgetRange(f.budget)) { error.textContent="Укажите недельный бюджет от 400 до 150 000 ₽."; return; }
   const s = flowProfile(f);
   if (sweetFrequency(s.dessertPrefs) && !sweetLikes(s).length) { error.textContent="Для новых настроек выберите десерт ещё раз или укажите 0 дней."; return; }
+  const initialWeeks=firstMenuCycle(s);
+  if(!initialWeeks){
+    changeFlow(f=>{f.stage=2;},true);
+    document.querySelector("#flow-error").textContent="Для этих дат не хватает блюд для чередования. Отметьте ещё варианты на обед и ужин.";
+    return;
+  }
   data.mode = s.mode;
   data[s.mode] = s;
-  s.tasteAnchor=weekSeed(0);
+  data.savedWeeks||={};
+  initialWeeks.forEach((week,n)=>{data.savedWeeks[plannedDate(n)]=fullWeekSnapshot(week);});
   clearDiscovery(s.mode);
   data.quizDone = true;
   offset = 0;

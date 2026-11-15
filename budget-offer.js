@@ -31,7 +31,7 @@ function withBudgetEdits(s,week,edits,prior,previous) {
 }
 
 // Try singles and repeated servings together: changing only one may leave the same pack in the basket.
-function* findBudgetOffer(s,base,pantry,previous,bought={}) {
+function* findBudgetOffer(s,base,pantry,previous,bought={},purchases={}) {
   const goals=activePortionTargets(s);
   const trial=(week,e,r)=>{
     if(!fitsNutritionSwap(s,week,e.d,e.slot,r,previous))return null;
@@ -39,12 +39,12 @@ function* findBudgetOffer(s,base,pantry,previous,bought={}) {
     return next && keepsDayTargets(goals,week.days[e.d].meals,next.days[e.d].meals)?next:null;
   };
   const pool=RECIPES.filter(r=>eligible(s,r)), score=budgetScorer(s), target=s.budget*100;
-  const before=score(base.counts,pantry,bought), choices=new Map(), edits=[];
+  const before=score(base.counts,pantry,bought,purchases), choices=new Map(), edits=[];
   let week=base, after=before;
   while(after.cents>target) {
     let best=null;
     function consider(next,changes) {
-      const quote=score(next.counts,pantry,bought);
+      const quote=score(next.counts,pantry,bought,purchases);
       if(quote.cents>=after.cents) return;
       const fits=quote.cents<=target, otherFits=best && best.quote.cents<=target;
       if(!best || (fits && !otherFits) || (fits===otherFits &&
@@ -89,7 +89,7 @@ function* findBudgetOffer(s,base,pantry,previous,bought={}) {
 let budgetSuggestion=null;
 function budgetOfferKey(p,q) {
   const s=spendingProfile();
-  return JSON.stringify([data.mode,weekKey(),s.budget,s.stores,weekData().pantry,weekData().cart,q,
+  return JSON.stringify([data.mode,weekKey(),s.budget,s.stores,weekData().pantry,weekData().cart,weekData().purchases,q,
     [...priceBook].filter(([key])=>s.stores?.includes(key.split('/')[0])).map(([key,row])=>[key,row,Boolean(row.snapshot && Date.now()-row.checkedAt>=86400000)])]);
 }
 function previewSelection(entry) {
@@ -108,10 +108,10 @@ function previewSelection(entry) {
   return {edits,next,affected,after:weeklyQuote(next),withinTargets};
 }
 function swapNumbers(meals,i){
-  return mealNutrients(meals,meals.map(m=>m.personFactors?.[i]??m.f/servings(settings()))).map(Math.round);
+  return mealNutrients(meals,meals.map(m=>m.personFactors?.[i]??m.f/servings(weekProfile()))).map(Math.round);
 }
 function macroChanges(before,after,days){
-  const n=portionCount(settings());
+  const n=portionCount(weekProfile());
   if(!n || !days.size)return "";
   const facts=values=>values[0]+" ккал · Б "+values[1]+" · Ж "+values[2]+" · У "+values[3]+" г";
   return '<details class="swap-numbers"><summary>КБЖУ за день до и после</summary>'+[...days].sort().map(d=>
@@ -124,13 +124,13 @@ function budgetOfferHtml(entry) {
   const rows=offer.edits.map((e,i)=>({e,i})).sort((a,b)=>a.e.d-b.e.d||a.e.slot-b.e.slot).map(({e,i})=>
     '<li><label><input type="checkbox" data-offer-index="'+i+'" '+(entry.selected.has(i)?'checked':'')+'><span><small>'+prepDate(e.d)+' · '+slotNames[e.slot]+'</small>'+$(byId(e.from).title)+' → <b>'+$(byId(e.to).title)+'</b></span></label></li>').join('');
   const table='<ul class="offer-choices">'+rows+'</ul>';
-  if(!preview) return table+'<p>Эти замены вместе нарушают чередование блюд. Измените выбор.</p>';
+  if(!preview) return '<p role="status">Эти замены вместе нарушают чередование блюд. Измените выбор.</p>'+table;
   const amounts=[['Сейчас',offer.before],['После выбранных замен',preview.after]].map(([label,q])=>'<div><small>'+label+'</small><strong>≈ '+money(q.cents/100)+'</strong>'+(q.store?'<small>'+$(shopName(q.store))+'</small>':'')+'</div>').join('');
   const gap=preview.after.cents-offer.limit,n=preview.edits.length;
   const saving=(offer.before.cents-preview.after.cents)/100;
   const canApply=n && preview.withinTargets;
-  return table+'<div class="offer-prices">'+amounts+'</div><p aria-live="polite">'+(saving>0?'Экономия ≈ '+money(saving)+'. ':saving<0?'Дороже на ≈ '+money(-saving)+'. ':'')+(gap>0?'Сверх бюджета ≈ '+money(gap/100):'В пределах бюджета')+'.</p>'+
-    macroChanges(entry.p,preview.next,preview.affected)+(!preview.withinTargets?'<p>С таким выбором КБЖУ дальше от цели. Измените сочетание замен.</p>':'')+
+  return '<div class="offer-prices" aria-label="Стоимость корзины">'+amounts+'</div><p aria-live="polite">'+(saving>0?'Экономия ≈ '+money(saving)+'. ':saving<0?'Дороже на ≈ '+money(-saving)+'. ':'')+(gap>0?'Сверх бюджета ≈ '+money(gap/100):'В пределах бюджета')+'.</p>'+
+    table+macroChanges(entry.p,preview.next,preview.affected)+(!preview.withinTargets?'<p>С таким выбором КБЖУ дальше от цели. Измените сочетание замен.</p>':'')+
     '<div class="budget-actions">'+button('Применить '+n+' '+plural(n,'замену','замены','замен'),'budget-apply','primary','',canApply?'':'disabled')+button('Оставить меню','budget-keep','soft')+'</div>';
 }
 function mountBudgetOffer() {
@@ -142,7 +142,7 @@ function mountBudgetOffer() {
   const key=budgetOfferKey(p,q);
   if(!budgetSuggestion || budgetSuggestion.p!==p || budgetSuggestion.key!==key) {
     const entry=budgetSuggestion={p,key,offer:null,kept:false};
-    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[],accountedPurchases(weekData(),p.counts));
+    const search=findBudgetOffer(s,p,{...weekData().pantry},lastPlan?.previous||[],accountedPurchases(weekData(),p.counts),weekData().purchases);
     const advance=()=>{
       if(budgetSuggestion!==entry || !document.querySelector('[data-budget-offer]')) { if(budgetSuggestion===entry) budgetSuggestion=null; return; }
       const start=performance.now();

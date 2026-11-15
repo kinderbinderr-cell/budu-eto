@@ -64,6 +64,18 @@ function copyWeekRecord(raw) {
   if(raw.budgetLimit!=null){requireCopy(budgetRange(raw.budgetLimit));r.budgetLimit=raw.budgetLimit;}
   if(raw.paidStock!=null){requireCopy(copyGrams(raw.paidStock));r.paidStock=raw.paidStock;}
   if(raw.cart!=null){requireCopy(copyGrams(raw.cart));r.cart=raw.cart;}
+  if(raw.purchases!=null){
+    requireCopy(copyMap(raw.purchases,k=>Object.hasOwn(FOOD,k),p=>copyObject(p) && copyNumber(p.grams,0.001) &&
+      copyNumber(p.weight,0.001) && Number.isSafeInteger(p.cents) && copyNumber(p.cents) &&
+      (p.source==null || (typeof p.source==="string" && p.source.length<=256)) && typeof p.weightSale==="boolean" && (p.store===null||supportedShop(p.store)) && typeof p.label==="string" && p.label.length<=160));
+    for(const [k,p] of Object.entries(raw.purchases))requireCopy(r.cart?.[k]===p.grams);
+    r.purchases=raw.purchases;
+  }
+  if(raw.incomingPrep!=null){
+    requireCopy(copyMap(raw.incomingPrep,k=>/^[0-6]-[0-3]$/.test(k),m=>copyObject(m) && copyRecipe(m.id) &&
+      copyNumber(m.f,0.001,100) && (m.personFactors==null || validCopyList(m.personFactors,f=>copyNumber(f,0.001,100),2))));
+    r.incomingPrep=raw.incomingPrep;
+  }
   if(raw.prepDone!=null){
     requireCopy(copyMap(raw.prepDone,k=>/^[0-6]$/.test(k),v=>typeof v==="string" && v.length<=65536));r.prepDone=raw.prepDone;
   }
@@ -129,7 +141,8 @@ function buildMenuCopy() {
     const n=first+i,date=weekKey(n),p=plan(null,n);
     if(!p) throw Error("Для этой недели пока нет готового меню.");
     const record=data.weeks[profile.mode+"/"+date]||{};
-    return {date,record:copyWeekRecord(record),plan:fullWeekSnapshot(p)};
+    const policy=data.portionPolicies?.[plannedDate(n)];
+    return {date,record:copyWeekRecord(record),plan:fullWeekSnapshot(p),...(policy && {policy})};
   });
   const next=first+3,stored=data.savedWeeks?.[plannedDate(next)] || data.prepForecasts?.[plannedDate(next)];
   const forecast=stored || (plan(null,next) && fullWeekSnapshot(plan(null,next)));
@@ -148,10 +161,15 @@ function parseMenuCopy(text) {
   requireCopy(distance%7===0 && Math.abs(distance)<36525);
   const weeks=raw.weeks.map((week,i)=>{
     requireCopy(copyObject(week) && week.date===localDayKey(plusDays(first,7*i)));
-    const plan=copySnapshot(week.plan),goals=activePortionTargets(profile);
+    const policy=week.policy;
+    if(policy!=null){
+      requireCopy(copyObject(policy) && Object.keys(policy).every(k=>portionFieldsToSave.includes(k)));
+      copyProfile({...profile,...policy});
+    }
+    const plan=copySnapshot(week.plan),goals=activePortionTargets({...profile,...policy});
     if(goals) requireCopy(plan.days.every(d=>d.meals.every(m=>m.personFactors?.length===goals.length &&
       Math.abs(m.f-m.personFactors.reduce((a,b)=>a+b,0))<1e-6)));
-    return {date:week.date,plan,record:copyWeekRecord(week.record)};
+    return {date:week.date,plan,policy,record:copyWeekRecord(week.record)};
   });
   return {profile,weeks,first:distance/7,forecast:raw.forecast?copySnapshot(raw.forecast):null};
 }
@@ -162,7 +180,11 @@ function applyMenuCopy(info) {
   const revision=crypto.randomUUID(),records={...current.weeks};
   const signature=JSON.stringify(profile), old=current.menuCopies?.[mode];
   const plans=old?.signature===signature ? {...old.plans} : {};
-  for(const {date,plan,record} of weeks){
+  const portionPolicies={...current.portionPolicies};
+  for(const key of Object.keys(current.savedWeeks||{}))
+    if(key.startsWith(mode+"/"))portionPolicies[key]??=portionPolicy(current[mode]);
+  for(const {date,plan,record,policy} of weeks){
+    portionPolicies[mode+"/"+date]=portionPolicy({...profile,...policy});
     records[mode+"/"+date]=record;
     plans[date]={week:plan,edits:copyRecordSignature(record)};
   }
@@ -171,7 +193,7 @@ function applyMenuCopy(info) {
   const prepForecasts={...current.prepForecasts};
   const boundary=mode+"/"+localDayKey(plusDays(copyDate(weeks[2].date),7));
   if(info.copy.forecast)prepForecasts[boundary]=info.copy.forecast;else delete prepForecasts[boundary];
-  const next={...current,prepForecasts,savedWeeks,mode,[mode]:profile,quizDone:true,quizRun:revision,weeks:records,
+  const next={...current,prepForecasts,savedWeeks,portionPolicies,mode,[mode]:profile,quizDone:true,quizRun:revision,weeks:records,
     menuCopies:{...current.menuCopies,[mode]:{revision,signature,plans}}};
   // A single atomic write also covers the concrete meals. On quota failure the existing menu stays intact.
   try{localStorage.setItem(key,JSON.stringify(next));}
@@ -199,7 +221,7 @@ function menuCopyPane(info) {
         for(const [id,g] of Object.entries(plan.counts)){
           const remaining=neededGrams(g)-(record.pantry[id]||0);
           if(remaining<=0)home++;
-          else if((record.cart?.[id]||0)>=remaining)cart++;
+          else if(record.cart?.[id] && !outstandingGrams(record,id,plan.counts[id]))cart++;
         }
         return `<li><b>Неделя ${i+1}</b><span>${dateText(start,{day:"numeric",month:"short"})} – ${dateText(end,{day:"numeric",month:"short"})}</span><small>Есть дома · ${home} &nbsp; В корзине · ${cart}</small></li>`;
       }).join("")}</ul>

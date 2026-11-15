@@ -80,13 +80,18 @@ addPack("honey appleButter",250,"250 г","jar");
 addPack("grapeLeaves",500,"500 г");
 addPack("puffPastry cornFrozen peas pelmeni",500,"500 г");
 addPack("starch",200,"200 г");
+const meatBoneRatio={porkRibMeat:1.5,chickenWingMeat:1.7,chickenLegMeat:1.4};
+function purchaseYield(k,fraction) {
+  const piece=producePieces[k];
+  return fraction>0 && fraction!==1 ? fraction : piece ? piece[0]/piece[1] : 1;
+}
 function typicalPurchase(key,g) {
   const pack=commonPacks[key];
   if(pack){
     const count=Math.ceil(g/pack.capacity);
     return {weight:count*pack.capacity,label:packPurchase(key,count,pack.label,pack.kind)};
   }
-  const boneFactor = {porkRibMeat: 1.5, chickenWingMeat: 1.7, chickenLegMeat: 1.4}[key];
+  const boneFactor = meatBoneRatio[key];
   if(boneFactor){
     const weight=shoppingWeight(g*boneFactor);
     return {weight,label:"около "+grams(weight)+" с костью"};

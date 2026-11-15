@@ -71,7 +71,7 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
   if(!old || old.r.id===id || p.days[d].meals.some((m,i)=>i!==slot && m.r.id===id)) {
     notify("Выберите другое блюдо для этого дня.");return;
   }
-  const updated=swapOne(settings(),p,{d,slot,from:old.r.id},recipe);
+  const updated=swapOne(weekProfile(),p,{d,slot,from:old.r.id},recipe);
   protectMenus();
   setSavedWeek(updated);
   const record=weekData();
@@ -91,7 +91,7 @@ function replaceMeal(id, d, slot, oneDayAnalog = false) {
 async function copyList() {
   const p=plan(), store=weeklyQuote(p).store;
   const groups = groceryGroups(p)
-    .map((g) => ({ ...g, items: g.items.filter((x) => !checked(x.k, x.g)) }))
+    .map((g) => ({ ...g, items: g.items.filter(x=>outstandingGrams(weekData(),x.k,x.g)>0) }))
     .filter((g) => g.items.length);
   const str = [
     "Буду это · " + rangeText(),
@@ -99,7 +99,7 @@ async function copyList() {
       (g) =>
         g.label +
         "\n" +
-        g.items.map((x) => "□ " + FOOD[x.k][0] + " — " + shoppingAmount(x.k, remainingGrams(x.k, x.g),store)).join("\n"),
+        g.items.map((x) => "□ " + FOOD[x.k][0] + " — " + shoppingAmount(x.k,outstandingGrams(weekData(),x.k,x.g),store)).join("\n"),
     ),
   ].join("\n\n");
   try {
@@ -147,8 +147,7 @@ function finishSetup() {
   if (draft.mode === "personal")
     draft.plainPortion = draft.targetMode === "portion";
   const old=data[draft.mode];
-  const servingFields=["adults","small","targetMode","target","plainPortion","weight","height","age","sex","activity","portionTargets"];
-  const portionsChanged=servingFields.some(k=>JSON.stringify(old[k])!==JSON.stringify(draft[k]));
+  const portionsChanged=portionFieldsToSave.some(k=>JSON.stringify(old[k])!==JSON.stringify(draft[k]));
   protectMenus();
   data.quizDone = true;
   data.mode = draft.mode;
@@ -159,6 +158,7 @@ function finishSetup() {
     draft.budgetChosen=old.budgetChosen;
   }
   useStockForPlanning(draft,weekSeed(),weekData().pantry);
+  if(portionsChanged)protectPortionPolicies();
   data[draft.mode] = structuredClone(draft);
   clearDiscovery(draft.mode);
   for (const [week, record] of Object.entries(data.weeks)) {
@@ -173,12 +173,12 @@ function finishSetup() {
         delete record.replacements[cell];
     }
   }
-  if(portionsChanged)updateSavedPortions();
+
   draft = null;
   persist();
   miniStats.built();
   navTo("week");
-  notify("Меню собрано по вашим настройкам");
+  notify(portionsChanged?"Новые порции сохранены для будущих меню":"Настройки сохранены");
 }
 function syncDraft(el) {
   if (!draft || !el.dataset.field || !el.validity.valid || !el.value) return;
@@ -200,6 +200,8 @@ document.addEventListener("click", (e) => {
   )
     return;
   switch (action) {
+    case "purchase-edit":
+      if(weekData().cart?.[id])openSheet({kind:"purchase",id});break;
     case "stock":
       if(FOOD[id])openSheet({kind:"stock",id});break;
     case "shopping-mode":
@@ -219,9 +221,10 @@ document.addEventListener("click", (e) => {
       confirmNutritionSwap();
       break;
     case "portion-edit":
-      if(portionCount(settings()))openSheet({kind:"portion-edit"});break;
+      if(portionCount(editorProfile()))openSheet({kind:"portion-edit"});break;
     case "portion-off":
-      protectMenus();delete settings().portionTargets;updateSavedPortions(); persist(); dismissSheet(); render(); break;
+      saveFutureGoals(null);break;
+    case "portion-apply": confirmWeekPortions();break;
     case "budget-edit":
       openSheet({kind:"budget-edit",value:hasBudget(spendingProfile())?spendingProfile().budget:null});break;
     case "budget-apply":
@@ -309,7 +312,7 @@ document.addEventListener("click", (e) => {
       break;
     case "choose-swap": {
       const p=plan(),cell=Number(slot),old=p.days[day].meals[cell].r;
-      const next=swapOne(settings(),p,{d:day,slot:cell,from:old.id},byId(id));
+      const next=swapOne(weekProfile(),p,{d:day,slot:cell,from:old.id},byId(id));
       if(next)openSheet({kind:"manual-preview",id,day,slot:cell,p,date:weekKey(),next});
       break;
     }
@@ -562,6 +565,20 @@ sheet.addEventListener("input",e=>{
   refreshBookDraft(selection);
 });
 sheet.addEventListener("submit",e=>{
+  if(e.target.id==="purchase-form"){
+    e.preventDefault();
+    const k=e.target.dataset.key,w=weekData(),old=w.purchases?.[k],qty=Number(e.target.elements.qty.value);
+    if(!w.cart?.[k] || !e.target.reportValidity() || !(qty>0))return;
+    const store=old?.store??weeklyQuote(plan()).store;
+    const entered=qty*stockUnit(k).grams,own=cataloguePurchase(k,entered,store),row=own||estimatedPurchase(k,entered,store);
+    const byWeight=old?.weightSale??row.weightSale;
+    const grams=byWeight?qty*(old?old.grams/old.weight:row.edibleGrams/row.orderGrams):entered;
+    const cents=byWeight?Math.round(qty*(old?old.cents/old.weight:row.cents/row.orderGrams)):row.cents;
+    (w.purchases||={})[k]={grams,weight:byWeight?qty:grams,cents,store,source:old?.source||priceOrigin(row,store,!!own),
+      weightSale:byWeight,label:byWeight?qty+" г":weeklyNeed(k,grams)};
+    w.cart[k]=grams;(w.paidStock||={})[k]=grams;
+    persist();dismissSheet();render();return;
+  }
   if(e.target.id==="stock-form"){
     e.preventDefault();
     const k=e.target.dataset.key,value=Number(e.target.elements.stock.value);
@@ -579,7 +596,7 @@ document.addEventListener("input",e=>{
   const box=e.target.closest(".budget-fields"),n=e.target.value===""?null:Number(e.target.value);
   const isFlow=!!box.closest("#flow-form");
   if(isFlow){getFlow().budget=n;rememberFlow();}else if(openInfo?.kind==="budget-edit"){openInfo.value=n;}
-  box.querySelector("[data-budget-day]").textContent=budgetDaily(n,isFlow?flowPortions(getFlow()):servings(settings()));
+  box.querySelector("[data-budget-day]").textContent=budgetDaily(n,isFlow?flowPortions(getFlow()):servings(weekProfile()));
   for(const pick of box.querySelectorAll("[data-action=budget-preset]"))pick.setAttribute("aria-pressed",String(Number(pick.dataset.value)===n));
 });
 main.addEventListener("input", (e) => {
@@ -619,8 +636,8 @@ main.addEventListener("change", (e) => {
   if(cartKey){
     const w=weekData(); w.cart ||= {};
     if(e.target.checked){
-      w.cart[cartKey]=remainingGrams(cartKey,plan().counts[cartKey]);(w.paidStock||={})[cartKey]=w.cart[cartKey];
-    }else {delete w.cart[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
+      addPurchase(cartKey);
+    }else {delete w.cart[cartKey];if(w.purchases)delete w.purchases[cartKey];if(w.paidStock)delete w.paidStock[cartKey];}
     persist(); render(); return;
   }
   if (!e.target.dataset.pantry) return;

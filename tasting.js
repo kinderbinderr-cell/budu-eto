@@ -43,13 +43,7 @@ function tasteContext() {
   if (route === "start" && getFlow().stage === 2) {
     const f = getFlow();
     f.votes ||= {};
-    profile = {
-      ...initial("family"),
-      diet: f.diet,
-      exclude: f.exclude || [],
-      cuisines: f.cuisines || [],
-      maxMinutes: f.minutes || 0,
-    };
+    profile = flowProfile(f);
     state = f;
   } else if (route === "settings" && step === 4 && draft) {
     settingsTasting ||= { deck: null };
@@ -141,19 +135,31 @@ const tasteNouns = [
   ["обед", "обеда", "обедов"],
   ["ужин", "ужина", "ужинов"],
 ];
-function tasteReadiness({pool, votes}) {
+const viableTasteCache=new Map();
+function feasibleTasteWeek(profile,votes){
+  const s={...profile,votes};
+  const signature=JSON.stringify(s);
+  if(!viableTasteCache.has(signature)){
+    if(viableTasteCache.size>30)viableTasteCache.clear();
+    viableTasteCache.set(signature,!!planWeek(s,s.tasteAnchor,{},null,0,[]));
+  }
+  return viableTasteCache.get(signature);
+}
+function tasteReadiness({pool, votes, profile}) {
   const targets = tasteCredits(pool, [6, 6, 6]);
   const selected = selectedCounts(pool, votes);
   const counts = tasteCredits(selected.chosen, targets);
   const missing = targets.map((target, i) => target - counts[i]);
   const minimumHint = selectionHint(selected);
-  const complete = !minimumHint && missing.every(n => n === 0);
+  const enough=!minimumHint && missing.every(n=>n===0);
+  const complete=enough && (route!=="start" || !!firstMenuCycle({...profile,votes}));
   const shortfall = missing.flatMap((n, i) => n ? [n + " " + plural(n, ...tasteNouns[i])] : []);
   let hint = "Выберите ещё " + new Intl.ListFormat("ru").format(shortfall) + ".";
   if (targets[0] < 2 || targets[1] + targets[2] < 2 || !pool.some(r => r.slot === "m" && fitsMainSlot(r, 2))) {
     hint = "Добавьте кухню или измените ограничения, чтобы собрать неделю.";
   } else if (!shortfall.length && minimumHint) hint = minimumHint;
   else if (!selected.chosen.length) hint = "Выберите блюда на завтрак, обед и ужин.";
+  if(enough && !complete)hint="Для чередования на семь дней выберите ещё основные блюда на обед и ужин. Можно расширить время или кухни.";
   return {targets, counts, missing, hint, complete};
 }
 
@@ -248,7 +254,9 @@ function tastingPanel() {
 function widerTasteChoices({profile,pool,votes}) {
   const known=new Set(pool.map(r=>r.id)), choices=[];
   function choice(action,value,label,changes){
-    const added=tastePool({...profile,...changes}).filter(r=>!known.has(r.id) && votes[r.id]==null).length;
+    const candidate={...profile,...changes}, options=tastePool(candidate).filter(r=>votes[r.id]!==-1);
+    const added=options.filter(r=>!known.has(r.id) && votes[r.id]==null).length;
+    if(!added || !feasibleTasteWeek(candidate,Object.fromEntries(options.map(r=>[r.id,1]))))return 0;
     if(added)choices.push(button(label+" · ещё "+bookCount(added),action,"soft","","data-value="+value));
     return added;
   }
@@ -257,6 +265,10 @@ function widerTasteChoices({profile,pool,votes}) {
     if(choice("wider-time",t,t?"До "+t+" минут":"Любое время",{maxMinutes:t}))break;
   }
   if(profile.cuisines?.length)choice("wider-cuisines",0,"Все кухни",{cuisines:[]});
+  if(!choices.length && profile.maxMinutes && profile.cuisines?.length)for(const t of [30,45,0]){
+    if(t && t<=profile.maxMinutes)continue;
+    if(choice("wider-both",t,"Все кухни · "+(t?"до "+t+" мин":"любое время"),{cuisines:[],maxMinutes:t}))break;
+  }
   return choices.length?'<div class="taste-end-actions">'+choices.join("")+'</div>':'<p>Проверьте выбранные настройки питания и доступную технику.</p>';
 }
 function tastingCards({ pool, votes, deck, profile }) {
@@ -278,7 +290,7 @@ function tastingCards({ pool, votes, deck, profile }) {
     const filters=[profile.cuisines?.map(k=>cuisineNames[k]).join(", "),profile.diet!=="all"&&diets[profile.diet],profile.maxMinutes&&"до "+profile.maxMinutes+" минут"].filter(Boolean);
     return `<section class="taste-end"><h2>Нет блюд с такими условиями</h2><p>${filters.map($).join(" · ")}. Пищевые исключения сохранятся.</p>${route==="start"?widerTasteChoices({profile,pool,votes}):""}</section>`;
   }
-  if (!r && route === "start" && !left && !tasteReadiness({pool, votes}).complete)
+  if (!r && route === "start" && !left && !tasteReadiness({pool, votes, profile}).complete)
     return `<section class="taste-end">${summary}<h2>Вы посмотрели все подходящие блюда</h2><p>Добавьте ещё кухню или пересмотрите пропущенные блюда.</p>
       <div class="taste-end-actions">${widerTasteChoices({profile,pool,votes})}${rejected ? deckLink("Пересмотреть пропущенные", "taste-again") : ""}</div></section>`;
   if (!r)
@@ -307,8 +319,8 @@ function tastingCards({ pool, votes, deck, profile }) {
     ${summary}</div></section>`;
 }
 function handleTasteAction(action, el) {
-  if(route==="start" && ["wider-time","wider-cuisines"].includes(action)){
-    const f=getFlow();if(action==="wider-time")f.minutes=Number(el.dataset.value);else f.cuisines=[];
+  if(route==="start" && ["wider-time","wider-cuisines","wider-both"].includes(action)){
+    const f=getFlow();if(action!=="wider-cuisines")f.minutes=Number(el.dataset.value);if(action!=="wider-time")f.cuisines=[];
     f.deck=null;rememberFlow();render();return true;
   }
   if (

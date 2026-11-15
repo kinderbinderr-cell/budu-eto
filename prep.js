@@ -25,6 +25,18 @@ function prepTiming(recipe, serve, cookDays, slot) {
   if (!delicate && freezerKinds.has(kind)) return {cook, storage:"freeze"};
   return {cook:serve, storage:"fresh"};
 }
+// A later change to serving sizes must keep an earlier shopping and cooking day intact.
+function protectEarlierPrep(off,base){
+  if(!data.savedWeeks[plannedDate(off-1)])return;
+  const s=weekProfile(off-1),days=DAYS.map((_,i)=>i).filter(i=>s.cook.includes(weekdayIndex(s,i)));
+  const record=weekData(off);
+  for(const [d,day] of base.days.entries())for(const [slot,m] of day.meals.entries()){
+    const timing=prepTiming(m.r,d+7,days,slot);
+    if(timing.cook>=7 && !(timing.storage==="freeze" && d===0))continue;
+    const previous=(record.incomingPrep||={}),key=d+"-"+slot;
+    if(previous[key]?.id!==m.r.id)previous[key]={id:m.r.id,f:m.f,...(m.personFactors && {personFactors:m.personFactors})};
+  }
+}
 function kitchenWeek(profile, current, next, weekOffset=offset) {
   const days = Array.from({length:7},()=>({cook:new Map(),thaw:[],serve:[]}));
   const people = profile.mode === "personal" ? 1 : profile.adults + profile.small;
@@ -32,7 +44,8 @@ function kitchenWeek(profile, current, next, weekOffset=offset) {
   const menuDays = [...current.days, ...(next?.days || [])];
   for (const [serve,entry] of menuDays.entries()) {
     for (const [slot,meal] of entry.meals.entries()) {
-      const {r,f,personFactors} = meal;
+      const r=meal.r, saved=serve>=7 && data.weeks[plannedDate(weekOffset+1)]?.incomingPrep?.[(serve-7)+"-"+slot];
+      const {f,personFactors}=saved?.id===r.id?saved:meal;
       const effectiveDays=profile.startDate && weekOffset===0 && serve<7 ? [...cookDays,0] : cookDays;
       const timing=prepTiming(r,serve,effectiveDays,slot);
       const firstWeek=profile.startDate && weekOffset===0;
@@ -56,11 +69,12 @@ function prepWeek() {
   const current=plan();
   const id=plannedDate(offset+1);
   const forecast=data.savedWeeks?.[id] || data.prepForecasts?.[id];
-  return current && kitchenWeek(settings(),current,forecast?savedWeek(forecast,settings()):plan(null,offset+1));
+  return current && kitchenWeek(weekProfile(),current,forecast?savedWeek(forecast,weekProfile()):plan(null,offset+1));
 }
 const prepUseKey = u => [u.r.id,u.cook,u.serve,u.slot,u.storage,u.people,u.f,u.personFactors];
-function prepSignature(tasks) {
-  return JSON.stringify([settings().adults,settings().small,
+function prepSignature(tasks){return prepSignatureFor(tasks,weekProfile());}
+function prepSignatureFor(tasks,s) {
+  return JSON.stringify([s.adults,s.small,
     [...tasks.cook.values()].flatMap(t=>t.uses.map(prepUseKey)),
     tasks.thaw.map(prepUseKey),tasks.serve.map(prepUseKey)]);
 }
@@ -80,7 +94,7 @@ function equipmentBadges(r) {
 }
 function prepFlags(tasks,index) {
   const done=prepDone(tasks,index);
-  return '<span class="prep-flags">'+(settings().cook.includes(weekdayIndex(settings(),index))?icon("pot",14):"")+
+  return '<span class="prep-flags">'+(weekProfile().cook.includes(weekdayIndex(weekProfile(),index))?icon("pot",14):"")+
     (done?'<span class="prep-done-mark">'+icon("check",13)+'</span>':"")+'</span>';
 }
 function freezerUses(tasks) {
@@ -93,11 +107,11 @@ function prepCardSummary(tasks) {
 function prepCard(tasks,index) {
   const count=tasks.cook.size;
   const frozen=freezerUses(tasks).reduce((n,u)=>n+u.people,0);
-  const planned=settings().cook.includes(weekdayIndex(settings(),index));
+  const planned=weekProfile().cook.includes(weekdayIndex(weekProfile(),index));
   const title=planned ? (dateAt(index).toDateString()===today.toDateString() ? "Сегодня готовим" : "День готовки") : tasks.thaw.length ? "Вечером достать из морозилки" : count ? "Приготовить к подаче" : "Сегодня из заготовок";
   const notes=[];
   if (count) {
-    const audience=settings().mode==="personal"?"на одного":settings().adults===2&&!settings().small?"на двоих":"";
+    const audience=weekProfile().mode==="personal"?"на одного":weekProfile().adults===2&&!weekProfile().small?"на двоих":"";
     notes.push([count,plural(count,"блюдо","блюда","блюд"),audience].filter(Boolean).join(" "));
   }
   if (frozen) notes.push(portions(frozen)+" в морозилку");
@@ -111,45 +125,45 @@ function prepDivision(use) {
   return " · первому "+share+"%, второму "+(100-share)+"%";
 }
 function prepBatchText(task) {
-  return (task.uses.length>1 ? task.uses.length+" "+plural(task.uses.length,"приём","приёма","приёмов")+" · " : "")+household(settings());
+  return (task.uses.length>1 ? task.uses.length+" "+plural(task.uses.length,"приём","приёма","приёмов")+" · " : "")+household(weekProfile());
 }
 function prepDayPanel(tasks) {
   const frozen=freezerUses(tasks);
   const cookRows=[...tasks.cook.values()].map(task=>{
     const lines=task.uses.map(use=>{
       const place={fresh:"к подаче",today:"к столу",overnight:"начать вечером",fridge:"в холодильник",freeze:"в морозилку"}[use.storage];
-      return '<li>'+mealWhen(use)+' · '+household(settings())+' '+place+prepDivision(use)+'</li>';
+      return '<li>'+mealWhen(use)+' · '+household(weekProfile())+' '+place+prepDivision(use)+'</li>';
     });
     return '<article class="prep-dish"><button type="button" data-action="prep-recipe" data-id="'+$(task.r.id)+'"><img src="'+photo(task.r)+'" alt=""><span><strong>'+$(task.r.title)+'</strong><small>'+prepBatchText(task)+' · '+cookingTime(task.r)+'</small>'+equipmentBadges(task.r)+'</span>'+icon("right",16)+'</button><ul>'+lines.join("")+'</ul></article>';
   }).join("");
-  const transfer=(use)=>'<li><b>'+$(use.r.title)+'</b><span>'+household(settings())+' · '+mealWhen(use)+prepDivision(use)+'</span></li>';
+  const transfer=(use)=>'<li><b>'+$(use.r.title)+'</b><span>'+household(weekProfile())+' · '+mealWhen(use)+prepDivision(use)+'</span></li>';
   const riceInFreezer=frozen.some(use=>use.r.items.some(([key])=>key==="rice"));
   const coolingTime=riceInFreezer ? "часа" : "двух часов";
   const leftovers=tasks.serve.filter(u=>u.cook!==day);
   const serveRows=leftovers.map(u=>{
     const action=u.storage==="overnight" ? (u.r.id==="rcOatKissel"?"Доварить по рецепту":"Добавить свежие фрукты") : "Разогреть";
-    return '<li><b>'+$(u.r.title)+'</b><span>'+slotNames[u.slot]+' · '+household(settings())+' · '+action.toLowerCase()+" · заготовка от "+dateText(dateAt(u.cook),{day:"numeric",month:"short"})+prepDivision(u)+'</span></li>';
+    return '<li><b>'+$(u.r.title)+'</b><span>'+slotNames[u.slot]+' · '+household(weekProfile())+' · '+action.toLowerCase()+" · заготовка от "+dateText(dateAt(u.cook),{day:"numeric",month:"short"})+prepDivision(u)+'</span></li>';
   }).join("");
-  const family=settings().mode==="personal" ? "На одного" : settings().adults===2&&!settings().small ? "На двоих" : "Семейное меню";
+  const family=weekProfile().mode==="personal" ? "На одного" : weekProfile().adults===2&&!weekProfile().small ? "На двоих" : "Семейное меню";
   return '<div class="sheet-body simple prep-sheet"><button class="link" data-action="close" type="button">'+icon("left",15)+' К меню недели</button><h2 id="sheet-title">'+dayName(day)+'</h2><p class="prep-sub">'+dateText(dateAt(day),{day:"numeric",month:"long"})+' · '+family+'</p>'+
     (cookRows?'<section><h3>Приготовить</h3>'+cookRows+'</section>':'')+
-    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+household(settings())+' · '+mealWhen(u)+prepDivision(u)+'</span><small>'+prepDate(u.serve-1)+' вечером переложить в холодильник.</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
+    (frozen.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Заморозить в этот день</h3><ul>'+frozen.map(u=>'<li><b>'+$(u.r.title)+'</b><span>'+household(weekProfile())+' · '+mealWhen(u)+prepDivision(u)+'</span><small>'+prepDate(u.serve-1)+' вечером переложить в холодильник.</small></li>').join("")+'</ul><p>Охладите небольшими порциями и уберите в морозилку в течение '+coolingTime+'. Свежую зелень, сметану и соусы для подачи добавьте перед едой.</p></section>':'')+
     (tasks.thaw.length?'<section class="prep-cold"><h3>'+icon("snow",19)+' Вечером в холодильник</h3><p>Переложите из морозилки к завтрашней подаче.</p><ul>'+tasks.thaw.map(transfer).join("")+'</ul></section>':'')+
     (serveRows?'<section class="prep-serve"><h3>Из заготовок к столу</h3><ul>'+serveRows+'</ul></section>':'')+
     '<label class="day-done"><input type="checkbox" data-prep-done '+(prepDone(tasks,day)?"checked":"")+'>Всё на сегодня сделано</label>'+reminderEntry()+'</div>';
 }
 
 function extraCookDays(kitchen) {
-  const s=settings();
+  const s=weekProfile();
   return kitchen.flatMap((tasks,d)=>tasks.cook.size && !s.cook.includes(weekdayIndex(s,d))?[d]:[]);
 }
 function prepLoad(kitchen) {
-  const s=settings(), extra=extraCookDays(kitchen);
+  const s=weekProfile(), extra=extraCookDays(kitchen);
   return 'Основные дни: '+s.cook.map(i=>DAYS[i]).join(' · ')+'. '+(extra.length?
     'Ещё '+extra.length+' '+plural(extra.length,'день','дня','дней')+' с готовкой к подаче.':'В остальные дни достаточно разогреть или подать готовое.');
 }
 function prepOfferPanel(info){
-  const p=info.week,s=settings(),{d,slot,r}=info;
+  const p=info.week,s=weekProfile(),{d,slot,r}=info;
   const old=p.days[d].meals[slot].r, next=info.next;
   return `<div class="sheet-body simple"><h2 id="sheet-title">Приготовить заранее</h2><p>${prepDate(d)} · ${slotNames[slot]}</p>
     <p>${$(old.title)} → <strong>${$(r.title)}</strong></p><p>Приготовить ${prepDate(info.timing.cook)} · ${info.timing.storage==="freeze"?"заморозить порции":"оставить в холодильнике"}.</p>
@@ -157,7 +171,7 @@ function prepOfferPanel(info){
     <div class="budget-actions">${button("Применить замену","prep-apply","primary")}${button("Оставить меню","close","outline")}</div></div>`;
 }
 function batchCandidates(p,kitchen) {
-  const s=settings(), cook=DAYS.map((_,i)=>i).filter(i=>s.cook.includes(weekdayIndex(s,i)));
+  const s=weekProfile(), cook=DAYS.map((_,i)=>i).filter(i=>s.cook.includes(weekdayIndex(s,i)));
   if(s.startDate && offset===0 && !cook.includes(0))cook.push(0);
   const result=[];
   for(const d of extraCookDays(kitchen)){

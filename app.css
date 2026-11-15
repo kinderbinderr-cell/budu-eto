@@ -2033,3 +2033,10 @@ button:active:not(:disabled) {
 .prep-extra summary{cursor:pointer;font-weight:600;padding:6px 0}
 .prep-extra p{margin:8px 0}
 .prep-extra h3{margin:18px 0 8px}
+
+.portion-period{display:grid;gap:12px;margin:18px 0;padding:16px;background:var(--paper,#fafbf7);border:1px solid var(--rule);border-radius:12px}
+.portion-period select{font:inherit;color:inherit;background:white;border:1px solid var(--rule);border-radius:8px;padding:10px;width:100%}
+.portion-period .link{justify-self:start;text-align:left}
+.portion-comparison details{padding:12px 0;border-bottom:1px solid var(--rule)}
+.portion-comparison summary{cursor:pointer;font-weight:650}
+.portion-comparison .btn{display:flex;width:100%;margin-top:12px}

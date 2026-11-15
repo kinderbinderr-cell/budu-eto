@@ -101,9 +101,9 @@ function weekKey(off = offset) {
   const d = dateAt(0, off);
   return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join("-");
 }
-function rangeText() {
-  const a = dateAt(0),
-    b = dateAt(6);
+function rangeText(off=offset) {
+  const a = dateAt(0, off),
+    b = dateAt(6, off);
   return (
     (a.getMonth() === b.getMonth()
       ? a.getDate()
@@ -207,8 +207,8 @@ function notify(message) {
   toastTimer = setTimeout(() => (el.textContent = ""), 2500);
 }
 const settings = () => data[data.mode];
-function weekData() {
-  const wk = data.mode + "/" + weekKey();
+function weekData(off=offset) {
+  const wk = data.mode + "/" + weekKey(off);
   return data.weeks[wk] || (data.weeks[wk] = { replacements: {}, pantry: {} });
 }
 function weekSeed(off = offset) {
@@ -350,7 +350,7 @@ function navTo(next) {
   }
   location.hash = next;
 }
-function profileName(s = settings()) {
+function profileName(s = weekProfile()) {
   return s.mode === "family" ? "Семейное меню" : "Личный рацион";
 }
 function button(text, act, variant = "primary", name = "", attributes = "") {
@@ -386,7 +386,7 @@ function weekControls() {
   return `<div class="week-control">${iconBtn("left", "Предыдущая неделя", "prev",settings().startDate && offset===0?"disabled":"")}<span>${rangeText()}</span>${iconBtn("right", "Следующая неделя", "next")}${offset !== openingWeek(settings()) ? `<button class="link todaylink" type="button" data-action="thisweek">Текущая неделя</button>` : ""}</div>`;
 }
 function hero(p) {
-  const s = settings();
+  const s = weekProfile();
   const showcase = p && (p.days.flatMap(d=>d.meals).find(m=>m.r.id==="shakshuka")?.r || p.days[day].meals[2].r);
   const isCover = showcase?.id === "shakshuka";
   return `<section class="cover ${isCover ? "signature" : "alternate"}">${showcase ? `<img class="cover-image" src="${isCover ? "assets/skillet-cover.webp" : photo(showcase)}" alt="" fetchpriority="high">` : ""}<div class="cover-copy"><h1>Меню <em>на неделю</em></h1><p>${s.mode === "family" ? `${icon("users", 16)} ${profileName(s)} <span>·</span> ${portions(servings(s))}` : `${icon("user", 16)} Личный рацион <span>·</span> ${activePortionTargets(s) ? "Свои диапазоны КБЖУ" : s.plainPortion ? "1 порция" : energy(s).toLocaleString("ru-RU") + " ккал в день"}`}</p>${s.maxMinutes ? `<p>Блюда до ${s.maxMinutes} минут</p>` : ""}${button("Выбрать ещё блюда", "discover", "apricot", "heart")}</div>${showcase ? `<button class="cover-credit" type="button" data-action="recipe" data-id="${showcase.id}">${showcase.title} ${icon("open", 16)}</button>` : ""}</section>`;
@@ -432,13 +432,13 @@ function heart(r) {
 }
 function mealCard(meal, slot) {
   const { r, f } = meal,
-    kcal = Math.round((r.kcal * f) / servings(settings()));
+    kcal = Math.round((r.kcal * f) / servings(weekProfile()));
   return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}"><img src="${photo(r)}" alt="" decoding="async"></button><span class="meal-label">${icon(slotIcons[slot], 15)} ${sweetMealLabel(meal,slot)}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="${slot === 3 ? "dessert-open" : "swap"}" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
 }
 function weekSummary(p,kitchen) {
-  const s = settings(),
+  const s = weekProfile(),
     n = Object.keys(p.counts).length;
-  return `<aside class="summary"><h3>Неделя в деталях</h3><div class="summary-row">${icon("pot", 21)}<div><b>Дни готовки</b><small>${prepLoad(kitchen)}</small></div><button type="button" data-action="prep" class="mini-btn" aria-label="Посмотреть план готовки">${icon("right", 17)}</button></div><div class="summary-row">${icon("bag", 21)}<div><b>Продукты на неделю</b><small>${n} ${plural(n, "позиция", "позиции", "позиций")} · докупить ≈ <span data-purchase-total>${money(weeklyQuote(p).cents/100)}</span></small></div></div>${button("Открыть список", "list", "soft", "bag")}${sweetEntry(s,"week",p)}${sweetAgenda(p)}${portionCount(s) ? button(activePortionTargets(s)?"Изменить мои диапазоны КБЖУ":"Настроить порции по КБЖУ","portion-edit","outline") : ""}</aside>`;
+  return `<aside class="summary"><h3>Неделя в деталях</h3><div class="summary-row">${icon("pot", 21)}<div><b>Дни готовки</b><small>${prepLoad(kitchen)}</small></div><button type="button" data-action="prep" class="mini-btn" aria-label="Посмотреть план готовки">${icon("right", 17)}</button></div><div class="summary-row">${icon("bag", 21)}<div><b>Продукты на неделю</b><small>${n} ${plural(n, "позиция", "позиции", "позиций")} · корзина ≈ <span data-purchase-total>${money(weeklyQuote(p).cents/100)}</span></small></div></div>${button("Открыть список", "list", "soft", "bag")}${sweetEntry(s,"week",p)}${sweetAgenda(p)}${portionCount(s) || portionCount(settings()) ? button(activePortionTargets(s)?"Изменить мои диапазоны КБЖУ":"Настроить порции по КБЖУ","portion-edit","outline") : ""}</aside>`;
 }
 function weekPage() {
   const p=plan();
@@ -666,34 +666,52 @@ function remainingGrams(k, g) {
 function checked(k, g) {
   return remainingGrams(k, g) === 0;
 }
-function cartHas(k,g) {
-  const need=remainingGrams(k,g);
-  return need>0 && (weekData().cart?.[k]||0)>=need;
+// Old cart marks contain the recipe shortfall, not the weight of the purchased pack.
+function outstandingGrams(record,k,g){
+  const needed=Math.max(0,neededGrams(g)-(record.pantry?.[k]||0));
+  if(record.cart?.[k] && !record.purchases?.[k])return 0;
+  const shortfall=needed-(record.purchases?.[k]?.grams||0);
+  return shortfall>1e-7?shortfall:0;
+}
+function cartHas(k,g){
+  return !!weekData().cart?.[k] && !outstandingGrams(weekData(),k,g);
 }
 function cartFigures(p,q) {
-  let picked=0;
-  for(const [k,g] of Object.entries(accountedPurchases(weekData(),p.counts))){
-    picked+=(cataloguePurchase(k,g,q.store)||estimatedPurchase(k,g,q.store)).cents;
-  }
-  return `<strong>В корзине ≈ ${money(picked/100)}</strong><span>Осталось взять ≈ ${money((q.cents-picked)/100)} · Всего ≈ ${money(q.cents/100)}</span>`;
+  return `<strong>В корзине ≈ ${money((q.pickedCents||0)/100)}</strong><span>Осталось взять ≈ ${money((q.cents-(q.pickedCents||0))/100)} · Всего ≈ ${money(q.cents/100)}</span>`;
+}
+function addPurchase(k){
+  const w=weekData(),p=plan(),need=outstandingGrams(w,k,p.counts[k]||0);
+  if(!need)return;
+  const store=weeklyQuote(p).store,own=cataloguePurchase(k,need,store),row=own||estimatedPurchase(k,need,store);
+  const previous=w.purchases?.[k];
+  const grams=(previous?.grams||0)+row.edibleGrams, weightSale=row.weightSale===true;
+  const weight=(previous?.weight||0)+(weightSale?row.orderGrams:row.edibleGrams);
+  (w.purchases||={})[k]={grams,weight,cents:(previous?.cents||0)+row.cents,weightSale,store,
+    source:previous && previous.store!==store?"Несколько покупок":priceOrigin(row,store,!!own),
+    label:previous?weeklyNeed(k,grams):row.quantity};
+  (w.cart||={})[k]=grams;(w.paidStock||={})[k]=grams;
 }
 function shopRows(groups,p,q) {
-  const picked=[];
+  const w=weekData();
   const sections=groups.map(({label,items})=>{
     const rows=[];
     for(const {k,g} of items){
-      const need=remainingGrams(k,g);
-      if(!need) continue;
-      const inCart=cartHas(k,g);
-      const row=`<label class="grocery"><input type="checkbox" data-cart="${k}" aria-label="В корзине: ${$(FOOD[k][0])}" ${inCart?"checked":""}><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}<small class="line-price" data-line-price>${shoppingPriceNote(k,need,q.store)}</small></span><b>${shoppingAmount(k,need,q.store)}</b></label>`;
-      (inCart?picked:rows).push(row);
+      const need=outstandingGrams(w,k,g);
+      if(!need)continue;
+      rows.push(`<label class="grocery"><input type="checkbox" data-cart="${k}" aria-label="В корзине: ${$(FOOD[k][0])}"><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}${w.cart?.[k]?`<small>Не хватает ${weeklyNeed(k,need)}</small>`:""}<small data-line-price>${shoppingPriceNote(k,need,q.store)}</small></span><b>${shoppingAmount(k,need,q.store)}</b></label>`);
     }
     return rows.length?`<section class="groceries"><h2>${label}</h2>${rows.join("")}</section>`:"";
   }).join("");
-  for(const [k,g] of Object.entries(weekData().cart||{})){
-    if(g>0 && FOOD[k] && !remainingGrams(k,p.counts[k]||0))picked.push(`<label class="grocery"><input type="checkbox" data-cart="${k}" checked><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}<small>Уже взяли · по меню докупать не нужно</small></span><b>${weeklyNeed(k,g)}</b></label>`);
-  }
+  const picked=Object.entries(w.cart||{}).filter(([k,g])=>FOOD[k] && g>0).map(([k,g])=>{
+    const paid=w.purchases?.[k],uncertain=!paid && remainingGrams(k,p.counts[k]||0)>g;
+    return `<div class="pantry-row"><label class="grocery"><input type="checkbox" checked data-picked="${k}" data-cart="${k}" aria-label="Убрать из корзины: ${$(FOOD[k][0])}"><i>${icon("check",13)}</i><span>${$(FOOD[k][0])}<small>${paid?"Уже взяли · ≈ "+money(paid.cents/100)+(paid.source?" · "+$(paid.source):""):"Отмечено в прошлом списке"}</small></span><b>${paid?$(paid.label):"В корзине"}</b></label>
+    ${paid?.weightSale||uncertain?button(paid?"Изменить вес":"Уточнить количество","purchase-edit","link","","data-id="+k):""}</div>`;
+  });
   return `<div class="cart-figures" data-cart-total>${cartFigures(p,q)}</div><div class="groups">${sections || "<p>Всё собрано.</p>"}${picked.length?'<section class="groceries"><h2>В корзине</h2>'+picked.join("")+'</section>':""}</div>`;
+}
+function purchasePanel(k){
+  const item=weekData().purchases?.[k],unit=item?.weightSale?{unit:"г",grams:1}:stockUnit(k);
+  return `<div class="sheet-body simple"><h2 id="sheet-title">${$(FOOD[k][0])} в корзине</h2><form id="purchase-form" data-key="${k}"><label class="field">Сколько взяли, ${unit.unit}<input name="qty" type="number" inputmode="decimal" step="any" min="0.01" max="1000000" required value="${item?Number((item.weight/unit.grams).toFixed(2)):""}"></label><button class="btn primary" type="submit">Сохранить количество</button></form></div>`;
 }
 function stockUnit(k) {
   if(k==="egg")return {unit:"шт.",grams:50};
@@ -708,11 +726,11 @@ function stockPanel(k){
     <button type="submit" class="btn primary">Сохранить остаток</button></form></div>`;
 }
 function pantryRow(k,g,store){
-  const stock=weekData().pantry[k]||0,need=remainingGrams(k,g);
-  return `<div class="pantry-row"><label class="grocery"><input type="checkbox" data-pantry="${k}" aria-label="Дома хватает: ${$(FOOD[k][0])}" ${need?"":"checked"}><i>${icon("check",13)}</i>
+  const stock=weekData().pantry[k]||0,homeNeed=remainingGrams(k,g),need=outstandingGrams(weekData(),k,g);
+  return `<div class="pantry-row"><label class="grocery"><input type="checkbox" data-pantry="${k}" aria-label="Дома хватает: ${$(FOOD[k][0])}" ${homeNeed?"":"checked"}><i>${icon("check",13)}</i>
     <span>${$(FOOD[k][0])}<small class="recipe-need">На неделю ≈ ${weeklyNeed(k,g)}</small>${stock>0?`<small class="recipe-need">Дома ≈ ${weeklyNeed(k,stock)}${need?" · не хватает ≈ "+weeklyNeed(k,need):""}</small>`:""}
     <small class="line-price" data-line-price>${need?$(shoppingPriceNote(k,need,store)):""}</small></span>
-    <b>${need?"Купить: "+$(shoppingAmount(k,need,store)):"Есть дома"}</b></label>
+    <b>${need?"Купить: "+$(shoppingAmount(k,need,store)):homeNeed?"В корзине":"Есть дома"}</b></label>
     <button type="button" class="link stock-link" data-action="stock" data-id="${k}">${stock?"Изменить остаток":"Указать остаток"}</button></div>`;
 }
 function groceries() {
@@ -721,10 +739,10 @@ function groceries() {
   const q = weeklyQuote(p), store=q.store;
   const groups = groceryGroups(p),
     all = groups.flatMap((x) => x.items),
-    todo = all.filter((x) => !checked(x.k, x.g));
+    todo = all.filter(x=>outstandingGrams(weekData(),x.k,x.g)>0);
   const storeMode=data.shoppingMode==="store";
   const top=`<div class="wrap inner-page listpage"><div class="view-title"><div><h1>Список продуктов</h1><p>${storeMode?"Отмечайте продукты, когда кладёте их в корзину.":"Поставьте галочку, если продукта хватает. Если есть только часть, укажите остаток."}</p></div>${weekControls()}</div>
     <div class="seg shopping-switch">${choiceChip("shopping-mode","home","Проверить дома",!storeMode)}${choiceChip("shopping-mode","store","В магазине",storeMode)}</div>`;
   if(storeMode) return top+shopRows(groups,p,q)+'<details class="week-spending"><summary>Бюджет и цены</summary>'+budgetPanel(p,q)+'<section id="price-area"></section></details></div>';
-  return `${top}<div class="list-layout"><div class="groups">${groups.map(({ label, items }) => `<section class="groceries"><h2>${label}</h2>${items.map(({k,g})=>pantryRow(k,g,store)).join("")}</section>`).join("")}</div><aside class="summary list-summary"><h3>Осталось купить</h3><strong class="list-count">${todo.length}<small> из ${all.length}</small></strong><div class="progress-track"><i style="width:${(100 * (all.length - todo.length)) / all.length}%"></i></div><p class="quiet">По отмеченным продуктам список обновляется сразу.</p>${button("Скопировать список", "copy", "primary", "copy", todo.length ? "" : "disabled")}<div id="copy-fallback"></div><p class="fine">Докупить примерно на <strong data-purchase-total>${money(q.cents/100)}</strong></p></aside></div><details class="week-spending"><summary>Бюджет, замены и цены магазинов</summary>${budgetPanel(p,q)}<section id="price-area"></section></details></div>`;
+  return `${top}<div class="list-layout"><div class="groups">${groups.map(({ label, items }) => `<section class="groceries"><h2>${label}</h2>${items.map(({k,g})=>pantryRow(k,g,store)).join("")}</section>`).join("")}</div><aside class="summary list-summary"><h3>Осталось купить</h3><strong class="list-count">${todo.length}<small> из ${all.length}</small></strong><div class="progress-track"><i style="width:${(100 * (all.length - todo.length)) / all.length}%"></i></div><p class="quiet">По отмеченным продуктам список обновляется сразу.</p>${button("Скопировать список", "copy", "primary", "copy", todo.length ? "" : "disabled")}<div id="copy-fallback"></div><p class="fine">Докупить примерно на <strong data-outstanding-total>${money((q.cents-(q.pickedCents||0))/100)}</strong></p></aside></div><details class="week-spending"><summary>Бюджет, замены и цены магазинов</summary>${budgetPanel(p,q)}<section id="price-area"></section></details></div>`;
 }

@@ -65,7 +65,7 @@ function setDayDessert(id, timeOnly=false) {
   else if (sweetFrequency(settings().dessertPrefs)) week.desserts[day]=null;
   else delete week.desserts[day];
   const when=sweetMoment(openInfo?.moment??current.days[day].meals[3]?.sweetMoment??settings().dessertPrefs?.moment);
-  setSavedWeek(editDessert(settings(),current,day,id,when));
+  setSavedWeek(editDessert(weekProfile(),current,day,id,when));
   persist();
   dismissSheet();
   render();

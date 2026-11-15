@@ -11,6 +11,10 @@ function cataloguePurchase(key, g, store) {
     : priceLine({key,g},store);
   return Number.isFinite(row.cents) && !row.expired ? row : null;
 }
+function typicalUnits(k,p){
+  const yieldFactor=commonPacks[k]?1:meatBoneRatio[k]?1/meatBoneRatio[k]:purchaseYield(k);
+  return {edibleGrams:p.weight*yieldFactor,weightSale:!commonPacks[k],orderGrams:p.weight};
+}
 function estimatedPurchase(key,g,store) {
   const city=typeof cityObservations==="undefined" ? null : cityObservations[key];
   if(city) {
@@ -18,7 +22,7 @@ function estimatedPurchase(key,g,store) {
     // Retail pack capacities are in edible grams, including liquids and eggs.
     const divisor=city.unit==="kg" ? 1000 : city.unit==="10pcs" && key==="egg" ? 500
       : city.unit==="l" ? ({milk:1030,oil:920,cream:1000})[key] : null;
-    if(divisor>0) return {quantity:purchase.label,cents:Math.round(city.kopecks*purchase.weight/divisor),city};
+    if(divisor>0) return {...typicalUnits(key,purchase),quantity:purchase.label,cents:Math.round(city.kopecks*purchase.weight/divisor),city};
   }
   // Use a dated Moscow shelf for the same ingredient; keep its real pack size and identify it as a benchmark.
   let benchmark=null, latest="";
@@ -26,12 +30,12 @@ function estimatedPurchase(key,g,store) {
     if(id===store || !shelf.products[key] || !shelf.checkedOn || shelf.checkedOn<=latest) continue;
     const row=referenceLine({key,g},id);
     if(!Number.isFinite(row.cents)) continue;
-    benchmark={quantity:row.quantity,cents:row.cents,shelf,offer:shelf.products[key]};
+    benchmark={...row,quantity:row.quantity,cents:row.cents,shelf,offer:shelf.products[key]};
     latest=shelf.checkedOn;
   }
   if(benchmark) return benchmark;
   const purchase=typicalPurchase(key,g);
-  return {quantity:purchase.label,cents:Math.round(FOOD[key][4]*purchase.weight)};
+  return {...typicalUnits(key,purchase),quantity:purchase.label,cents:Math.round(FOOD[key][4]*purchase.weight)};
 }
 const displayPriceDate = iso => iso.split("-").reverse().join(".");
 const cityPeriods=new Map();
@@ -83,12 +87,16 @@ function budgetScorer(s, {planning = false} = {}) {
   // Live prices arrive after the menu appears. They update checkout without silently replacing meals.
   const stores = (s.stores || []).filter(store => supportedShop(store) && (!planning || storeShelf(store)));
   const sources = stores.length ? stores : [null], cache = new Map();
-  return (counts, pantry = {}, bought = {}) => {
+  return (counts, pantry = {}, bought = {}, purchases = {}) => {
     const keys=new Set([...Object.keys(counts),...Object.keys(bought)]);
-    const items=Array.from(keys,key=>[key,Math.max(bought[key]||0,neededGrams(counts[key]||0)-(pantry[key]||0))]).filter(([,g])=>g>0);
+    const items=Array.from(keys,key=>[key,bought[key] && !purchases[key] ? Math.max(bought[key],neededGrams(counts[key]||0)-(pantry[key]||0)) : outstandingGrams({pantry,cart:bought,purchases},key,counts[key]||0)]).filter(([,g])=>g>0);
     let best = null;
     for (const store of sources) {
-      let cents = 0, known = 0, benchmark = 0, city = 0;
+      let pickedCents=0,known=0,benchmark=0,city=0;
+      for(const [key,g] of Object.entries(bought)){
+        pickedCents+=purchases[key]?.cents ?? (cataloguePurchase(key,g,store)||estimatedPurchase(key,g,store)).cents;
+      }
+      let cents=Object.values(purchases).reduce((total,item)=>total+item.cents,0);
       for (const [key,g] of items) {
         const token = store + "/" + key + "/" + g;
         let line = cache.get(token);
@@ -103,7 +111,7 @@ function budgetScorer(s, {planning = false} = {}) {
         benchmark += Number(line.benchmark);
         city += Number(line.city);
       }
-      const amount = {store,cents,known,benchmark,city,count:items.length};
+      const amount = {store,cents,known,benchmark,city,count:items.length,...(pickedCents && {pickedCents})};
       // An entirely unpriced store gives no basis for comparing it with a priced one.
       if (!best || (known > 0 && !best.known) || (Boolean(known) === Boolean(best.known) &&
         (cents < best.cents || (cents === best.cents && known > best.known)))) best = amount;
@@ -116,15 +124,15 @@ function budgetScorer(s, {planning = false} = {}) {
 function accountedPurchases(record,baseCounts) {
   const bought={};
   for(const [k,g] of Object.entries(record.cart||{})){
-    const need=Math.max(0,neededGrams(baseCounts[k]||0)-(record.pantry[k]||0));
-    const grams=Math.min(g,Math.max(record.paidStock?.[k]||0,need));
+    const need=Math.max(0,neededGrams(baseCounts[k]||0)-(record.pantry?.[k]||0));
+    const grams=record.purchases?.[k]?.grams ?? Math.min(g,Math.max(record.paidStock?.[k]||0,need));
     if(grams>0)bought[k]=grams;
   }
   return bought;
 }
 function weeklyQuote(p) {
   const w=weekData(),base=data.savedWeeks?.[plannedDate()]?.counts||p.counts;
-  return budgetScorer(settings())(p.counts,w.pantry,accountedPurchases(w,base));
+  return budgetScorer(settings())(p.counts,w.pantry,accountedPurchases(w,base),w.purchases);
 }
 function keepsDayTargets(goals,before,after) {
   if(!goals) return true;
@@ -184,7 +192,7 @@ function budgetDaily(value,count) {
   return budgetRange(value) ? "Около "+money(value/7)+" в день на всех · "+money(value/(7*count))+" на полную порцию в день." : "Введите сумму от 400 до 150 000 ₽.";
 }
 function budgetSource(q) {
-  if(!q.count) return "Всё есть дома. Для этой недели покупать продукты не нужно.";
+  if(!q.count) return q.pickedCents ? "Всё нужное уже дома или в корзине." : "Всё есть дома. Для этой недели покупать продукты не нужно.";
   const parts=[];
   if(q.store) {
     const shelf=storeShelf(q.store);
@@ -200,7 +208,7 @@ function budgetSource(q) {
 }
 function budgetPanel(p, q=weeklyQuote(p)) {
   const s=spendingProfile(), limited=hasBudget(s), edit=button(limited?"Изменить сумму":"Задать бюджет","budget-edit","soft");
-  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет этой недели · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Докупить примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
+  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет этой недели · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Корзина примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
 }
 function budgetBalance(s,q) {
   if(!hasBudget(s)) return "";
@@ -213,6 +221,7 @@ function refreshShoppingEstimate() {
   if(!box) return;
   const p=plan(), q=weeklyQuote(p);
   for(const el of document.querySelectorAll("[data-purchase-total]")) el.textContent=money(q.cents/100);
+  for(const el of document.querySelectorAll("[data-outstanding-total]"))el.textContent=money((q.cents-(q.pickedCents||0))/100);
   box.querySelector("[data-budget-balance]").textContent=budgetBalance(spendingProfile(),q);
   box.querySelector("[data-budget-source]").textContent=budgetSource(q);
   const quick=document.querySelector("[data-quick-balance]");
@@ -223,21 +232,21 @@ function refreshShoppingEstimate() {
   const cartTotal=document.querySelector("[data-cart-total]");
   if(cartTotal){
     cartTotal.innerHTML=cartFigures(p,q);
-    for(const box of document.querySelectorAll("[data-cart]")){
-      const k=box.dataset.cart, need=remainingGrams(k,p.counts[k]), row=box.closest(".grocery");
-      if(!row.querySelector("[data-line-price]"))continue;
+    for(const box of document.querySelectorAll("[data-cart]:not(:checked)")){
+      const k=box.dataset.cart,need=outstandingGrams(weekData(),k,p.counts[k]),row=box.closest(".grocery");
       row.querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
       row.querySelector("b").textContent=shoppingAmount(k,need,q.store);
     }
   }
   mountBudgetOffer();
   for(const label of document.querySelectorAll(".grocery input[data-pantry]:not(:checked)")) {
-    const k=label.dataset.pantry;
-    label.closest(".grocery").querySelector("[data-line-price]").textContent=shoppingPriceNote(k,remainingGrams(k,p.counts[k]),q.store);
-    label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,remainingGrams(k,p.counts[k]),q.store);
+    const k=label.dataset.pantry,need=outstandingGrams(weekData(),k,p.counts[k]);
+    if(!need)continue;
+    label.closest(".grocery").querySelector("[data-line-price]").textContent=shoppingPriceNote(k,need,q.store);
+    label.closest(".grocery").querySelector("b").textContent="Купить: "+shoppingAmount(k,need,q.store);
   }
 }
 
 function budgetDialog(info) {
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Бюджет этой недели</h2><p>Покупки на ${rangeText()}. Блюда и порции сохранятся.</p><form id="budget-form">${budgetFields(servings(settings()),info.value,"sheet")}<button class="btn primary" type="submit">Сохранить лимит</button></form></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Бюджет этой недели</h2><p>Покупки на ${rangeText()}. Блюда и порции сохранятся.</p><form id="budget-form">${budgetFields(servings(weekProfile()),info.value,"sheet")}<button class="btn primary" type="submit">Сохранить лимит</button></form></div>`;
 }
