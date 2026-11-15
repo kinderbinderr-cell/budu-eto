@@ -111,6 +111,82 @@ function selectionHint(counts) {
     return "Пока выбраны только обеденные блюда. Отметьте блюдо с подписью «На ужин» или «Обед или ужин».";
   return "";
 }
+// Credit single-purpose dishes first so a flexible dish can fill the other meal.
+function tasteCredits(recipes, limits) {
+  const counts = [0, 0, 0];
+  let flexible = 0;
+  for (const recipe of recipes) {
+    const role = mealRole(recipe);
+    if (role === "either") flexible++;
+    else {
+      const slot = role === "breakfast" ? 0 : role === "lunch" ? 1 : 2;
+      counts[slot] = Math.min(limits[slot], counts[slot] + 1);
+    }
+  }
+  while (flexible-- > 0 && (counts[1] < limits[1] || counts[2] < limits[2])) {
+    const lunch = counts[1] < limits[1] && (counts[2] >= limits[2] || counts[1] <= counts[2]);
+    counts[lunch ? 1 : 2]++;
+  }
+  return counts;
+}
+
+const tasteNouns = [
+  ["завтрак", "завтрака", "завтраков"],
+  ["обед", "обеда", "обедов"],
+  ["ужин", "ужина", "ужинов"],
+];
+function tasteReadiness({pool, votes}) {
+  const targets = tasteCredits(pool, [6, 6, 6]);
+  const selected = selectedCounts(pool, votes);
+  const counts = tasteCredits(selected.chosen, targets);
+  const missing = targets.map((target, i) => target - counts[i]);
+  const reviewed = pool.filter(r => votes[r.id] === 1 || votes[r.id] === -1).length;
+  const minimumHint = selectionHint(selected);
+  const complete = !minimumHint && missing.every(n => n === 0);
+  const canFinish = !minimumHint && reviewed >= Math.min(pool.length, tastingSize);
+  const shortfall = missing.flatMap((n, i) => n ? [n + " " + plural(n, ...tasteNouns[i])] : []);
+  let hint = "Выберите ещё " + new Intl.ListFormat("ru").format(shortfall) + ".";
+  if (targets[0] < 2 || targets[1] + targets[2] < 2 || !pool.some(r => r.slot === "m" && fitsMainSlot(r, 2))) {
+    hint = "Добавьте кухню или измените ограничения, чтобы собрать неделю.";
+  } else if (!shortfall.length && minimumHint) hint = minimumHint;
+  else if (!selected.chosen.length) hint = "Выберите блюда на завтрак, обед и ужин.";
+  if (canFinish && !complete) hint = "Уже можно продолжить. Для разнообразия добавьте " + new Intl.ListFormat("ru").format(shortfall) + ".";
+  return {targets, counts, missing, hint, complete, canFinish};
+}
+
+function tasteProgressDetails(progress) {
+  if (progress.complete) return "";
+  const open = document.getElementById("taste-progress")?.open;
+  const labels = ["Завтраки", "Обеды", "Ужины"];
+  return `<details id="taste-progress"${open ? " open" : ""}>
+    <summary><span>${progress.hint}</span>${icon("right", 16)}</summary>
+    <div>${labels.map((label, i) => `<span>${label} <b>${progress.counts[i]}/${progress.targets[i]}</b></span>`).join("")}</div>
+  </details>`;
+}
+
+function offerMissingMeal(ctx) {
+  const {deck, pool, votes} = ctx;
+  if (deck.scope !== "new" || deck.index >= deck.ids.length) return;
+  const {missing} = tasteReadiness(ctx);
+  const slots = [0, 1, 2].filter(i => missing[i] > 0);
+  if (slots.length !== 1) return;
+  const slot = slots[0];
+  const fits = r => slot === 0 ? r.slot === "b" : r.slot === "m" && fitsMainSlot(r, slot);
+  const i = deck.index;
+  const next = deck.ids.findIndex((id, j) => j >= i && fits(byId(id)));
+  if (next >= i) {
+    [deck.ids[i], deck.ids[next]] = [deck.ids[next], deck.ids[i]];
+  } else {
+    const used = new Set([...deck.ids, ...(deck.passed || [])]);
+    const fresh = pool.filter(r => !used.has(r.id) && votes[r.id] == null && fits(r));
+    const [replacement] = sampleTasting(fresh, 1, recentDishes(), Math.random, ctx.profile.cuisines);
+    if (replacement) {
+      deck.ids[i] = replacement;
+      recordDishes([replacement]);
+    }
+  }
+}
+
 function deckLink(text, action, extra = "") {
   return `<button class="reaction-link" type="button" data-action="${action}" ${extra}>${text}</button>`;
 }
@@ -260,7 +336,9 @@ function handleTasteAction(action, el) {
     deck.trail.push({ id, previous: votes[id] ?? null });
     votes[id] = action === "taste-yes" ? 1 : -1;
     deck.index++;
+    if (route === "start") offerMissingMeal(ctx);
   }
+  if (action === "taste-more" && route === "start") offerMissingMeal({...ctx, deck: state.deck});
   const focused = document.activeElement === el;
   persistTasting();
   render();

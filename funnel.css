@@ -1086,3 +1086,18 @@ body.in-flow:has(.welcome-step) { background: #fcfbf6; }
   .discovery-page { margin-bottom: 0; padding-bottom: calc(88px + var(--mini-bottom, env(safe-area-inset-bottom, 0px))); }
   .discovery-page > .btn { scroll-margin-bottom: 90px; }
 }
+
+.tasting-step .flow-intro, .tasting-step .reaction-photo > b,
+.tasting-step .reaction-track, .tasting-step .taste-counter > span,
+.tasting-step .taste-end > small, .tasting-step #flow-error:empty { display: none; }
+.tasting-step .flow-form h1 { margin-bottom: 12px; }
+.tasting-step .taste-counter { justify-content: flex-end; }
+.tasting-step .taste-counter:not(:has(button)) { display: none; }
+.tasting-step .flow-footer .btn:disabled { background: #e3e6dd; color: #596451; border-color: #e3e6dd; opacity: 1; cursor: default; }
+#taste-progress { border-top: 1px solid var(--line); margin: 10px 0 4px; font-size: .9rem; color: var(--olive); }
+#taste-progress summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#taste-progress summary::-webkit-details-marker { display: none; }
+#taste-progress summary svg { flex: none; transform: rotate(90deg); }
+#taste-progress[open] summary svg { transform: rotate(-90deg); }
+#taste-progress > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; padding-bottom: 10px; font-size: .82rem; }
+#taste-progress b { font-variant-numeric: tabular-nums; }
