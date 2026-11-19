@@ -16,22 +16,53 @@ function giftSheet(gift) {
   return `<div class="sheet-body simple coupon-detail"><p class="quiet">Подарок от «Буду это»</p><h2 id="sheet-title">${$(gift.title)}</h2>${cards}<details class="gift-list"><summary>Продукты на двоих</summary><p>Если приготовить каждое блюдо один раз. Сверьте количество с тем, что есть дома.</p><ul>${lines.map(line=>"<li>"+$(line)+"</li>").join("")}</ul><button class="btn outline" type="button" data-coupon="gift-copy">Скопировать список</button><textarea aria-label="Список для копирования" hidden readonly>${$([gift.title,"На двоих",...lines].join("\n"))}</textarea></details></div>`;
 }
 let couponCatalog = null, couponFilter = "", couponRequest = null, couponsUpdated = 0;
+let couponLoadFailed = false;
+let affiliateOffers = [], affiliateRequest = null, affiliateUpdated = 0, affiliateIssue = 0;
+
 function couponsPage() {
   return '<div class="wrap inner-page coupon-page"><h1>Купоны</h1><section id="coupon-list" aria-label="Купоны и подарки"></section></div>';
 }
 function expiryLabel(c) {
   return new Date(c.expires+"T12:00:00Z").toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
 }
-function couponCard(c,index) {
-  return `<article class="coupon-ticket tone-${index%2}"><div class="coupon-offer"><div class="coupon-store"><b>${$(c.store)}</b>${icon("ticket",22)}</div><strong class="coupon-value">${$(c.value)}</strong><h2>${$(c.title)}</h2></div>
-  <button class="coupon-terms" type="button" data-coupon="detail" data-id="${$(c.id)}"><span>${c.dishes?"Подарок от приложения":"До "+expiryLabel(c)}</span><b>${c.dishes?"Открыть подарок":"Открыть купон"} ${icon("right",15)}</b></button></article>`;
+function activeCoupons() {
+  const today = new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Moscow"}).format(new Date());
+  return [...affiliateOffers, ...(couponCatalog?.items || [])]
+    .filter(c => c.expires === null || c.expires >= today);
 }
-function paintCoupons(error = false) {
+function couponBrand(c) {
+  const logo = c.logo ? `<img class="coupon-logo" src="${$(c.logo)}" alt="" loading="lazy">` : "";
+  return `<span class="coupon-brand">${logo}<b>${$(c.store)}</b></span>`;
+}
+function couponAdNotice(c) {
+  return c.advertising ? `<p class="coupon-ad-notice">
+    <span>erid: ${$(c.erid)}</span>
+    <span>${$(c.advertising)}</span>
+  </p>` : "";
+}
+function couponMedicalWarning(c) {
+  return c.medical ? '<p class="coupon-medical-warning">Имеются противопоказания. Необходима консультация специалиста.</p>' : "";
+}
+function couponCard(c,index) {
+  const validThrough = c.expires ? "До " + expiryLabel(c) : "Бессрочно";
+  return `<article class="coupon-ticket tone-${index%2}">
+    <div class="coupon-offer">
+      ${couponAdNotice(c)}
+      <div class="coupon-store">${couponBrand(c)}${icon("ticket",22)}</div>
+      <strong class="coupon-value">${$(c.value)}</strong><h2>${$(c.title)}</h2>
+      ${couponMedicalWarning(c)}
+    </div>
+    <button class="coupon-terms" type="button" data-coupon="detail" data-id="${$(c.id)}"><span>${c.dishes ? "Подарок от приложения" : validThrough}</span><b>${c.dishes ? "Открыть подарок" : "Открыть купон"} ${icon("right",15)}</b></button>
+  </article>`;
+}
+function paintCoupons() {
   const list = document.getElementById("coupon-list"), week = document.getElementById("week-coupons");
-  const pending = error ? 'Не удалось загрузить купоны. <button class="link" data-coupon="retry">Повторить</button>' : 'Загружаем купоны…';
-  const today = new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow"}).format(new Date());
-  const retail = (couponCatalog?.items || []).filter(c=>c.expires>=today);
-  const items = [houseGifts[0],...retail,...houseGifts.slice(1)];
+  const retry = '<button class="link" data-coupon="retry">Повторить</button>';
+  const pending = couponLoadFailed ? 'Не удалось загрузить купоны. ' + retry : 'Загружаем купоны…';
+  const affiliateNotice = affiliateIssue === 403
+    ? 'Откройте «Буду это» заново в Telegram, чтобы обновить партнёрские купоны.'
+    : affiliateIssue ? 'Не удалось загрузить партнёрские купоны. ' + retry : '';
+  const items = [houseGifts[0], ...activeCoupons(), ...houseGifts.slice(1)];
   const first = items[0];
   if(week) week.innerHTML = first ? `<div class="coupon-intro"><h3>Купоны и подарки</h3><a class="link" href="#coupons">Смотреть все</a></div><button class="coupon-feature" data-coupon="detail" data-id="${$(first.id)}"><strong>${$(first.value)}</strong><span><b>${$(first.store)}</b><small>${$(first.title)}</small></span>${icon("right",18)}</button>` : '';
   if(!list) return;
@@ -39,18 +70,43 @@ function paintCoupons(error = false) {
   if (!stores.includes(couponFilter)) couponFilter = "";
   const filters = ["",...stores].map(s=>`<button type="button" aria-pressed="${s===couponFilter}" data-coupon="filter" data-store="${$(s)}">${$(s||"Все")}</button>`).join("");
   list.innerHTML = (items.length ? `<div class="coupon-filters" aria-label="От кого предложение">${filters}</div><div class="coupon-grid">${items.filter(c=>!couponFilter||c.store===couponFilter).map(couponCard).join("")}</div>` : '<p class="quiet">Сейчас нет действующих купонов.</p>') +
-    ((error || !couponCatalog) ? '<p class="quiet" role="status">'+pending+'</p>' : "") +
+    (couponLoadFailed || !couponCatalog ? '<p class="quiet" role="status">'+pending+'</p>' : "") +
+    (affiliateNotice ? '<p class="quiet" role="status">'+affiliateNotice+'</p>' : "") +
     (couponCatalog?.owner ? '<button class="btn outline" data-coupon="add">Добавить купон</button>' : '<a class="link coupon-login" target="_top" href="https://za-stol-menu-kbr.kbrcore.chatgpt.site/signin-with-chatgpt?return_to=%2F%23coupons">Вход для владельца</a>');
 }
+function mountAffiliateCoupons(force) {
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData || affiliateRequest || (!force && Date.now() - affiliateUpdated < 30000)) return;
+  affiliateIssue = 0;
+  affiliateRequest = fetch("https://www.kbrcore.ru:8444/budu-eto/coupons", {
+    method: "POST", credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store",
+    body: JSON.stringify({initData})
+  }).then(async response => {
+    if (!response.ok) {
+      affiliateIssue = response.status;
+      throw Error("unavailable");
+    }
+    const result = await response.json();
+    affiliateOffers = result.items;
+    affiliateUpdated = Date.now();
+  }).catch(() => {
+    affiliateOffers = [];
+    affiliateIssue = affiliateIssue || 503;
+  }).finally(() => {
+    affiliateRequest = null;
+    paintCoupons();
+  });
+}
 async function mountCoupons(force=false) {
+  if (route === "coupons") mountAffiliateCoupons(force);
   paintCoupons();
   if (couponRequest || (!force && couponCatalog && Date.now()-couponsUpdated < 30000)) return;
   const start = couponsUpdated;
   couponRequest = fetch("data/coupons.json",{cache:"no-store"}).then(async r=>{
     if(!r.ok) throw Error();
     const result = await r.json();
-    if(start === couponsUpdated) {couponCatalog=result; couponsUpdated=Date.now(); paintCoupons();}
-  }).catch(()=>paintCoupons(true)).finally(()=>{couponRequest=null});
+    if(start === couponsUpdated) {couponCatalog=result; couponsUpdated=Date.now(); couponLoadFailed=false; paintCoupons();}
+  }).catch(()=>{couponLoadFailed=true;paintCoupons();}).finally(()=>{couponRequest=null});
   await couponRequest;
 }
 function couponSheet(info) {
@@ -66,13 +122,21 @@ function couponSheet(info) {
   }
   const gift = houseGifts.find(g=>g.id===info.id);
   if(gift && info.kind==="coupon-detail") return giftSheet(gift);
-  const c = couponCatalog?.items.find(c=>c.id===info.id);
+  const c = activeCoupons().find(c => c.id === info.id);
   if(!c) return '<div class="sheet-body simple">'+title("Купон недоступен")+'</div>';
   if(info.kind==="coupon-remove") return `<div class="sheet-body simple">${title("Снять купон с публикации?")}<p>${$(c.store)} · ${$(c.title)}</p><button class="btn primary" data-coupon="remove" data-id="${$(c.id)}">Снять с публикации</button><p class="form-error" role="alert"></p></div>`;
-  return `<div class="sheet-body simple coupon-detail"><p class="quiet">${$(c.store)}</p>${title($(c.title))}<strong class="coupon-value">${$(c.value)}</strong><p>${$(c.conditions)}</p><p class="quiet">Действует по ${expiryLabel(c)} включительно.</p>
+  const validThrough = c.expires ? "Действует по " + expiryLabel(c) + " включительно." : "Бессрочно.";
+  const brand = c.logo ? `<div class="coupon-detail-brand">${couponBrand(c)}</div>` : `<p class="quiet">${$(c.store)}</p>`;
+  return `<div class="sheet-body simple coupon-detail">
+  ${couponAdNotice(c)}
+  ${brand}
+  ${title($(c.title))}<strong class="coupon-value">${$(c.value)}</strong><p>${$(c.conditions)}</p>
+  <p class="quiet">${validThrough}</p>
+  ${couponMedicalWarning(c)}
   ${c.code ? `<label class="field">Промокод<input class="coupon-code" readonly value="${$(c.code)}"></label><button class="btn primary" data-coupon="copy">Скопировать код</button>` : '<p>Промокод не требуется.</p>'}
+  ${c.shopUrl ? `<a class="link" data-coupon="shop" href="${$(c.shopUrl)}" target="_blank" rel="noopener noreferrer sponsored">${$(c.shopLabel)} ↗</a>` : ''}
   ${c.source ? `<a class="link" href="${$(c.source)}" target="_blank" rel="noopener noreferrer">Правила акции у магазина ↗</a>` : ''}
-  ${couponCatalog.owner ? `<button class="link" data-coupon="confirm-remove" data-id="${$(c.id)}">Снять с публикации</button>` : ''}</div>`;
+  ${couponCatalog?.owner && !c.advertising ? `<button class="link" data-coupon="confirm-remove" data-id="${$(c.id)}">Снять с публикации</button>` : ''}</div>`;
 }
 async function publishCoupon(method,payload,btn) {
   btn.disabled=true;
@@ -98,6 +162,10 @@ document.addEventListener("click", async event=>{
   if(coupon==="add") openSheet({kind:"coupon-add"});
   if(coupon==="confirm-remove") openSheet({kind:"coupon-remove",id});
   if(coupon==="remove") publishCoupon("DELETE",{id},b);
+  if (coupon === "shop" && window.Telegram?.WebApp?.isVersionAtLeast?.("6.1")) {
+    event.preventDefault();
+    window.Telegram.WebApp.openLink(b.href);
+  }
   if(coupon==="gift-copy") {
     const field=b.parentElement.querySelector("textarea");
     try {await navigator.clipboard.writeText(field.value);notify("Список скопирован");}
