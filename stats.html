@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#fafbf7">
+    <title>Статистика · Буду это</title>
+    <link rel="stylesheet" href="app.css?v=continuity-1">
+    <link rel="stylesheet" href="stats.css?v=1">
+    <script defer src="https://telegram.org/js/telegram-web-app.js?65"></script>
+    <script defer src="stats.js?v=1"></script>
+  </head>
+  <body class="stats-body">
+    <main class="stats-main">
+      <header class="stats-header">
+        <div>
+          <h1>Статистика «Буду это»</h1>
+          <p id="stats-since" class="quiet" hidden></p>
+        </div>
+        <button type="button" id="stats-refresh" class="stats-outline" hidden>Обновить</button>
+      </header>
+      <p id="stats-status" class="stats-status" role="status">Загружаем данные…</p>
+      <noscript>Для просмотра статистики включите JavaScript и откройте её через бота.</noscript>
+      <a id="stats-bot" class="stats-outline" href="https://t.me/budueto_bot" hidden>Перейти к боту</a>
+
+      <div id="stats-report" hidden>
+        <dl class="stats-ledger">
+          <div><dt>Всего нажали «Старт»</dt><dd id="stats-total"></dd></div>
+          <div><dt>Новые сегодня</dt><dd id="stats-daily"></dd></div>
+          <div><dt>Новые за 7 дней</dt><dd id="stats-recent"></dd></div>
+        </dl>
+
+        <div class="stats-columns">
+          <section class="stats-section stats-growth" aria-labelledby="stats-growth-title">
+            <div class="stats-section-head">
+              <h2 id="stats-growth-title">Первые запуски</h2>
+              <div class="stats-switch" role="group" aria-label="Период статистики">
+                <button type="button" data-stats-range="7" aria-pressed="true">7 дней</button>
+                <button type="button" data-stats-range="30" aria-pressed="false">30 дней</button>
+              </div>
+            </div>
+            <p id="stats-period" class="quiet"></p>
+            <div class="stats-chart">
+              <div class="stats-axis" aria-hidden="true"><span id="stats-axis-max"></span><span>0</span></div>
+              <div class="stats-plot" id="stats-bars" aria-label="Новые пользователи по дням"></div>
+            </div>
+            <div class="stats-chart-dates" aria-hidden="true"><span id="stats-date-first"></span><span id="stats-date-last"></span></div>
+            <p id="stats-selection" class="stats-selection" aria-live="polite"></p>
+          </section>
+
+          <section class="stats-section" aria-labelledby="stats-funnel-title">
+            <h2 id="stats-funnel-title">Путь до меню</h2>
+            <p class="quiet">Среди тех, кто нажал «Старт» в выбранные дни</p>
+            <ol class="stats-funnel" id="stats-funnel"></ol>
+          </section>
+        </div>
+
+        <section class="stats-section stats-coupon-section" aria-labelledby="stats-coupons-title">
+          <h2 id="stats-coupons-title">Партнёрские купоны</h2>
+          <p class="quiet" id="stats-coupons-caption"></p>
+          <p class="stats-empty" id="stats-coupons-empty" hidden>За выбранные дни действий пока нет.</p>
+          <table class="stats-table" id="stats-coupons-table" hidden>
+            <thead>
+              <tr><th scope="col">Купон</th><th scope="col">Открыли</th><th scope="col">Скопировали</th><th scope="col">В магазин</th></tr>
+            </thead>
+            <tbody id="stats-coupons"></tbody>
+          </table>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

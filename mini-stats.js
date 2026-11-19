@@ -1,6 +1,7 @@
 // Only signed Telegram launches can contribute. Never upload menu contents.
 const miniStats = (() => {
   const launch = window.Telegram?.WebApp?.initData;
+  const endpoint = "https://www.kbrcore.ru:8444/budu-eto/mini-event";
   let desired = 0, sent = 0, sending = false, timer = 0, failures = 0;
   let storageKey;
   try {
@@ -15,16 +16,21 @@ const miniStats = (() => {
       return localStorage.getItem(storageKey) === "1";
     } catch { return false; }
   }
+  function sendEvent(event, offer) {
+    const body = {event, initData: launch};
+    if (offer) body.offer = offer;
+    return fetch(endpoint, {
+      method: "POST", credentials: "omit", referrerPolicy: "no-referrer", keepalive: true,
+      body: JSON.stringify(body)
+    });
+  }
   async function flush() {
     if (!launch || sending || sent >= desired) return;
     clearTimeout(timer);
     const target = desired;
     sending = true;
     try {
-      const response = await fetch("https://www.kbrcore.ru:8444/budu-eto/mini-event", {
-        method: "POST", credentials: "omit", referrerPolicy: "no-referrer", keepalive: true,
-        body: JSON.stringify({event: target === 2 ? "week_built" : "opened", initData: launch})
-      });
+      const response = await sendEvent(target === 2 ? "week_built" : "opened");
       if (!response.ok) {
         if (response.status === 403) return; // A fresh launch supplies a fresh signature.
         throw Error("unavailable");
@@ -53,6 +59,9 @@ const miniStats = (() => {
       pending(true);
       desired = 2;
       void flush();
+    },
+    coupon(event, offer) {
+      if (launch && offer) void sendEvent(event, offer).catch(() => {});
     }
   };
 })();

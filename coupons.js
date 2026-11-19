@@ -133,8 +133,8 @@ function couponSheet(info) {
   ${title($(c.title))}<strong class="coupon-value">${$(c.value)}</strong><p>${$(c.conditions)}</p>
   <p class="quiet">${validThrough}</p>
   ${couponMedicalWarning(c)}
-  ${c.code ? `<label class="field">Промокод<input class="coupon-code" readonly value="${$(c.code)}"></label><button class="btn primary" data-coupon="copy">Скопировать код</button>` : '<p>Промокод не требуется.</p>'}
-  ${c.shopUrl ? `<a class="link" data-coupon="shop" href="${$(c.shopUrl)}" target="_blank" rel="noopener noreferrer sponsored">${$(c.shopLabel)} ↗</a>` : ''}
+  ${c.code ? `<label class="field">Промокод<input class="coupon-code" readonly value="${$(c.code)}"></label><button class="btn primary" data-coupon="copy" data-offer="${c.advertising ? $(c.id) : ""}">Скопировать код</button>` : '<p>Промокод не требуется.</p>'}
+  ${c.shopUrl ? `<a class="link" data-coupon="shop" data-offer="${$(c.id)}" href="${$(c.shopUrl)}" target="_blank" rel="noopener noreferrer sponsored">${$(c.shopLabel)} ↗</a>` : ''}
   ${c.source ? `<a class="link" href="${$(c.source)}" target="_blank" rel="noopener noreferrer">Правила акции у магазина ↗</a>` : ''}
   ${couponCatalog?.owner && !c.advertising ? `<button class="link" data-coupon="confirm-remove" data-id="${$(c.id)}">Снять с публикации</button>` : ''}</div>`;
 }
@@ -155,16 +155,22 @@ async function publishCoupon(method,payload,btn) {
 document.addEventListener("click", async event=>{
   const b=event.target.closest("[data-coupon]");
   if(!b) return;
-  const {coupon,id,store}=b.dataset;
+  const {coupon,id,store,offer}=b.dataset;
   if(coupon==="filter") {couponFilter=store;paintCoupons();document.querySelector(`[data-store="${CSS.escape(store)}"]`)?.focus({preventScroll:true});}
   if(coupon==="retry") mountCoupons(true);
-  if(coupon==="detail") openSheet({kind:"coupon-detail",id});
+  if (coupon === "detail") {
+    openSheet({kind:"coupon-detail",id});
+    if (affiliateOffers.some(c => c.id === id)) miniStats.coupon("coupon_open", id);
+  }
   if(coupon==="add") openSheet({kind:"coupon-add"});
   if(coupon==="confirm-remove") openSheet({kind:"coupon-remove",id});
   if(coupon==="remove") publishCoupon("DELETE",{id},b);
-  if (coupon === "shop" && window.Telegram?.WebApp?.isVersionAtLeast?.("6.1")) {
-    event.preventDefault();
-    window.Telegram.WebApp.openLink(b.href);
+  if (coupon === "shop") {
+    miniStats.coupon("coupon_visit", offer);
+    if (window.Telegram?.WebApp?.isVersionAtLeast?.("6.1")) {
+      event.preventDefault();
+      window.Telegram.WebApp.openLink(b.href);
+    }
   }
   if(coupon==="gift-copy") {
     const field=b.parentElement.querySelector("textarea");
@@ -173,7 +179,11 @@ document.addEventListener("click", async event=>{
   }
   if(coupon==="copy") {
     const field=sheet.querySelector(".coupon-code");
-    try {await navigator.clipboard.writeText(field.value);notify("Промокод скопирован");}
+    try {
+      await navigator.clipboard.writeText(field.value);
+      notify("Промокод скопирован");
+      miniStats.coupon("coupon_copy", offer);
+    }
     catch {field.focus();field.select();notify("Код выделен для копирования");}
   }
 });
