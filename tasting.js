@@ -158,18 +158,21 @@ function tasteReadiness({pool, votes, profile}) {
   if (targets[0] < 2 || targets[1] + targets[2] < 2 || !pool.some(r => r.slot === "m" && fitsMainSlot(r, 2))) {
     hint = "Добавьте кухню или измените ограничения, чтобы собрать неделю.";
   } else if (!shortfall.length && minimumHint) hint = minimumHint;
-  else if (!selected.chosen.length) hint = "Выберите блюда на завтрак, обед и ужин.";
   if(enough && !complete)hint="Для чередования на семь дней выберите ещё основные блюда на обед и ужин. Можно расширить время или кухни.";
   return {targets, counts, missing, hint, complete};
 }
 
 function tasteProgressDetails(progress) {
-  if (progress.complete) return "";
+  if (progress.complete) return '<p id="taste-progress" class="taste-ready" role="status">'+icon("check",18)+'<strong>Блюда выбраны — можно дальше</strong></p>';
   const open = document.getElementById("taste-progress")?.open;
   const labels = ["Завтраки", "Обеды", "Ужины"];
+  const hint = progress.hint.replace(/^Выберите ещё /,"Осталось выбрать ");
+  const target = progress.targets.every(n=>n===6)
+    ? "Выбери по 6 завтраков, обедов и ужинов — так получится разнообразная неделя."
+    : "Количество вариантов учитывает выбранные кухни, время и исключения.";
   return `<details id="taste-progress"${open ? " open" : ""}>
-    <summary><span>${progress.hint}</span>${icon("right", 16)}</summary>
-    <div>${labels.map((label, i) => `<span>${label} <b>${progress.counts[i]}/${progress.targets[i]}</b></span>`).join("")}</div>
+    <summary><span aria-live="polite">${hint}</span>${icon("right", 16)}</summary>
+    <p>${target}</p><div>${labels.map((label, i) => `<span>${label} <b>${progress.counts[i]}/${progress.targets[i]}</b></span>`).join("")}</div>
   </details>`;
 }
 
@@ -249,7 +252,8 @@ function tastingPanel() {
   const possible=selectedCounts(ctx.pool,Object.fromEntries(ctx.pool.map(r=>[r.id,1])));
   const limited=selectionHint(possible) || (!ctx.pool.some(r=>fitsMainSlot(r,1)) ? "Для обеда не нашлось блюд." : "");
   const help=route==="start" && limited && ctx.pool.length ? `<aside class="flow-details"><strong>${limited}</strong>${widerTasteChoices(ctx)}</aside>`:"";
-  return tasteCuisineEntry(ctx.profile.cuisines || []) + help + tastingCards(ctx);
+  const progress = route==="start" ? tasteProgressDetails(tasteReadiness(ctx)) : "";
+  return tasteCuisineEntry(ctx.profile.cuisines || []) + help + progress + tastingCards(ctx);
 }
 function widerTasteChoices({profile,pool,votes}) {
   const known=new Set(pool.map(r=>r.id)), choices=[];

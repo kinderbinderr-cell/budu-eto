@@ -2,7 +2,7 @@
 const flowTitles = [
   "Для кого готовим?",
   "Сколько времени на блюдо?",
-  "Что хочется съесть?",
+  "Выбираем блюда для твоей недели",
   "Сколько потратим за неделю?",
 ];
 const flowLabels = ["За столом", "Время готовки", "Ваши вкусы", "Бюджет и магазины"];
@@ -237,7 +237,7 @@ function funnelPage() {
   const subtitles = [
     null,
     "Время на одну-две порции, включая плиту и духовку. Для большой партии понадобится дольше.",
-    "Смахните вправо, если хочется попробовать, или нажмите «Хочу в меню».",
+    "Нажимай «Хочу в меню» на блюдах, которые захотелось попробовать. Из выбранного соберём завтраки, обеды и ужины.",
     "Один бюджет на всю неделю. Ниже можно добавить десерты и выбрать магазин.",
   ];
   const pictures = [null, ["syrniki", "Сырники с малиной"], ["chickenOrzo", "Орзо с курицей"], ["mushroomBuck", "Гречка с шампиньонами"]];
@@ -248,7 +248,7 @@ function funnelPage() {
   const submit = ["Дальше", "К выбору блюд", "Дальше", "Собрать моё меню"][s];
   return `<div class="flow-shell ${first ? "welcome-step" : s === 2 ? "tasting-step" : ""}">${visual}<section class="flow-form">${progress}
     <form id="flow-form">${heading}<div class="flow-options">${[peopleQuestion, timeQuestion, flavorQuestion, storeQuestion][s]()}</div>
-    <p id="flow-error" role="alert"></p>${taste ? tasteProgressDetails(taste) : ""}<div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste && !taste.complete ? 'disabled aria-describedby="taste-progress"' : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
+    <p id="flow-error" role="alert"></p><div class="flow-footer">${s > 0 ? iconBtn("left", "Назад", "flow-back") : ""}<button class="btn primary" type="submit" ${taste ? 'aria-describedby="taste-progress"' + (!taste.complete ? ' disabled' : '') : ""}>${submit} ${icon("arrow", 19)}</button></div></form>
     ${first ? '<button class="link welcome-restore" type="button" data-action="copy-restore">Восстановить из копии</button>' : ""}
   </section></div>`;
 }
