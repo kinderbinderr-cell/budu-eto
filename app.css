@@ -491,6 +491,9 @@ button:active:not(:disabled) {
   overflow: hidden;
   background: var(--soft);
 }
+.dish-photo {
+  display: contents;
+}
 .photolink {
   width: 100%;
   display: block;

@@ -223,7 +223,7 @@ function sampleDay() {
   return `<section class="sample-day"><h1>Меню <em>на неделю</em></h1>
     <p>Отметьте блюда, которые любите. Соберём меню на 7 дней и список покупок под ваш бюджет.</p>
     <figure><figcaption>Пример одного дня</figcaption><ul>${dishes.map(([id, name], i) =>
-      `<li><img src="${photo(byId(id))}" alt=""><small>${slotNames[i]}</small><strong>${name}</strong></li>`).join("")}</ul></figure>
+      `<li>${dishPhoto(byId(id), "(max-width: 650px) calc((100vw - 52px) / 3), 185px")}<small>${slotNames[i]}</small><strong>${name}</strong></li>`).join("")}</ul></figure>
   </section>`;
 }
 function funnelPage() {
@@ -240,8 +240,8 @@ function funnelPage() {
     "Нажимай «Хочу в меню» на блюдах, которые захотелось попробовать. Из выбранного соберём завтраки, обеды и ужины.",
     "Один бюджет на всю неделю. Ниже можно добавить десерты и выбрать магазин.",
   ];
-  const pictures = [null, ["syrniki", "Сырники с малиной"], ["chickenOrzo", "Орзо с курицей"], ["mushroomBuck", "Гречка с шампиньонами"]];
-  const visual = first ? sampleDay() : `<div class="flow-visual panel-${s}"><img src="assets/${pictures[s][0]}.webp" alt="" fetchpriority="high"><div class="flow-visual-copy"><span>Ваше меню</span><em>на неделю</em></div><small>${pictures[s][1]}</small></div>`;
+  const pictures = [null, ["syrniki", "Сырники с малиной"], null, ["mushroomBuck", "Гречка с шампиньонами"]];
+  const visual = first ? sampleDay() : s === 2 ? "" : `<div class="flow-visual panel-${s}">${dishPhoto(byId(pictures[s][0]), "(max-width: 800px) min(620px, 100vw - 36px), 550px", 'alt="" fetchpriority="high"')}<div class="flow-visual-copy"><span>Ваше меню</span><em>на неделю</em></div><small>${pictures[s][1]}</small></div>`;
   const progress = first ? "" : `<div class="flow-progress"><span>Шаг ${s + 1} из 4</span><b>${flowLabels[s]}</b>${flowProgress(s, "flow-segments")}</div>`;
   const heading = first ? `<h2>${flowTitles[s]}</h2>` : `<h1>${flowTitles[s]}</h1><p class="flow-intro">${subtitles[s]}</p>`;
   const taste = s === 2 ? tasteReadiness(tasteContext()) : null;

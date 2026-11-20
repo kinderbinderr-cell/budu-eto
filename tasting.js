@@ -275,6 +275,7 @@ function widerTasteChoices({profile,pool,votes}) {
   }
   return choices.length?'<div class="taste-end-actions">'+choices.join("")+'</div>':'<p>Проверьте выбранные настройки питания и доступную технику.</p>';
 }
+const tastingPhotoSizes = "(max-width: 650px) calc(100vw - 30px), 465px";
 function tastingCards({ pool, votes, deck, profile }) {
   const counts = selectedCounts(pool, votes);
   const r = byId(deck.ids[deck.index]);
@@ -284,9 +285,11 @@ function tastingCards({ pool, votes, deck, profile }) {
   const rejected = pool.filter((r) => votes[r.id] === -1).length;
   const next = byId(deck.ids[deck.index + 1]);
   if (r && next) {
-    const prefetch = new Image();
-    prefetch.fetchPriority = "low";
-    prefetch.src = photo(next);
+    requestAnimationFrame(() => {
+      if (main.querySelector(".reaction-photo")?.dataset.tasteId !== r.id) return;
+      const prefetch = document.createElement("div");
+      prefetch.innerHTML = dishPhoto(next, tastingPhotoSizes, 'alt="" fetchpriority="low"');
+    });
   }
   const liked = RECIPES.filter(r=>votes[r.id]===1).length;
   const summary = `<div class="taste-counter"><span>${icon("heart", 15)} Выбрано <b>${liked}</b>${liked>counts.chosen.length ? ` · подходят ${counts.chosen.length}` : ""}</span>${deck.trail.length ? deckLink(icon("undo", 14) + " Отменить", "taste-undo") : ""}</div>`;
@@ -303,7 +306,7 @@ function tastingCards({ pool, votes, deck, profile }) {
       counts.chosen.length
         ? `<div class="taste-samples">${counts.chosen
             .slice(-4)
-            .map((x) => `<img src="${photo(x)}" alt="${$(x.title)}">`)
+            .map((x) => dishPhoto(x, "60px", `alt="${$(x.title)}"`))
             .join(
               "",
             )}</div><small>${counts.b} на завтрак · ${counts.m} на обед и ужин</small>`
@@ -315,7 +318,7 @@ function tastingCards({ pool, votes, deck, profile }) {
     traditions = profile.cuisines?.length ? r.cuisines.filter(key => profile.cuisines.includes(key)) : r.cuisines,
     number = deck.index + 1;
   return `<section class="reaction-card" aria-label="Выбор блюда">
-    <div class="reaction-photo" data-taste-id="${r.id}"><img draggable="false" src="${photo(r)}" alt="${title}" loading="eager" fetchpriority="high"><button type="button" data-action="retry-photo" class="btn outline retry-photo" hidden>Загрузить фото ещё раз</button><span>${type}</span><b>${number} / ${deck.ids.length}</b></div>
+    <div class="reaction-photo" data-taste-id="${r.id}">${dishPhoto(r, tastingPhotoSizes, `draggable="false" alt="${title}" loading="eager" fetchpriority="high"`)}<button type="button" data-action="retry-photo" class="btn outline retry-photo" hidden>Загрузить фото ещё раз</button><span>${type}</span><b>${number} / ${deck.ids.length}</b></div>
     <div class="reaction-body"><div class="reaction-track" aria-hidden="true"><i style="width:${Math.round((100 * number) / deck.ids.length)}%"></i></div>
     <div class="reaction-info" aria-live="polite"><h2>${title}</h2><p class="reaction-cuisine">${traditions.map(cuisineLabel).join(" · ")}${r.photoCredit?.illustrative ? " · Пример подачи" : ""}</p><p>${icon("clock", 16)} ${cookingTime(r)} ${equipmentBadges(r)}<i></i>${Math.round(r.kcal)} ккал на порцию</p></div>
     <div class="reaction-actions">${button("Не хочу", "taste-no", "outline", "close", `data-id="${r.id}"`)}${button("Хочу в меню", "taste-yes", "primary", "heart", `data-id="${r.id}"`)}</div>
@@ -425,16 +428,20 @@ function saveDiscovery() {
   navTo("week");
   notify("Выбранные блюда сохранены");
 }
+function retryTastingPhoto(image, recipe) {
+  image.closest("picture")?.querySelector("source")?.remove();
+  image.src = photo(recipe) + "?retry=" + Date.now();
+}
 function setTastingPhotoError(event) {
   const image = event.target;
   if (!image.matches?.(".reaction-photo img")) return;
-  const container = image.parentElement;
+  const container = image.closest(".reaction-photo");
   const failed = event.type === "error";
   if (failed && !image.dataset.retried && navigator.onLine) {
     image.dataset.retried = "true";
     setTimeout(() => {
       if (image.isConnected && !image.naturalWidth) {
-        image.src = photo(byId(container.dataset.tasteId)) + "?retry=" + Date.now();
+        retryTastingPhoto(image, byId(container.dataset.tasteId));
       }
     }, 350);
     return;
@@ -452,7 +459,7 @@ main.addEventListener("click", event => {
   const recipe = byId(container.dataset.tasteId);
   container.classList.remove("photo-failed");
   retry.hidden = true;
-  image.src = photo(recipe) + "?retry=" + Date.now();
+  retryTastingPhoto(image, recipe);
 });
 let gesture = null;
 main.addEventListener("pointerdown", (e) => {

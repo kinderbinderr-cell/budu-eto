@@ -269,7 +269,7 @@ function prepDayPanel(tasks) {
       if(use.spare)return '<li>'+prepQuantity(use.f)+' · готовый запас</li>';
       return '<li>'+(marked?(use.completed?"Готово · ":"Осталось приготовить · "):"")+mealWhen(use)+' · '+(use.additional?'доготовить '+prepQuantity(use.f):household(weekProfile()))+' '+place+prepDivision(use)+'</li>';
     });
-    return '<article class="prep-dish"><button type="button" data-action="prep-recipe" data-id="'+$(task.r.id)+'"><img src="'+photo(task.r)+'" alt=""><span><strong>'+$(task.r.title)+'</strong><small>'+prepBatchText(task)+' · '+cookingTime(task.r)+'</small>'+equipmentBadges(task.r)+'</span>'+icon("right",16)+'</button><ul>'+lines.join("")+'</ul></article>';
+    return '<article class="prep-dish"><button type="button" data-action="prep-recipe" data-id="'+$(task.r.id)+'">'+dishPhoto(task.r, "60px")+'<span><strong>'+$(task.r.title)+'</strong><small>'+prepBatchText(task)+' · '+cookingTime(task.r)+'</small>'+equipmentBadges(task.r)+'</span>'+icon("right",16)+'</button><ul>'+lines.join("")+'</ul></article>';
   }).join("");
   const transfer=(use)=>'<li><b>'+$(use.r.title)+'</b><span>'+(marked?(use.thawed?'Уже в холодильнике · ':'Осталось переложить · '):'')+household(weekProfile())+' · '+mealWhen(use)+prepDivision(use)+'</span></li>';
   const riceInFreezer=frozen.some(use=>use.r.items.some(([key])=>key==="rice"));

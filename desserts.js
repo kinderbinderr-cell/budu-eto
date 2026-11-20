@@ -42,7 +42,7 @@ function dessertPanel() {
   const timing=openInfo.moment ?? sweetMoment(meal?.sweetMoment ?? weekProfile().dessertPrefs?.moment);
   const options = sweetOptions(settings());
   const rows = options.map(r => `<button type="button" data-action="dessert-pick" data-id="${r.id}" aria-pressed="${current === r.id}">
-    <img src="${photo(r)}" alt=""><span><b>${$(r.title)}</b><small>${cookingTime(r)} · ${Math.round(r.kcal * dessertPortion)} ккал на порцию</small></span>
+    ${dishPhoto(r, "66px")}<span><b>${$(r.title)}</b><small>${cookingTime(r)} · ${Math.round(r.kcal * dessertPortion)} ккал на порцию</small></span>
     ${icon(current === r.id ? "check" : "plus", 17)}</button>`).join("");
   return `<div class="sheet-body simple"><h2 id="sheet-title">Выберите десерт</h2>
     <p class="quiet">${dayName(day)} · ингредиенты войдут в покупки на неделю.</p>
@@ -93,14 +93,14 @@ function sweetEntry(profile, scope, p) {
   const caption=days.length ? days.join(" · ") : p && f ? "На этой неделе нет десертов" : f ? sweetTimes(f) : "По желанию";
   const first=sweetLikes(profile)[0] || sweetOptions(profile)[0];
   return '<button type="button" class="sweet-entry" data-action="sweet-open" data-scope="'+scope+'">'+
-    (first?'<img src="'+photo(first)+'" alt="">':'')+
+    (first ? dishPhoto(first, "46px") : "")+
     '<span><strong>Десерты на неделю</strong><small>'+caption+'</small></span>'+icon("right",17)+'</button>';
 }
 function sweetAgenda(p) {
   const days=p.days.flatMap((d,i)=>d.meals[3]?[{r:d.meals[3].r,i}]:[]);
   if(!days.length) return "";
   return '<div class="sweet-agenda" aria-label="Дни с десертом">'+days.map(({r,i})=>
-    `<button type="button" data-action="sweet-day" data-day="${i}"><img src="${photo(r)}" alt=""><span><small>${dayName(i)} · ${sweetMoments[p.days[i].meals[3].sweetMoment].toLowerCase()}</small><strong>${$(r.title)}</strong></span>${icon("right",15)}</button>`).join("")+'</div>';
+    `<button type="button" data-action="sweet-day" data-day="${i}">${dishPhoto(r, "46px")}<span><small>${dayName(i)} · ${sweetMoments[p.days[i].meals[3].sweetMoment].toLowerCase()}</small><strong>${$(r.title)}</strong></span>${icon("right",15)}</button>`).join("")+'</div>';
 }
 function sweetEditor(info) {
   const options=sweetOptions(info.profile);
@@ -110,7 +110,7 @@ function sweetEditor(info) {
     ${!days.length?`<small class="quiet">Пока дни не выбраны: ${n?sweetTimes(n).toLowerCase()+", автоматически":"без десертов"}.</small>`:""}`
     : `<div class="sweet-numbers" role="group" aria-label="Дней с десертом">${Array.from({length:8},(_,i)=>`<button type="button" data-action="sweet-count" data-value="${i}" aria-label="${i} из 7 дней" aria-pressed="${i===n}">${i}</button>`).join("")}</div>`;
   const cards=options.map(r=>`<button type="button" class="sweet-card" data-action="sweet-like" data-id="${r.id}" aria-pressed="${likes.includes(r.id)}">
-    <span class="sweet-image"><img src="${photo(r)}" alt=""><i>${icon("heart",17)}</i></span>
+    <span class="sweet-image">${dishPhoto(r, "auto, min(241px, 44vw)", 'alt="" loading="lazy"')}<i>${icon("heart",17)}</i></span>
     <strong>${$(r.title)}</strong><small>${r.minutes} мин · ${Math.round(r.kcal*dessertPortion)} ккал</small></button>`).join("");
   return `<div class="sheet-body simple sweet-editor"><small class="sweet-kicker">${info.inFlow?"МЕНЮ НА НЕДЕЛЮ":rangeText()}</small><h2 id="sheet-title">Что на сладкое?</h2>
     <p class="quiet">Как распределить десерты по неделе?</p>

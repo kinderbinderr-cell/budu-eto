@@ -12,7 +12,7 @@ function giftSheet(gift) {
   }
   const lines=[...totals].sort(([a],[b])=>FOOD[a][0].localeCompare(FOOD[b][0],"ru"))
     .map(([key,grams])=>FOOD[key][0]+" — "+weeklyNeed(key,grams));
-  const cards=recipes.map(recipe=>`<button class="gift-recipe" type="button" data-action="recipe" data-id="${$(recipe.id)}"><img src="${$(photo(recipe))}" alt="" loading="lazy"><span><b>${$(recipe.title)}</b><small>${$(cookingTime(recipe))}</small></span>${icon("right",16)}</button>`).join("");
+  const cards=recipes.map(recipe=>`<button class="gift-recipe" type="button" data-action="recipe" data-id="${$(recipe.id)}">${dishPhoto(recipe, "62px", 'alt="" loading="lazy"')}<span><b>${$(recipe.title)}</b><small>${$(cookingTime(recipe))}</small></span>${icon("right",16)}</button>`).join("");
   return `<div class="sheet-body simple coupon-detail"><p class="quiet">Подарок от «Буду это»</p><h2 id="sheet-title">${$(gift.title)}</h2>${cards}<details class="gift-list"><summary>Продукты на двоих</summary><p>Если приготовить каждое блюдо один раз. Сверьте количество с тем, что есть дома.</p><ul>${lines.map(line=>"<li>"+$(line)+"</li>").join("")}</ul><button class="btn outline" type="button" data-coupon="gift-copy">Скопировать список</button><textarea aria-label="Список для копирования" hidden readonly>${$([gift.title,"На двоих",...lines].join("\n"))}</textarea></details></div>`;
 }
 let couponCatalog = null, couponFilter = "", couponRequest = null, couponsUpdated = 0;

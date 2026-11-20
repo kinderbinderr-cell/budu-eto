@@ -115,6 +115,14 @@ function rangeText(off=offset) {
 function photo(r) {
   return "assets/" + (r.picture || r.id) + ".webp";
 }
+function dishPhoto(r, sizes, attributes = 'alt=""') {
+  const id = r.picture || r.id;
+  const image = `<img src="${photo(r)}" decoding="async" ${attributes}>`;
+  if (!Object.prototype.hasOwnProperty.call(dishPhotoWidths, id)) return image;
+  const [small, large] = dishPhotoWidths[id];
+  const path = `assets/dishes/${id}`;
+  return `<picture class="dish-photo"><source type="image/avif" sizes="${sizes}" srcset="${path}-small.avif ${small}w, ${path}-large.avif ${large}w">${image}</picture>`;
+}
 function byId(id) {
   return RECIPES.find((r) => r.id === id);
 }
@@ -411,12 +419,12 @@ function hero(p) {
   const s = weekProfile();
   const showcase = p && (p.days.flatMap(d=>d.meals).find(m=>m.r.id==="shakshuka")?.r || p.days[day].meals[2].r);
   const isCover = showcase?.id === "shakshuka";
-  return `<section class="cover ${isCover ? "signature" : "alternate"}">${showcase ? `<img class="cover-image" src="${isCover ? "assets/skillet-cover.webp" : photo(showcase)}" alt="" fetchpriority="high">` : ""}<div class="cover-copy"><h1>Меню <em>на неделю</em></h1><p>${s.mode === "family" ? `${icon("users", 16)} ${profileName(s)} <span>·</span> ${portions(servings(s))}` : `${icon("user", 16)} Личный рацион <span>·</span> ${activePortionTargets(s) ? "Свои диапазоны КБЖУ" : s.plainPortion ? "1 порция" : energy(s).toLocaleString("ru-RU") + " ккал в день"}`}</p>${s.maxMinutes ? `<p>Блюда до ${s.maxMinutes} минут</p>` : ""}${button("Выбрать ещё блюда", "discover", "apricot", "heart")}</div>${showcase ? `<button class="cover-credit" type="button" data-action="recipe" data-id="${showcase.id}">${showcase.title} ${icon("open", 16)}</button>` : ""}</section>`;
+  return `<section class="cover ${isCover ? "signature" : "alternate"}">${showcase ? `${dishPhoto(isCover ? {id: "skillet-cover"} : showcase, "(max-width: 650px) calc(100vw - 32px), min(1280px, 100vw - 46px)", 'class="cover-image" alt="" fetchpriority="high"')}` : ""}<div class="cover-copy"><h1>Меню <em>на неделю</em></h1><p>${s.mode === "family" ? `${icon("users", 16)} ${profileName(s)} <span>·</span> ${portions(servings(s))}` : `${icon("user", 16)} Личный рацион <span>·</span> ${activePortionTargets(s) ? "Свои диапазоны КБЖУ" : s.plainPortion ? "1 порция" : energy(s).toLocaleString("ru-RU") + " ккал в день"}`}</p>${s.maxMinutes ? `<p>Блюда до ${s.maxMinutes} минут</p>` : ""}${button("Выбрать ещё блюда", "discover", "apricot", "heart")}</div>${showcase ? `<button class="cover-credit" type="button" data-action="recipe" data-id="${showcase.id}">${showcase.title} ${icon("open", 16)}</button>` : ""}</section>`;
 }
 function overviewWeek(p) {
   if (!p)
     return '<div class="sheet-body simple"><h2 id="sheet-title">Неделя пока не собрана</h2></div>';
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Меню на семь дней</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${threeWeekTabs()}<div class="week-overview">${p.days.map((item, i) => `<button type="button" data-action="overview-day" data-day="${i}"><img src="${photo(item.meals[2].r)}" alt=""><span><b>${dayName(i)}</b>${servingSlots(item.meals).map(slot => `<small>${sweetMealLabel(item.meals[slot],slot)} · ${$(item.meals[slot].r.title)}</small>`).join("")}</span>${icon("right", 15)}</button>`).join("")}</div></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Меню на семь дней</h2><p class="quiet">${rangeText()} · ${profileName()}</p>${threeWeekTabs()}<div class="week-overview">${p.days.map((item, i) => `<button type="button" data-action="overview-day" data-day="${i}">${dishPhoto(item.meals[2].r, "68px")}<span><b>${dayName(i)}</b>${servingSlots(item.meals).map(slot => `<small>${sweetMealLabel(item.meals[slot],slot)} · ${$(item.meals[slot].r.title)}</small>`).join("")}</span>${icon("right", 15)}</button>`).join("")}</div></div>`;
 }
 function threeWeekTabs() {
   const first=Math.floor(offset/3)*3;
@@ -456,7 +464,7 @@ function heart(r) {
 function mealCard(meal, slot) {
   const { r, f } = meal,
     kcal = Math.round((r.kcal * f) / servings(weekProfile()));
-  return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}"><img src="${photo(r)}" alt="" decoding="async"></button><span class="meal-label">${icon(slotIcons[slot], 15)} ${sweetMealLabel(meal,slot)}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="${slot === 3 ? "dessert-open" : "swap"}" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
+  return `<article class="meal-card"><div class="card-image"><button type="button" class="photolink" data-action="recipe" data-id="${r.id}" data-slot="${slot}" aria-label="Рецепт: ${$(r.title)}">${dishPhoto(r, "(max-width: 650px) calc(100vw - 32px), (max-width: 850px) 30vw, 325px")}</button><span class="meal-label">${icon(slotIcons[slot], 15)} ${sweetMealLabel(meal,slot)}</span>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}" data-slot="${slot}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${meal.personFactors ? meal.personFactors.map(f=>Math.round(f*r.kcal)).join(" / ")+" ккал" : kcal+" ккал / порция"}</span></div><button type="button" class="swap" data-action="${slot === 3 ? "dessert-open" : "swap"}" data-slot="${slot}">${icon("swap", 16)} Заменить</button></article>`;
 }
 function weekSummary(p,kitchen) {
   const s = weekProfile(),
@@ -483,7 +491,7 @@ function emptyPlan() {
 function catCard(r) {
   const facts=bookRanges(bookFilters).filter(([key])=>key!=="kcal")
     .map(([,metric])=>`<span>${metric.label} ${bookNumber.format(metric.value(r))} г</span>`).join("");
-  return `<article class="library-card"><div class="card-image"><button class="photolink" type="button" data-action="recipe" data-id="${r.id}" aria-label="Рецепт: ${$(r.title)}"><img loading="lazy" src="${photo(r)}" alt=""></button>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${hasBookRange(bookFilters.kcal)?bookNumber.format(r.kcal):Math.round(r.kcal)} ккал / порция</span></div>${facts?`<div class="book-card-nutrients">${facts}</div>`:""}</article>`;
+  return `<article class="library-card"><div class="card-image"><button class="photolink" type="button" data-action="recipe" data-id="${r.id}" aria-label="Рецепт: ${$(r.title)}">${dishPhoto(r, "auto, (max-width: 650px) calc((100vw - 42px) / 2), min(307px, 23vw)", 'alt="" loading="lazy"')}</button>${heart(r)}</div><button class="dish-title" type="button" data-action="recipe" data-id="${r.id}">${$(r.title)}</button><div class="card-meta"><span>${icon("clock", 15)} ${cookingTime(r)}</span>${equipmentBadges(r)}<i></i><span>${hasBookRange(bookFilters.kcal)?bookNumber.format(r.kcal):Math.round(r.kcal)} ккал / порция</span></div>${facts?`<div class="book-card-nutrients">${facts}</div>`:""}</article>`;
 }
 const libraryPicks = ["rl001","rd022","rb020","rd023","rl041","rb021","rd024","rl021","rb001","rd001","rl004","rb076","rd021","rl049","rb059","rl006","rb030","rd041"];
 const bookMeals = {all:"Все", breakfast:"Завтрак", lunch:"Обед", dinner:"Ужин",dessert:"Десерт"};
