@@ -62,7 +62,7 @@ const mime={".js":"application/javascript",".css":"text/css",".html":"text/html"
       async function limit(n){
         const details=p.locator("details.week-spending").first();
         if(!await details.evaluate(d=>d.open))await details.locator("summary").first().click();
-        await btn("budget-edit").click();await p.locator('#budget-form input').fill(String(n));await p.locator('#budget-form [type=submit]').click();
+        await btn("budget-edit").click();await p.locator('#budget-form input[name=weekly-budget]').fill(String(n));await p.locator('#budget-form [type=submit]').click();
         assert.deepEqual(await p.evaluate(()=>[0,1,2].map(n=>data.weeks[data.mode+"/"+weekKey(n)]?.budgetLimit||null)),[n,null,null]);
       }
       await limit(12000);assert.deepEqual(await capture(p),baseline,"raising limit changed meals");

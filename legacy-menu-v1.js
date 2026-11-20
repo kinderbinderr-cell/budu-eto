@@ -919,7 +919,7 @@ function budgetPlan(s,n,replacements,prior,phase,previous,desserts) {
   let amount=initialQuote.cents;
   for(const level of [1,4,12,16]){
     if(amount<=s.budget*100) break;
-    const checkout=level===16 ? marginalCheckout(initialQuote.store,pantry) : null;
+    const checkout=level===16 ? marginalCheckout(initialQuote.store,pantry,normalizePriceCity(s.priceCity)) : null;
     const next=make({},level,checkout);
     if(!next) continue;
     const value=score(next.counts,pantry).cents;

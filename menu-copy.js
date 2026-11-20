@@ -37,7 +37,7 @@ function copyProfile(raw) {
   requireCopy(copyObject(raw) && ["family","personal"].includes(raw.mode));
   const profile=initial(raw.mode);
   const defaults={...profile};
-  const extras=["startDate","backupAnchor","tasteAnchor","fromQuiz","budgetChosen","strictTaste","rotateBatches","plainPortion","portionTargets","dessertPrefs","planningPantry"];
+  const extras=["startDate","backupAnchor","tasteAnchor","fromQuiz","budgetChosen","strictTaste","rotateBatches","plainPortion","portionTargets","dessertPrefs","planningPantry","priceCity"];
   for(const field of [...Object.keys(defaults),...extras]) if(Object.hasOwn(raw,field)) profile[field]=raw[field];
   for(const field of ["adults","small","budget","age","height","weight","target","maxMinutes","week"])
     requireCopy(copyNumber(profile[field]));
@@ -56,6 +56,7 @@ function copyProfile(raw) {
     range=>range===null || (Array.isArray(range)&&range.length===2&&copyNumber(range[0],0.01)&&copyNumber(range[1],range[0]))),2));
   if(profile.planningPantry!=null) requireCopy(copyMap(profile.planningPantry,k=>/^-?\d{1,4}$/.test(k),copyGrams));
   if(profile.dessertPrefs!=null) profile.dessertPrefs=copyDessertPrefs(profile.dessertPrefs);
+  if(profile.priceCity!=null) profile.priceCity=normalizePriceCity(profile.priceCity);
   return profile;
 }
 function copyWeekRecord(raw) {

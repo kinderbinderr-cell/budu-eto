@@ -4,6 +4,7 @@ const hasBudget = s => budgetRange(s.budget) && (s.budgetChosen === true || (s.b
 function storeShelf(store) {
   return typeof referenceCatalogs==="undefined" ? null : referenceCatalogs[store];
 }
+const currentPriceCity = () => normalizePriceCity(settings().priceCity);
 function cataloguePurchase(key, g, store) {
   if (!store) return null;
   const row = storeShelf(store)
@@ -15,8 +16,8 @@ function typicalUnits(k,p){
   const yieldFactor=commonPacks[k]?1:meatBoneRatio[k]?1/meatBoneRatio[k]:purchaseYield(k);
   return {edibleGrams:p.weight*yieldFactor,weightSale:!commonPacks[k],orderGrams:p.weight};
 }
-function estimatedPurchase(key,g,store) {
-  const city=typeof cityObservations==="undefined" ? null : cityObservations[key];
+function estimatedPurchase(key,g,store,location=currentPriceCity()) {
+  const city=observedPrice(key,location);
   if(city) {
     const purchase=typicalPurchase(key,g);
     // Retail pack capacities are in edible grams, including liquids and eggs.
@@ -26,7 +27,7 @@ function estimatedPurchase(key,g,store) {
   }
   // Use a dated Moscow shelf for the same ingredient; keep its real pack size and identify it as a benchmark.
   let benchmark=null, latest="";
-  if(typeof referenceCatalogs!=="undefined") for(const [id,shelf] of Object.entries(referenceCatalogs)) {
+  if(location.id==="moscow" && typeof referenceCatalogs!=="undefined") for(const [id,shelf] of Object.entries(referenceCatalogs)) {
     if(id===store || !shelf.products[key] || !shelf.checkedOn || shelf.checkedOn<=latest) continue;
     const row=referenceLine({key,g},id);
     if(!Number.isFinite(row.cents)) continue;
@@ -40,6 +41,12 @@ function estimatedPurchase(key,g,store) {
 const displayPriceDate = iso => iso.split("-").reverse().join(".");
 const cityPeriods=new Map();
 function cityPeriod(iso) {
+  if (priceEnglish()) {
+    const day = iso.length === 10;
+    return dateText(new Date((day ? iso : iso + "-01") + "T12:00:00Z"), {
+      year: "numeric", month: "short", ...(day ? {day: "numeric"} : {}), timeZone: "UTC",
+    });
+  }
   if(iso.length===10)return displayPriceDate(iso);
   if(!cityPeriods.has(iso)) cityPeriods.set(iso,new Intl.DateTimeFormat("ru-RU",{year:"numeric",month:"long",timeZone:"UTC"}).format(new Date(iso+"-01T00:00:00Z")).replace(/ г\.$/,""));
   return cityPeriods.get(iso);
@@ -52,6 +59,10 @@ function storePriceNote(store,row) {
 }
 function priceOrigin(row,store,own) {
   if(own) return storePriceNote(store,row);
+  if(row.city?.scope) {
+    const lang=Number(priceEnglish());
+    return row.city.labels[lang]+" · "+row.city.publishers[lang]+" · "+cityPeriod(row.city.period);
+  }
   if(row.city) return "Средняя по Москве · "+cityPublisher(row.city)+" · "+cityPeriod(row.city.period);
   if(row.shelf) return "Другой магазин · "+row.shelf.name+" · "+displayPriceDate(row.shelf.checkedOn);
   return "Оценка «Буду это» · нет данных о цене";
@@ -69,13 +80,13 @@ function estimatedRow({key,g,status,expired},store) {
   return `<li><div><b>${$(FOOD[key][0])}</b><small>${$(row.quantity)} · ${source}${note}</small>${rate}</div><strong>≈ ${rubles(row.cents/100)}</strong></li>`;
 }
 // Compare the additional checkout cost of a recipe, including the unused part of each pack.
-function marginalCheckout(store,pantry) {
+function marginalCheckout(store,pantry,location) {
   const lines=new Map();
   function line(key,grams) {
     const need=Math.max(0,neededGrams(grams)-(pantry[key]||0));
     if(!need) return 0;
     const cacheKey=key+"/"+need;
-    if(!lines.has(cacheKey)) lines.set(cacheKey,cataloguePurchase(key,need,store)?.cents ?? estimatedPurchase(key,need,store).cents);
+    if(!lines.has(cacheKey)) lines.set(cacheKey,cataloguePurchase(key,need,store)?.cents ?? estimatedPurchase(key,need,store,location).cents);
     return lines.get(cacheKey);
   }
   return (recipe,portions,counts)=>recipe.items.reduce((cost,[key,g])=>{
@@ -85,7 +96,8 @@ function marginalCheckout(store,pantry) {
 }
 function budgetScorer(s, {planning = false} = {}) {
   // Live prices arrive after the menu appears. They update checkout without silently replacing meals.
-  const stores = (s.stores || []).filter(store => supportedShop(store) && (!planning || storeShelf(store)));
+  const location=normalizePriceCity(s.priceCity), isMoscow=location.id==="moscow";
+  const stores = isMoscow ? (s.stores || []).filter(store => supportedShop(store) && (!planning || storeShelf(store))) : [];
   const sources = stores.length ? stores : [null], cache = new Map();
   return (counts, pantry = {}, bought = {}, purchases = {}) => {
     const keys=new Set([...Object.keys(counts),...Object.keys(bought)]);
@@ -93,8 +105,9 @@ function budgetScorer(s, {planning = false} = {}) {
     let best = null;
     for (const store of sources) {
       let pickedCents=0,known=0,benchmark=0,city=0;
+      const coverage={local:0,regional:0,national:0};
       for(const [key,g] of Object.entries(bought)){
-        pickedCents+=purchases[key]?.cents ?? (cataloguePurchase(key,g,store)||estimatedPurchase(key,g,store)).cents;
+        pickedCents+=purchases[key]?.cents ?? (cataloguePurchase(key,g,store)||estimatedPurchase(key,g,store,location)).cents;
       }
       let cents=Object.values(purchases).reduce((total,item)=>total+item.cents,0);
       for (const [key,g] of items) {
@@ -102,16 +115,17 @@ function budgetScorer(s, {planning = false} = {}) {
         let line = cache.get(token);
         if (!line) {
           const row = cataloguePurchase(key,g,store);
-          const price=row || estimatedPurchase(key,g,store);
-          line = {cents:price.cents,known:!!row,benchmark:!!price.shelf,city:!!price.city};
+          const price=row || estimatedPurchase(key,g,store,location);
+          line = {cents:price.cents,known:!!row,benchmark:!!price.shelf,city:!!price.city,scope:price.city?.scope};
           cache.set(token,line);
         }
         cents += line.cents;
         known += Number(line.known);
         benchmark += Number(line.benchmark);
-        city += Number(line.city);
+        city += Number(line.city && !line.scope);
+        if(line.scope) coverage[line.scope]++;
       }
-      const amount = {store,cents,known,benchmark,city,count:items.length,...(pickedCents && {pickedCents})};
+      const amount = {store,cents,known,benchmark,city,count:items.length,...(!isMoscow && {location,...coverage}),...(pickedCents && {pickedCents})};
       // An entirely unpriced store gives no basis for comparing it with a priced one.
       if (!best || (known > 0 && !best.known) || (Boolean(known) === Boolean(best.known) &&
         (cents < best.cents || (cents === best.cents && known > best.known)))) best = amount;
@@ -171,7 +185,7 @@ function budgetPlan(s,n,replacements,prior,phase,previous,desserts) {
   let amount=initialQuote.cents;
   for(const level of [1,4,12,16]){
     if(amount<=s.budget*100) break;
-    const checkout=level===16 ? marginalCheckout(initialQuote.store,pantry) : null;
+    const checkout=level===16 ? marginalCheckout(initialQuote.store,pantry,normalizePriceCity(s.priceCity)) : null;
     const next=make({},level,checkout);
     if(!next) continue;
     const value=score(next.counts,pantry).cents;
@@ -186,15 +200,66 @@ function budgetPlan(s,n,replacements,prior,phase,previous,desserts) {
 function useStockForPlanning(s,n,pantry) {
   s.planningPantry={...s.planningPantry,[n]:Object.fromEntries(Object.entries(pantry).filter(([,g])=>g>0))};
 }
-function budgetFields(count,value,scope) {
+function priceCityHint(city) {
+  const english=priceEnglish();
+  if(city.id==="moscow") return english ? "The estimate uses Moscow prices." : "Рассчитаем корзину по московским ценам.";
+  const {local,regional,national}=priceSources(city);
+  const snapshot=local || regional || national;
+  return snapshot.labels[Number(english)]+" · "+cityPeriod(snapshot.period);
+}
+function updateCitySuggestions(box,name) {
+  const list=box.querySelector("[data-city-results]");
+  const matches=citySuggestions(name);
+  list.hidden=!matches.length;
+  list.innerHTML=matches.map(match=>`<button type="button" data-action="choose-directory-city" data-value="${$(match.value)}"><strong>${$(match.name)}</strong><small>${$(match.regionName)}</small></button>`).join("");
+}
+function budgetFields(count,value,scope,city) {
   const amounts=[2500,3500,5000].map(n=>Math.round(n*count/100)*100);
-  return `<div class="budget-fields"><p class="quiet">На 7 дней · ${portions(count)} на каждый приём пищи. Выберите сумму или введите свою.</p><div class="chips">${amounts.map(n=>`<button class="chip" type="button" data-action="budget-preset" data-scope="${scope}" data-value="${n}" aria-pressed="${n===value}">${money(n)}</button>`).join("")}</div><label class="field">Лимит на неделю, ₽<input type="number" name="weekly-budget" required min="400" max="150000" step="1" inputmode="numeric" placeholder="Например, ${amounts[1]}" value="${Number.isFinite(value)?value:""}"></label><small class="quiet" data-budget-day aria-live="polite">${budgetDaily(value,count)}</small></div>`;
+  const english=priceEnglish(), other=city.id==="other";
+  const lang=Number(english), locale=english?"en":"ru";
+  const sortedCities=Object.keys(priceCities).filter(id=>priceCities[id][2])
+    .sort((a,b)=>priceCities[a][lang].localeCompare(priceCities[b][lang],locale));
+  const options=["russia","other",...sortedCities];
+  return `<div class="budget-fields"><p class="quiet">На 7 дней · ${portions(count)} на каждый приём пищи. Выберите сумму или введите свою.</p><div class="chips">${amounts.map(n=>`<button class="chip" type="button" data-action="budget-preset" data-scope="${scope}" data-value="${n}" aria-pressed="${n===value}">${money(n)}</button>`).join("")}</div><label class="field">Лимит на неделю, ₽<input type="number" name="weekly-budget" required min="400" max="150000" step="1" inputmode="numeric" placeholder="Например, ${amounts[1]}" value="${Number.isFinite(value)?value:""}"></label><small class="quiet" data-budget-day aria-live="polite">${budgetDaily(value,count)}</small>
+    <label class="field">${english?"Shopping city":"Город покупок"}<select name="price-city" aria-describedby="${scope}-price-city-source">${options.map(id=>{
+      const [ru,en,region]=priceCities[id], name=english?en:ru;
+      const overlap=(citiesByName.get(citySearchKey(ru))?.length || 0)>1;
+      const label=overlap ? name+" · "+russianCityDirectory[region][0] : name;
+      return `<option value="${id}" ${id===city.id?"selected":""}>${$(label)}</option>`;
+    }).join("")}</select></label>
+    <div data-custom-price-city ${other?"":"hidden"}>
+      <label class="field">${english?"City name":"Название города"}<input type="text" name="price-city-name" maxlength="80" autocomplete="off" value="${$(city.name||"")}" ${other?"":"disabled"}></label>
+      <div class="city-results" data-city-results hidden></div>
+    </div>
+    <small id="${scope}-price-city-source" class="quiet" data-price-city-source aria-live="polite">${priceCityHint(normalizePriceCity(city))}</small>
+  </div>`;
 }
 function budgetDaily(value,count) {
   return budgetRange(value) ? "Около "+money(value/7)+" в день на всех · "+money(value/(7*count))+" на полную порцию в день." : "Введите сумму от 400 до 150 000 ₽.";
 }
 function budgetSource(q) {
   if(!q.count) return q.pickedCents ? "Всё нужное уже дома или в корзине." : "Всё есть дома. Для этой недели покупать продукты не нужно.";
+  if(q.location) {
+    const english=priceEnglish(), lang=Number(english);
+    const parts=q.location.id==="russia" ? [] : [priceCityName(q.location)];
+    let remaining=q.count;
+    for(const [scope,source] of Object.entries(priceSources(q.location))) {
+      if(!source || !q[scope]) continue;
+      parts.push(source.labels[lang]+" ("+cityPeriod(source.period)+") · "+q[scope]+(english?" items":" поз."));
+      remaining-=q[scope];
+    }
+    if(remaining) parts.push((english?"Budu Eto estimates · ":"Оценка «Буду это» · ")+remaining+(english?" items":" поз."));
+    return parts.join(". ")+(english?". Includes full pack sizes, excludes delivery.":". С учётом фасовки, без доставки.");
+  }
+  if (priceEnglish()) {
+    const estimated = q.count - q.known - q.benchmark - (q.city || 0);
+    return [
+      q.store && `Selected store: ${q.known} of ${q.count} items`,
+      q.city && `Moscow averages: ${q.city} items`,
+      q.benchmark && `Other Moscow stores: ${q.benchmark} items`,
+      estimated && `Budu Eto estimates: ${estimated} items`,
+    ].filter(Boolean).join(" · ") + ". Includes full pack sizes, excludes delivery.";
+  }
   const parts=[];
   if(q.store) {
     const shelf=storeShelf(q.store);
@@ -209,8 +274,8 @@ function budgetSource(q) {
 
 }
 function budgetPanel(p, q=weeklyQuote(p)) {
-  const s=spendingProfile(), limited=hasBudget(s), edit=button(limited?"Изменить сумму":"Задать бюджет","budget-edit","soft");
-  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет этой недели · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Корзина примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${budgetSource(q)}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
+  const s=spendingProfile(), limited=hasBudget(s), edit=button(limited?(priceEnglish()?"Budget and city":"Бюджет и город"):"Задать бюджет","budget-edit","soft");
+  return `<section class="budget-box"><div class="budget-heading"><div><h2>${limited?"Бюджет этой недели · "+money(s.budget):"Планируемая закупка"}</h2><p><strong>Корзина примерно на <span data-purchase-total>${money(q.cents/100)}</span></strong><span data-budget-balance>${budgetBalance(s,q)}</span></p><small data-budget-source>${$(budgetSource(q))}</small></div><div class="budget-actions">${edit}</div></div><div class="budget-offer" data-budget-offer hidden></div></section>`;
 }
 function budgetBalance(s,q) {
   if(!hasBudget(s)) return "";
@@ -250,5 +315,5 @@ function refreshShoppingEstimate() {
 }
 
 function budgetDialog(info) {
-  return `<div class="sheet-body simple"><h2 id="sheet-title">Бюджет этой недели</h2><p>Покупки на ${rangeText()}. Блюда и порции сохранятся.</p><form id="budget-form">${budgetFields(servings(weekProfile()),info.value,"sheet")}<button class="btn primary" type="submit">Сохранить лимит</button></form></div>`;
+  return `<div class="sheet-body simple"><h2 id="sheet-title">Бюджет этой недели</h2><p>Покупки на ${rangeText()}. Блюда и порции сохранятся.</p><form id="budget-form">${budgetFields(servings(weekProfile()),info.value,"sheet",info.priceCity)}<button class="btn primary" type="submit">${priceEnglish()?"Save":"Сохранить"}</button></form></div>`;
 }

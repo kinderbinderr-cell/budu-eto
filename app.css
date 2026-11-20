@@ -970,6 +970,7 @@ button:active:not(:disabled) {
   font-size: 13px;
 }
 .field input,
+.budget-fields .field select,
 .field textarea {
   display: block;
   color: var(--ink);
@@ -1805,6 +1806,12 @@ button:active:not(:disabled) {
 .budget-box{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;margin:18px 0;border:1px solid var(--rule);border-radius:16px;background:var(--paper,#fff)}
 .budget-box h2,.budget-shop-title{margin:0 0 8px;font-size:20px}.budget-box p{margin:0 0 6px}.budget-box small,.budget-fields small{color:var(--muted,#565e50)}
 .budget-actions,.budget-fields{display:flex;gap:12px}.budget-actions{flex-wrap:wrap}.budget-fields{flex-direction:column;align-items:stretch;margin-bottom:18px}.budget-fields p{margin:0}.budget-fields .field{max-width:360px}.budget-fields .chips{flex-wrap:wrap}
+[data-flow-stores][hidden], [data-custom-price-city][hidden] { display: none; }
+.city-results { max-width: 360px; margin-top: 5px; border: 1px solid var(--rule); border-radius: 9px; background: var(--paper); }
+.city-results button { display: flex; width: 100%; min-height: 44px; flex-direction: column; justify-content: center; padding: 7px 12px; text-align: left; color: var(--ink); background: transparent; border: 0; border-radius: 8px; }
+.city-results button + button { border-top: 1px solid var(--rule); }
+.city-results button:hover, .city-results button:focus-visible { background: var(--soft); }
+.city-results button strong { font-size: 15px; font-weight: 650; }
 @media(max-width:670px){.budget-box{padding:16px;align-items:flex-start;flex-direction:column}.budget-shop-title{font-size:19px}}
 
 .telegram-mini {

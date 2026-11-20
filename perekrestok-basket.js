@@ -23,6 +23,7 @@ function clearPerekQuote() {
 function perekActive() {
   return (
     (route === "week" || route === "list") &&
+    moscowPrices(settings().priceCity) &&
     (settings().stores || []).includes("perekrestok")
   );
 }

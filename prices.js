@@ -275,7 +275,7 @@ function quoteInfo(store, items) {
 }
 function drawQuotes() {
   const host = document.getElementById("price-area");
-  if (!host) return;
+  if (!host || !moscowPrices(settings().priceCity)) return;
   refreshShoppingEstimate();
   const stores = (settings().stores || []).filter(supportedShop);
   if (!stores.length) {
@@ -356,7 +356,7 @@ async function quoteQueue(jobs, epoch) {
 function mountQuotes() {
   clearTimeout(priceTimer);
   void updatePerekQuote();
-  if (!document.getElementById("price-area")) return;
+  if (!moscowPrices(settings().priceCity) || !document.getElementById("price-area")) return;
   const stores = settings().stores || [],
     keys = requiredItems().map((x) => x.key),
     jobs = [];

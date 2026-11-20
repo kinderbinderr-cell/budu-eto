@@ -1,0 +1,40 @@
+name: Update regional grocery prices
+on:
+  schedule:
+    - cron: '12 7 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: moscow-shelves
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify date, geography and units
+        run: python3 .github/price-refresh/scripts/test-grocery-averages.py
+      - name: Check publication dates and update verified prices
+        run: |
+          base=.github/price-refresh/scripts
+          python3 "$base/refresh-grocery-averages.py" \
+            --areas "$base/grocery-areas.json" \
+            --categories city-prices.js \
+            --output data/daily-grocery-prices.js
+      - name: Publish changed observations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          snapshot=data/daily-grocery-prices.js
+          if git diff --quiet -- "$snapshot"; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$snapshot"
+          git commit -m "Update regional grocery price observations"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" >/dev/null

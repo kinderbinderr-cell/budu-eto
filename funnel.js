@@ -23,6 +23,7 @@ function firstFlow() {
     deck: null,
     minutes: null,
     budget: null,
+    priceCity: {id:"russia"},
     stores: [],
     cook: [0, 1, 2, 3, 4, 5, 6],
     target: null,
@@ -31,6 +32,7 @@ function firstFlow() {
 }
 function restoreFlow(saved) {
   const fresh = { ...firstFlow(), ...saved };
+  if (!saved.priceCity && saved.stores?.length) fresh.priceCity={id:"moscow"};
   if (saved.cuisines === undefined && (saved.deck || Object.keys(saved.votes || {}).length)) fresh.cuisines = [];
   if(!saved.orderVersion && fresh.stage>0 && fresh.stage<3) fresh.stage=fresh.minutes==null?1:2;
   if (!saved.votes && fresh.stage > 2) fresh.stage = 2;
@@ -204,10 +206,11 @@ function startChoiceRow(f) {
     <div class="chips">${["today","monday"].map(v=>choiceChip("flow-start-date",v,(v==="today"?"С сегодняшнего дня":"Со следующего понедельника")+" · "+period(flowStartDate({startChoice:v})),(f.startChoice||"today")===v)).join("")}</div></fieldset>`;
 }
 function storeQuestion() {
-  return startChoiceRow(flow) + budgetFields(flowPortions(flow),flow.budget,"flow") +
+  return startChoiceRow(flow) + budgetFields(flowPortions(flow),flow.budget,"flow",flow.priceCity) +
     sweetEntry(flowProfile(flow),"flow") +
-    '<h2 class="budget-shop-title">Где покупаете продукты?</h2>' + shopPicker(flow.stores, "flow-store") +
-    '<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p>';
+    `<div data-flow-stores ${moscowPrices(flow.priceCity)?"":"hidden"}><h2 class="budget-shop-title">Где покупаете продукты?</h2>` +
+    shopPicker(flow.stores, "flow-store") +
+    '<p class="flow-hint">Можно пропустить и выбрать магазины позже в списке продуктов.</p></div>';
 }
 function flowProgress(stage, className) {
   return `<div class="${className}" role="progressbar" aria-label="Шаги анкеты" aria-valuenow="${stage + 1}" aria-valuemin="1" aria-valuemax="${flowLabels.length}">${flowLabels.map((_, i) => `<i class="${i <= stage ? "on" : ""}"></i>`).join("")}</div>`;
@@ -268,6 +271,7 @@ function flowProfile(f) {
     maxMinutes: f.minutes || 0,
     cook: [...f.cook].sort((a, b) => a - b),
     stores: [...f.stores],
+    priceCity: normalizePriceCity(f.priceCity),
     budget: f.budget ?? 5000,
     budgetChosen: budgetRange(f.budget),
     fromQuiz: true,

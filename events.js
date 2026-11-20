@@ -242,7 +242,7 @@ document.addEventListener("click", (e) => {
       if(openInfo?.future)saveFutureGoals(null);break;
     case "portion-apply": confirmWeekPortions();break;
     case "budget-edit":
-      openSheet({kind:"budget-edit",value:hasBudget(spendingProfile())?spendingProfile().budget:null});break;
+      openSheet({kind:"budget-edit",value:hasBudget(spendingProfile())?spendingProfile().budget:null,priceCity:currentPriceCity()});break;
     case "budget-apply":
       applyBudgetOffer();break;
     case "budget-keep":
@@ -252,6 +252,13 @@ document.addEventListener("click", (e) => {
     case "budget-preset": {
       const field=btn.closest(".budget-fields").querySelector("input");
       field.value=value;field.dispatchEvent(new Event("input",{bubbles:true}));break;
+    }
+    case "choose-directory-city": {
+      const field=btn.closest("[data-custom-price-city]").querySelector("input");
+      field.value=value;
+      field.focus();
+      field.dispatchEvent(new Event("input",{bubbles:true}));
+      break;
     }
     case "restart-menu":
       openSheet({kind: "restart"});
@@ -615,9 +622,47 @@ sheet.addEventListener("submit",e=>{
   if(e.target.id!=="budget-form")return;
   e.preventDefault(); const n=Number(e.target.elements["weekly-budget"].value);
   if(!budgetRange(n))return;
-  protectMenus();weekData().budgetLimit=n;persist();dismissSheet();render();notify("Лимит этой недели сохранён");
+  const fields=e.target.elements;
+  const priceCity=normalizePriceCity({id:fields["price-city"].value,name:fields["price-city-name"].value});
+  protectMenus();
+  weekData().budgetLimit=n;
+  settings().priceCity=priceCity;
+  persist();dismissSheet();render();
+  notify(priceEnglish()?"Budget and city saved":"Бюджет и город сохранены");
+});
+document.addEventListener("change",e=>{
+  if(e.target.name!=="price-city") return;
+  const box=e.target.closest(".budget-fields");
+  const custom=box.querySelector("[data-custom-price-city]");
+  const name=custom.querySelector("input");
+  const id=e.target.value;
+  const city={id,...(id==="other" && {name:name.value})};
+  custom.hidden=id!=="other";
+  name.disabled=custom.hidden;
+  const selected=normalizePriceCity(city);
+  box.querySelector("[data-price-city-source]").textContent=priceCityHint(selected);
+  if(!custom.hidden) updateCitySuggestions(box,name.value);
+  const form=box.closest("#flow-form");
+  if(form){
+    form.querySelector("[data-flow-stores]").hidden=selected.id!=="moscow";
+    getFlow().priceCity=city;
+    rememberFlow();
+  }else if(openInfo?.kind==="budget-edit") openInfo.priceCity=city;
 });
 document.addEventListener("input",e=>{
+  if(e.target.name==="price-city-name"){
+    const city=normalizePriceCity({id:"other",name:e.target.value});
+    const box=e.target.closest(".budget-fields");
+    box.querySelector("[data-price-city-source]").textContent=priceCityHint(city);
+    updateCitySuggestions(box,e.target.value);
+    const form=box.closest("#flow-form");
+    if(form){
+      form.querySelector("[data-flow-stores]").hidden=city.id!=="moscow";
+      getFlow().priceCity.name=e.target.value;
+      rememberFlow();
+    }else if(openInfo?.kind==="budget-edit") openInfo.priceCity.name=e.target.value;
+    return;
+  }
   if(e.target.name!=="weekly-budget")return;
   const box=e.target.closest(".budget-fields"),n=e.target.value===""?null:Number(e.target.value);
   const isFlow=!!box.closest("#flow-form");
