@@ -110,7 +110,7 @@ function sweetEditor(info) {
     ${!days.length?`<small class="quiet">Пока дни не выбраны: ${n?sweetTimes(n).toLowerCase()+", автоматически":"без десертов"}.</small>`:""}`
     : `<div class="sweet-numbers" role="group" aria-label="Дней с десертом">${Array.from({length:8},(_,i)=>`<button type="button" data-action="sweet-count" data-value="${i}" aria-label="${i} из 7 дней" aria-pressed="${i===n}">${i}</button>`).join("")}</div>`;
   const cards=options.map(r=>`<button type="button" class="sweet-card" data-action="sweet-like" data-id="${r.id}" aria-pressed="${likes.includes(r.id)}">
-    <span class="sweet-image">${dishPhoto(r, "auto, min(241px, 44vw)", 'alt="" loading="lazy"')}<i>${icon("heart",17)}</i></span>
+    <span class="sweet-image">${dishPhoto(r, "min(241px, 44vw)")}<i>${icon("heart",17)}</i></span>
     <strong>${$(r.title)}</strong><small>${r.minutes} мин · ${Math.round(r.kcal*dessertPortion)} ккал</small></button>`).join("");
   return `<div class="sheet-body simple sweet-editor"><small class="sweet-kicker">${info.inFlow?"МЕНЮ НА НЕДЕЛЮ":rangeText()}</small><h2 id="sheet-title">Что на сладкое?</h2>
     <p class="quiet">Как распределить десерты по неделе?</p>
