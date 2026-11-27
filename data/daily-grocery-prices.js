@@ -1,5 +1,85 @@
 const dailyGroceryPrices = {
   "cities": {
+    "abakan": {
+      "names": [
+        "Абакан",
+        "Abakan"
+      ],
+      "period": "2026-11-16",
+      "publishers": [
+        "Росстат, публикация Rustata",
+        "Rosstat, via Rustata"
+      ],
+      "rates": {
+        "apple": 19600,
+        "banana": 17170,
+        "beet": 5515,
+        "buck": 9529,
+        "cabbage": 4245,
+        "carrot": 5678,
+        "cheese": 103810,
+        "cucumber": 18670,
+        "curd": 53730,
+        "egg": 11800,
+        "flour": 6605,
+        "frankfurters": 51870,
+        "kefir": 13370,
+        "milk": 12530,
+        "millet": 8815,
+        "onion": 7224,
+        "pasta": 12000,
+        "potato": 6595,
+        "rice": 13690,
+        "ryeBread": 14170,
+        "salt": 3633,
+        "sourCream": 43560,
+        "sugar": 9235,
+        "tomato": 35110,
+        "vermicelli": 11880
+      },
+      "region": "19",
+      "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=95401000000"
+    },
+    "barnaul": {
+      "names": [
+        "Барнаул",
+        "Barnaul"
+      ],
+      "period": "2026-11-16",
+      "publishers": [
+        "Росстат, публикация Rustata",
+        "Rosstat, via Rustata"
+      ],
+      "rates": {
+        "apple": 15140,
+        "banana": 16800,
+        "beet": 3352,
+        "buck": 7858,
+        "cabbage": 3305,
+        "carrot": 3440,
+        "cheese": 96520,
+        "cucumber": 10600,
+        "curd": 45180,
+        "egg": 8937,
+        "flour": 4811,
+        "frankfurters": 54150,
+        "kefir": 10880,
+        "milk": 9848,
+        "millet": 6419,
+        "onion": 3816,
+        "pasta": 12340,
+        "potato": 4231,
+        "rice": 12190,
+        "ryeBread": 13040,
+        "salt": 1951,
+        "sourCream": 28810,
+        "sugar": 7522,
+        "tomato": 20280,
+        "vermicelli": 11550
+      },
+      "region": "22",
+      "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=01401000000"
+    },
     "beloyarsky": {
       "names": [
         "Белоярский",
@@ -399,6 +479,46 @@ const dailyGroceryPrices = {
       },
       "region": "43",
       "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=33401000000"
+    },
+    "kirovo-chepetsk": {
+      "names": [
+        "Кирово-Чепецк",
+        "Kirovo-Chepetsk"
+      ],
+      "period": "2026-11-16",
+      "publishers": [
+        "Росстат, публикация Rustata",
+        "Rosstat, via Rustata"
+      ],
+      "rates": {
+        "apple": 13540,
+        "banana": 14830,
+        "beet": 4362,
+        "buck": 8253,
+        "cabbage": 3202,
+        "carrot": 4919,
+        "cheese": 93690,
+        "cucumber": 14120,
+        "curd": 37010,
+        "egg": 9704,
+        "flour": 5051,
+        "frankfurters": 51080,
+        "kefir": 9028,
+        "milk": 8324,
+        "millet": 6823,
+        "onion": 4899,
+        "pasta": 8410,
+        "potato": 4046,
+        "rice": 7431,
+        "ryeBread": 7773,
+        "salt": 1747,
+        "sourCream": 33240,
+        "sugar": 7560,
+        "tomato": 21040,
+        "vermicelli": 7860
+      },
+      "region": "43",
+      "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=33407000000"
     },
     "krasnodar": {
       "names": [
@@ -1199,6 +1319,46 @@ const dailyGroceryPrices = {
       },
       "region": "72",
       "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=71410000000"
+    },
+    "tomsk": {
+      "names": [
+        "Томск",
+        "Tomsk"
+      ],
+      "period": "2026-11-16",
+      "publishers": [
+        "Росстат, публикация Rustata",
+        "Rosstat, via Rustata"
+      ],
+      "rates": {
+        "apple": 17040,
+        "banana": 17130,
+        "beet": 4888,
+        "buck": 8458,
+        "cabbage": 4133,
+        "carrot": 5199,
+        "cheese": 76300,
+        "cucumber": 13460,
+        "curd": 43090,
+        "egg": 9640,
+        "flour": 5326,
+        "frankfurters": 43550,
+        "kefir": 11560,
+        "milk": 9849,
+        "millet": 6032,
+        "onion": 4341,
+        "pasta": 13690,
+        "potato": 5390,
+        "rice": 10770,
+        "ryeBread": 10610,
+        "salt": 2587,
+        "sourCream": 32120,
+        "sugar": 7961,
+        "tomato": 27110,
+        "vermicelli": 10510
+      },
+      "region": "70",
+      "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=69401000000"
     },
     "tyumen": {
       "names": [
@@ -2035,37 +2195,37 @@ const dailyGroceryPrices = {
         "Средние цены по Ростовской области",
         "Rostov Oblast average prices"
       ],
-      "period": "2026-10-26",
+      "period": "2026-11-16",
       "publishers": [
         "Росстат, публикация Rustata",
         "Rosstat, via Rustata"
       ],
       "rates": {
-        "apple": 10770,
-        "banana": 16230,
-        "beet": 4389,
-        "buck": 8371,
-        "cabbage": 4374,
-        "carrot": 4828,
-        "cheese": 91700,
-        "cucumber": 12300,
-        "curd": 46010,
-        "egg": 10390,
-        "flour": 5417,
-        "frankfurters": 55800,
-        "kefir": 10770,
-        "milk": 9544,
-        "millet": 5390,
-        "onion": 5232,
-        "pasta": 12250,
-        "potato": 5293,
-        "rice": 8322,
-        "ryeBread": 9889,
-        "salt": 2591,
-        "sourCream": 36270,
-        "sugar": 8204,
-        "tomato": 16360,
-        "vermicelli": 11640
+        "apple": 10540,
+        "banana": 17070,
+        "beet": 4559,
+        "buck": 8419,
+        "cabbage": 4401,
+        "carrot": 4835,
+        "cheese": 92330,
+        "cucumber": 16310,
+        "curd": 46000,
+        "egg": 10720,
+        "flour": 5372,
+        "frankfurters": 55730,
+        "kefir": 10790,
+        "milk": 9530,
+        "millet": 5355,
+        "onion": 5174,
+        "pasta": 12510,
+        "potato": 5301,
+        "rice": 8278,
+        "ryeBread": 9863,
+        "salt": 2531,
+        "sourCream": 36760,
+        "sugar": 8007,
+        "tomato": 18750,
+        "vermicelli": 11580
       },
       "source": "https://rustata.ru/indicator/fedstat/indicator_37426?geo=60000000000"
     },
